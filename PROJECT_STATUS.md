@@ -129,6 +129,8 @@ Frontend:
 OCR:
 - Chưa triển khai xử lý PaddleOCR/OpenCV thật.
 - Worker hiện đọc trực tiếp file `.txt` và `.md`.
+- PDF/image chưa OCR thật.
+- Office files như `.docx`, `.doc`, `.xlsx`, `.xls` chưa được trích xuất nội dung thật.
 - Các loại file khác dùng text OCR giả lập.
 
 Embedding:
@@ -158,12 +160,12 @@ Generated files:
 
 Chưa triển khai OCR thật.
 
-Task tiếp theo đã được chọn: bắt đầu OCR thật bằng PaddleOCR/OpenCV cho PDF/image trong worker.
+Task tiếp theo đã được chọn: bắt đầu OCR thật bằng PaddleOCR/OpenCV cho PDF/image và trích xuất text thật cho Office files trong worker.
 
 Lý do chọn OCR trước auth/route guard:
 - Workflow browser đã chạy được end-to-end.
 - Giá trị vận hành hiện bị giới hạn bởi OCR giả lập.
-- PDF/image scan là loại tài liệu thực tế cần xử lý trước khi đánh giá chất lượng search.
+- PDF/image scan và Office files là loại tài liệu thực tế cần xử lý trước khi đánh giá chất lượng search.
 
 Workflow MVP hiện có:
 
