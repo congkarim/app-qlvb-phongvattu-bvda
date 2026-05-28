@@ -1,14 +1,19 @@
+import logging
 import time
 from datetime import datetime, timezone
 from pathlib import Path
 
 from sqlalchemy.orm import Session
 
-from app.models.document import OCRJob
+from app.models.document import Document, OCRJob
 from app.repositories.document_repository import DocumentRepository, OCRJobRepository
 from app.services.chunking_service import ChunkingService
+from app.services.document_content_service import DocumentContentService, DocumentPageContent
 from app.services.embedding_service import EmbeddingService
 from app.services.qdrant_service import QdrantService
+
+
+logger = logging.getLogger(__name__)
 
 
 class OCRWorker:
@@ -16,6 +21,7 @@ class OCRWorker:
         self.db = db
         self.documents = DocumentRepository(db)
         self.ocr_jobs = OCRJobRepository(db)
+        self.document_content = DocumentContentService()
         self.chunking = ChunkingService()
         self.embeddings = EmbeddingService()
         self.qdrant = QdrantService()
@@ -35,30 +41,38 @@ class OCRWorker:
         self.db.add(job)
         self.db.commit()
 
+        document: Document | None = None
         try:
             document = self.documents.get_document(job.document_id)
             if not document:
                 raise ValueError(f"Document not found: {job.document_id}")
 
             self.documents.update_status(document, "ocr_running")
-            simulated_text = self._simulate_ocr_text(Path(document.file_path), document.original_filename)
-            page = self.documents.create_page(
-                document_id=document.id,
-                page_number=1,
-                text=simulated_text,
-                confidence=0.99,
+            page_contents = self.document_content.extract_pages(
+                Path(document.file_path),
+                document.original_filename,
             )
+            for page_content in page_contents:
+                self.documents.create_page(
+                    document_id=document.id,
+                    page_number=page_content.page_number,
+                    text=page_content.text,
+                    confidence=page_content.confidence,
+                )
 
             self.documents.update_status(document, "chunking")
-            chunks = self.chunking.create_chunks(simulated_text)
-            for chunk_index, chunk_payload in enumerate(chunks):
+            chunk_payloads = self._create_page_chunks(page_contents)
+            if not chunk_payloads:
+                raise ValueError("No chunks created because extracted document content was empty")
+
+            for chunk_index, chunk_payload in enumerate(chunk_payloads):
                 chunk = self.documents.create_chunk(
                     document_id=document.id,
                     chunk_index=chunk_index,
                     text=str(chunk_payload["text"]),
                     content_hash=str(chunk_payload["content_hash"]),
-                    page_from=page.page_number,
-                    page_to=page.page_number,
+                    page_from=int(chunk_payload["page_from"]),
+                    page_to=int(chunk_payload["page_to"]),
                     section_title=chunk_payload["section_title"],
                 )
                 point_id = chunk.id
@@ -87,26 +101,26 @@ class OCRWorker:
             self.db.commit()
         except Exception as exc:
             self.db.rollback()
+            if document:
+                self.documents.update_status(document, "failed")
             job.status = "failed"
             job.error_message = str(exc)
             self.db.add(job)
             self.db.commit()
-            raise
+            logger.exception("OCR job failed: job_id=%s document_id=%s", job.id, job.document_id)
 
-    def _simulate_ocr_text(self, file_path: Path, filename: str) -> str:
-        extracted = ""
-        if file_path.exists() and file_path.suffix.lower() in {".txt", ".md"}:
-            extracted = file_path.read_text(encoding="utf-8", errors="ignore")
-
-        if extracted.strip():
-            return extracted
-
-        return (
-            f"Văn bản OCR mô phỏng từ file {filename}. "
-            "Điều 1. Phạm vi áp dụng của tài liệu được ghi nhận để kiểm tra semantic search. "
-            "Khoản 1 quy định quy trình tiếp nhận, xử lý, lưu trữ và tra cứu văn bản trong hệ thống nội bộ. "
-            "Điều 2. Trách nhiệm thực hiện thuộc về các phòng ban liên quan theo metadata của hồ sơ."
-        )
+    def _create_page_chunks(self, page_contents: list[DocumentPageContent]) -> list[dict[str, str | int | None]]:
+        chunks: list[dict[str, str | int | None]] = []
+        for page_content in page_contents:
+            for chunk_payload in self.chunking.create_chunks(page_content.text):
+                chunks.append(
+                    {
+                        **chunk_payload,
+                        "page_from": page_content.page_number,
+                        "page_to": page_content.page_number,
+                    }
+                )
+        return chunks
 
 
 def run_forever(db_factory, poll_seconds: int = 5) -> None:

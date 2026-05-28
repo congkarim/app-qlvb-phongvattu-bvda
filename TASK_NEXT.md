@@ -1,8 +1,28 @@
-# Task Tiếp Theo: Triển Khai OCR Và Trích Xuất Nội Dung Tài Liệu
+# Task Đã Hoàn Thành: Triển Khai OCR Và Trích Xuất Nội Dung Tài Liệu
 
-Trạng thái: đã lên kế hoạch.
+Trạng thái: đã triển khai.
 
 Ngày tạo: 2026-05-28
+
+Ngày hoàn thành: 2026-05-28
+
+## Kết Quả
+
+Đã triển khai:
+- `DocumentContentService` tại `apps/api/app/services/document_content_service.py`.
+- OCR PDF/image bằng PaddleOCR/OpenCV.
+- Render PDF bằng `pypdfium2`.
+- Trích xuất `.txt`, `.md`, `.docx`, `.xlsx`, `.xls`.
+- `.doc` legacy fail rõ ràng, không sinh text mô phỏng.
+- Worker lưu page text/confidence, chunk theo page và upsert Qdrant như luồng cũ.
+- Worker đánh `document.status` và `ocr_job.status` là `failed` khi lỗi, đồng thời log lỗi mà không làm chết vòng lặp.
+- Docker image có đủ `paddlepaddle`, `paddleocr`, OpenCV, PDF renderer và Office parsers.
+
+Giới hạn còn lại:
+- `.doc` chưa có LibreOffice headless converter.
+- PaddleOCR model có thể tải ở lần OCR đầu tiên nếu container chưa có cache.
+- Embedding vẫn là fake deterministic embedding.
+- OCR layout/table extraction nâng cao chưa làm.
 
 ## Lý Do Chọn Task
 

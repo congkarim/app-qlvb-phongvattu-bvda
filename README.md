@@ -1,6 +1,6 @@
 # Legal Document AI
 
-MVP local/on-prem cho quản lý văn bản, OCR skeleton và semantic search skeleton.
+MVP local/on-prem cho quản lý văn bản, OCR tài liệu scan, trích xuất nội dung Office và semantic search skeleton.
 
 ## Stack
 
@@ -64,7 +64,7 @@ http://localhost:3000
 http://localhost:3000
 ```
 
-2. Vào `Upload`, chọn file `.txt`, bấm `Upload`.
+2. Vào `Upload`, chọn file `.txt`, `.pdf`, ảnh, `.docx` hoặc `.xlsx`, bấm `Upload`.
 
 3. Sau khi upload thành công, web mở trang chi tiết document:
 
@@ -137,6 +137,27 @@ curl -X POST "http://localhost:8000/api/v1/documents/upload?document_type=docume
   -F "file=@sample.txt"
 ```
 
+Các định dạng hiện hỗ trợ:
+- `.txt`, `.md`: đọc text trực tiếp.
+- `.docx`: trích xuất paragraph và table text.
+- `.xlsx`, `.xls`: trích xuất text theo sheet và row.
+- `.pdf`: render từng page rồi OCR bằng PaddleOCR.
+- `.png`, `.jpg`, `.jpeg`, `.tif`, `.tiff`, `.bmp`: OCR bằng PaddleOCR.
+- `.doc`: chưa hỗ trợ trong MVP; worker đánh `failed` và yêu cầu convert sang `.docx` hoặc `.pdf`.
+
+Upload Office/PDF/image:
+
+```bash
+curl -X POST "http://localhost:8000/api/v1/documents/upload?document_type=document" \
+  -F "file=@sample.docx"
+
+curl -X POST "http://localhost:8000/api/v1/documents/upload?document_type=document" \
+  -F "file=@sample.xlsx"
+
+curl -X POST "http://localhost:8000/api/v1/documents/upload?document_type=document" \
+  -F "file=@sample.pdf"
+```
+
 Xem worker xử lý:
 
 ```bash
@@ -161,7 +182,10 @@ curl -X POST http://localhost:8000/api/v1/search/semantic \
 
 ## Ghi Chú MVP
 
-- OCR hiện là skeleton: file `.txt`/`.md` đọc text trực tiếp, file khác tạo text mô phỏng.
+- OCR thật đã chạy cho PDF/image scan bằng PaddleOCR/OpenCV.
+- Office text extraction đã chạy cho `.docx`, `.xlsx`, `.xls`.
+- `.doc` legacy chưa hỗ trợ converter local trong MVP này.
 - Embedding hiện là fake deterministic embedding để test luồng Qdrant.
 - Workflow browser hiện hỗ trợ upload -> detail auto-refresh -> searchable -> dashboard search -> mở document nguồn.
+- PaddleOCR model được tải ở lần OCR đầu tiên nếu container chưa có cache model.
 - Chưa thêm cloud dependency, Kubernetes, CI/CD hoặc microservices.

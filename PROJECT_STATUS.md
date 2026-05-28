@@ -4,9 +4,9 @@ Cập nhật lần cuối: 2026-05-28
 
 ## Giai Đoạn Hiện Tại
 
-MVP skeleton end-to-end đã được triển khai, đã kiểm tra thủ công và workflow web cơ bản đã được hoàn thiện.
+MVP end-to-end đã được triển khai, đã kiểm tra thủ công và workflow web cơ bản đã được hoàn thiện.
 
-Dự án hiện đang ở trạng thái có thể chạy đồng thời backend, worker, database, Qdrant, Redis và frontend Nuxt bằng Docker Compose. Người dùng có thể thao tác workflow MVP từ browser: upload văn bản, mở chi tiết, theo dõi trạng thái OCR, search và mở lại document nguồn.
+Dự án hiện đang ở trạng thái có thể chạy đồng thời backend, worker, database, Qdrant, Redis và frontend Nuxt bằng Docker Compose. Người dùng có thể thao tác workflow MVP từ browser: upload văn bản, mở chi tiết, theo dõi trạng thái OCR/extract, search và mở lại document nguồn.
 
 ## Đã Xây Dựng
 
@@ -49,14 +49,18 @@ Backend skeleton:
   - `document_chunks`
   - `ocr_jobs`
 
-Worker skeleton:
+Worker:
 - Poll OCR job đang pending.
-- Giả lập OCR.
-- Lưu một OCR page.
+- Trích xuất text trực tiếp cho `.txt`, `.md`, `.docx`, `.xlsx`, `.xls`.
+- OCR thật cho PDF/image scan bằng PaddleOCR/OpenCV.
+- Render PDF thành image từng page bằng `pypdfium2`.
+- Preprocess ảnh bằng OpenCV trước OCR.
+- Lưu OCR/extracted text theo page logic.
 - Tạo document chunks.
 - Tạo fake deterministic embeddings.
 - Upsert vector vào Qdrant.
 - Chuyển document sang trạng thái `searchable`.
+- Đánh document/job `failed` với error rõ ràng cho định dạng lỗi hoặc unsupported như `.doc`.
 
 Frontend skeleton:
 - Nuxt 3 app.
@@ -99,6 +103,14 @@ curl -X POST "http://localhost:8000/api/v1/documents/upload?document_type=docume
   -F "file=@sample.txt"
 ```
 
+Test trích xuất/OCR đã chạy thành công cho:
+- `.txt`: đọc text trực tiếp, document chuyển `searchable`.
+- `.docx`: trích xuất paragraph/table text, document chuyển `searchable`.
+- `.xlsx`: trích xuất sheet/row text, document chuyển `searchable`.
+- `.png`: OCR thật bằng PaddleOCR, document chuyển `searchable`.
+- `.pdf`: render PDF ảnh rồi OCR thật bằng PaddleOCR, document chuyển `searchable`.
+- `.doc`: document/job chuyển `failed` với message yêu cầu convert sang `.docx` hoặc `.pdf`.
+
 Test semantic search:
 
 ```bash
@@ -127,11 +139,11 @@ Frontend:
 ## Giới Hạn Hiện Tại
 
 OCR:
-- Chưa triển khai xử lý PaddleOCR/OpenCV thật.
-- Worker hiện đọc trực tiếp file `.txt` và `.md`.
-- PDF/image chưa OCR thật.
-- Office files như `.docx`, `.doc`, `.xlsx`, `.xls` chưa được trích xuất nội dung thật.
-- Các loại file khác dùng text OCR giả lập.
+- Đã triển khai OCR thật cho PDF/image scan bằng PaddleOCR/OpenCV.
+- Worker đọc trực tiếp file `.txt` và `.md`.
+- Worker trích xuất text thật từ `.docx`, `.xlsx`, `.xls`.
+- `.doc` legacy chưa hỗ trợ LibreOffice converter, hiện fail rõ ràng.
+- PaddleOCR model có thể được tải ở lần OCR đầu tiên nếu container chưa có model cache.
 
 Embedding:
 - Embedding hiện là fake deterministic embedding.
@@ -158,14 +170,12 @@ Generated files:
 
 ## Quyết Định Hiện Tại
 
-Chưa triển khai OCR thật.
+OCR thật và trích xuất Office text mức MVP đã được triển khai.
 
-Task tiếp theo đã được chọn: bắt đầu OCR thật bằng PaddleOCR/OpenCV cho PDF/image và trích xuất text thật cho Office files trong worker.
+Task tiếp theo nên chọn một trong hai hướng:
 
-Lý do chọn OCR trước auth/route guard:
-- Workflow browser đã chạy được end-to-end.
-- Giá trị vận hành hiện bị giới hạn bởi OCR giả lập.
-- PDF/image scan và Office files là loại tài liệu thực tế cần xử lý trước khi đánh giá chất lượng search.
+1. Tích hợp local embedding model thật để score semantic search có ý nghĩa hơn.
+2. Bổ sung auth seed admin và route guard nếu cần kiểm soát truy cập trước.
 
 Workflow MVP hiện có:
 
@@ -173,4 +183,4 @@ Workflow MVP hiện có:
 web upload -> document detail -> OCR status refresh -> searchable -> dashboard search -> open source document
 ```
 
-Kế hoạch chi tiết nằm trong `TASK_NEXT.md`.
+Chi tiết task vừa hoàn thành nằm trong `TASK_NEXT.md`.
