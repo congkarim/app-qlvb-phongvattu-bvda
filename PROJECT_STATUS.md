@@ -158,10 +158,12 @@ Generated files:
 
 Chưa triển khai OCR thật.
 
-Bước tiếp theo sau workflow web là chọn một trong hai hướng:
+Task tiếp theo đã được chọn: bắt đầu OCR thật bằng PaddleOCR/OpenCV cho PDF/image trong worker.
 
-1. Bắt đầu OCR thật bằng PaddleOCR/OpenCV cho PDF/image.
-2. Hoặc bổ sung auth/seed user/route guard nếu cần kiểm soát truy cập trước.
+Lý do chọn OCR trước auth/route guard:
+- Workflow browser đã chạy được end-to-end.
+- Giá trị vận hành hiện bị giới hạn bởi OCR giả lập.
+- PDF/image scan là loại tài liệu thực tế cần xử lý trước khi đánh giá chất lượng search.
 
 Workflow MVP hiện có:
 
@@ -169,4 +171,4 @@ Workflow MVP hiện có:
 web upload -> document detail -> OCR status refresh -> searchable -> dashboard search -> open source document
 ```
 
-Chỉ nên làm OCR thật sau khi xác nhận workflow browser hiện tại đúng nhu cầu vận hành.
+Kế hoạch chi tiết nằm trong `TASK_NEXT.md`.
