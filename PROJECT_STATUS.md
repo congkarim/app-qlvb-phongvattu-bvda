@@ -1,12 +1,12 @@
 # Trạng Thái Dự Án
 
-Cập nhật lần cuối: 2026-05-28
+Cập nhật lần cuối: 2026-05-31
 
 ## Giai Đoạn Hiện Tại
 
 MVP end-to-end đã được triển khai, đã kiểm tra thủ công và workflow web cơ bản đã được hoàn thiện.
 
-Dự án hiện đang ở trạng thái có thể chạy đồng thời backend, worker, database, Qdrant, Redis và frontend Nuxt bằng Docker Compose. Người dùng có thể thao tác workflow MVP từ browser: upload văn bản, mở chi tiết, theo dõi trạng thái OCR/extract, search và mở lại document nguồn.
+Dự án hiện đang ở trạng thái có thể chạy đồng thời backend, worker, database, Qdrant, Redis và frontend Nuxt bằng Docker Compose. Người dùng có thể đăng nhập bằng admin local, thao tác workflow MVP từ browser: upload văn bản, mở chi tiết, theo dõi trạng thái OCR/extract, search và mở lại document nguồn.
 
 ## Đã Xây Dựng
 
@@ -76,6 +76,13 @@ Frontend skeleton:
 - Cấu trúc service/composable:
   - `page -> composable -> service -> API`
 
+Auth MVP:
+- API seed admin local khi khởi động nếu chưa tồn tại.
+- Admin mặc định cho Docker Compose: `admin@example.com` / `admin123`.
+- Frontend lưu access token bằng cookie.
+- API client frontend tự gắn `Authorization: Bearer <token>`.
+- Frontend có route guard cơ bản: chưa login thì chuyển về `/login`, đã login thì không quay lại `/login`.
+
 Workflow web đã hoàn thiện:
 - `/upload` hiển thị thông tin file đã chọn, loading/error state và tự mở document detail sau upload.
 - `/documents/[id]` hiển thị metadata, OCR job status, OCR text, chunks và tự polling tới khi document `searchable`.
@@ -125,6 +132,16 @@ Frontend routes đã kiểm tra:
 - `http://localhost:3000/documents` trả 200.
 - Browser workflow đã được chuẩn bị cho upload -> detail polling -> search.
 
+Auth kiểm tra ngày 2026-05-31:
+
+```bash
+curl -X POST http://localhost:8000/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@example.com","password":"admin123"}'
+```
+
+Kết quả: HTTP 200, response có `access_token` và `token_type= bearer`.
+
 ## Lỗi Đã Sửa
 
 Docker/runtime:
@@ -156,12 +173,13 @@ Search:
 
 Auth:
 - Đã có JWT login skeleton.
-- Chưa có seed admin user.
-- Frontend chưa enforce auth route.
+- Đã có seed admin local.
+- Frontend đã có route guard cơ bản.
+- API tài liệu/search hiện chưa enforce backend authorization dependency, mới kiểm soát truy cập ở frontend MVP.
 
 Frontend:
 - UI hiện đã đủ cho MVP workflow cơ bản.
-- Chưa có auth route guard.
+- Đã có auth route guard cơ bản.
 - Chưa có layout/form polish ở mức production.
 
 Generated files:
@@ -172,10 +190,7 @@ Generated files:
 
 OCR thật và trích xuất Office text mức MVP đã được triển khai.
 
-Task tiếp theo nên chọn một trong hai hướng:
-
-1. Tích hợp local embedding model thật để score semantic search có ý nghĩa hơn.
-2. Bổ sung auth seed admin và route guard nếu cần kiểm soát truy cập trước.
+Task tiếp theo nên ưu tiên tích hợp local embedding model thật để score semantic search có ý nghĩa hơn.
 
 Workflow MVP hiện có:
 

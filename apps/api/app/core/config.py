@@ -15,6 +15,9 @@ class Settings(BaseSettings):
     jwt_secret_key: str = "change-me-in-production"
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 60
+    admin_email: str = "admin@example.com"
+    admin_password: str = "admin123"
+    admin_full_name: str = "System Admin"
     embedding_dimensions: int = 384
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")

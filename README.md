@@ -50,6 +50,14 @@ API:
 curl http://localhost:8000/health
 ```
 
+Login admin local:
+
+```bash
+curl -X POST http://localhost:8000/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@example.com","password":"admin123"}'
+```
+
 Web:
 
 ```text
@@ -64,15 +72,22 @@ http://localhost:3000
 http://localhost:3000
 ```
 
-2. Vào `Upload`, chọn file `.txt`, `.pdf`, ảnh, `.docx` hoặc `.xlsx`, bấm `Upload`.
+2. Đăng nhập bằng admin local được seed khi API khởi động:
 
-3. Sau khi upload thành công, web mở trang chi tiết document:
+```text
+Email: admin@example.com
+Password: admin123
+```
+
+3. Vào `Upload`, chọn file `.txt`, `.pdf`, ảnh, `.docx` hoặc `.xlsx`, bấm `Upload`.
+
+4. Sau khi upload thành công, web mở trang chi tiết document:
 
 ```text
 /documents/{document_id}
 ```
 
-4. Ở trang detail, theo dõi:
+5. Ở trang detail, theo dõi:
 - Metadata văn bản.
 - OCR job status.
 - OCR text.
@@ -80,13 +95,13 @@ http://localhost:3000
 
 Trang detail tự refresh trạng thái cho tới khi document chuyển sang `searchable`.
 
-5. Vào `Dashboard`, search:
+6. Vào `Dashboard`, search:
 
 ```text
 quản lý vật tư
 ```
 
-6. Click kết quả search để mở lại document nguồn.
+7. Click kết quả search để mở lại document nguồn.
 
 ## Migrate DB
 
@@ -186,6 +201,8 @@ curl -X POST http://localhost:8000/api/v1/search/semantic \
 - Office text extraction đã chạy cho `.docx`, `.xlsx`, `.xls`.
 - `.doc` legacy chưa hỗ trợ converter local trong MVP này.
 - Embedding hiện là fake deterministic embedding để test luồng Qdrant.
+- API seed admin local mặc định `admin@example.com` / `admin123`.
+- Frontend có route guard cơ bản và lưu token bằng cookie.
 - Workflow browser hiện hỗ trợ upload -> detail auto-refresh -> searchable -> dashboard search -> mở document nguồn.
 - PaddleOCR model được tải ở lần OCR đầu tiên nếu container chưa có cache model.
 - Chưa thêm cloud dependency, Kubernetes, CI/CD hoặc microservices.

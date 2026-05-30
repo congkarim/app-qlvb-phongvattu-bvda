@@ -38,6 +38,9 @@ services:
       QDRANT_COLLECTION: document_chunks
       UPLOAD_DIR: /data/uploads
       JWT_SECRET_KEY: local-dev-secret
+      ADMIN_EMAIL: admin@example.com
+      ADMIN_PASSWORD: admin123
+      ADMIN_FULL_NAME: System Admin
     ports:
       - "8000:8000"
     command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
