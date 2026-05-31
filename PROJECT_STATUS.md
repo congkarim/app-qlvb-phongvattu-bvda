@@ -170,13 +170,17 @@ Chunking:
 
 Embedding:
 - Đã thêm backend local `sentence-transformers` có thể bật bằng env.
-- Mặc định Docker Compose vẫn dùng fake embedding để dev khởi động nhanh.
+- Mặc định Docker Compose có thể dùng fake embedding để dev khởi động nhanh, nhưng `.env` local hiện đã bật `sentence_transformers`.
 - Model khuyến nghị: `bkai-foundation-models/vietnamese-bi-encoder`, `EMBEDDING_DIMENSIONS=768`.
 - Đã thêm script reindex chunks hiện có sang Qdrant collection đang cấu hình.
+- Model BKAI đã được chuẩn bị local tại `models/embeddings/bkai-vietnamese-bi-encoder`.
 
 Search:
 - Qdrant search đã chạy được cho skeleton flow.
 - Score có ý nghĩa hơn khi bật local embedding thật và reindex sang collection version mới.
+- Đã reindex 1.584 chunks sang Qdrant collection `document_chunks_bkai_768_v1`, vector size `768`.
+- Benchmark 5 query tiếng Việt cho kết quả đúng ngữ cảnh hơn fake embedding, đặc biệt với `hiệu lực thi hành luật đấu thầu`, `trách nhiệm của chủ đầu tư`, `lựa chọn nhà thầu`.
+- Kết quả hiện còn duplicate vì cùng nội dung VBHN đã được upload nhiều lần ở PDF/DOCX.
 - Metadata filters hiện còn tối thiểu.
 
 Auth:
@@ -198,7 +202,7 @@ Generated files:
 
 OCR thật và trích xuất Office text mức MVP đã được triển khai.
 
-Task tiếp theo nên ưu tiên chuẩn bị model local trong `models/embeddings`, bật env `sentence_transformers`, reindex dữ liệu thật và benchmark truy vấn tiếng Việt.
+Task tiếp theo nên ưu tiên dedup/reranking kết quả search để giảm trùng lặp giữa các bản upload cùng nội dung.
 
 Workflow MVP hiện có:
 

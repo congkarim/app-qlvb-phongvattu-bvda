@@ -250,6 +250,8 @@ Lưu ý:
 - Không dùng lại Qdrant collection cũ khi đổi model hoặc đổi `EMBEDDING_DIMENSIONS`.
 - Mỗi model/dimension nên dùng collection version riêng, ví dụ `document_chunks_bkai_768_v1`.
 - Nếu model local chưa có và `ALLOW_FAKE_EMBEDDINGS=false`, API/worker sẽ báo lỗi rõ ràng thay vì âm thầm dùng vector giả.
+- Sau khi bật BKAI local và reindex, collection `document_chunks_bkai_768_v1` có vector size `768`.
+- Kết quả benchmark ban đầu tốt với các query như `hiệu lực thi hành luật đấu thầu`, `trách nhiệm của chủ đầu tư`, `lựa chọn nhà thầu`; dữ liệu upload trùng PDF/DOCX vẫn có thể làm kết quả bị duplicate.
 
 ## Ghi Chú MVP
 

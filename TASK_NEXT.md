@@ -1,79 +1,42 @@
-# Task Tiếp Theo: Bật Local Embedding Thật Và Benchmark Search
+# Task Đã Hoàn Thành: Bật Local Embedding Thật Và Benchmark Search
 
-Trạng thái: lên kế hoạch.
+Trạng thái: đã triển khai.
 
 Ngày tạo: 2026-05-31
 
-## Mục Tiêu
+Ngày hoàn thành: 2026-05-31
 
-Bật embedding model local/on-prem thật, reindex dữ liệu hiện có sang Qdrant collection version mới và benchmark semantic search tiếng Việt để xác nhận score có ý nghĩa hơn fake embedding.
+## Kết Quả
 
-## Ràng Buộc Không Đổi
+Đã triển khai:
+- Chuẩn bị model local `bkai-foundation-models/vietnamese-bi-encoder` tại `models/embeddings/bkai-vietnamese-bi-encoder`.
+- Tạo `.env` local để bật `EMBEDDING_BACKEND=sentence_transformers`.
+- Bật `QDRANT_COLLECTION=document_chunks_bkai_768_v1`.
+- Recreate `api` và `worker` bằng Docker Compose.
+- Smoke test embedding thật trong worker: backend `sentence_transformers`, vector `768`, norm `1.0`.
+- Reindex toàn bộ `1.584` chunks sang Qdrant collection `document_chunks_bkai_768_v1`.
+- Benchmark 5 truy vấn tiếng Việt qua API semantic search.
+- Cập nhật `README.md` và `PROJECT_STATUS.md`.
 
-- Không dùng cloud service hoặc API LLM bên ngoài.
-- Không đổi stack cố định: FastAPI, PostgreSQL, Redis, Qdrant, PaddleOCR, OpenCV, Nuxt 3, PrimeVue, TailwindCSS, Pinia.
-- Docker Compose first.
-- MVP first, không over-engineering.
-- Backend giữ kiến trúc `router -> service -> repository`.
-- Frontend giữ kiến trúc `page -> composable -> service -> API`.
-- Không commit model files hoặc runtime artifacts.
+## Kiểm Tra Đã Chạy
 
-## Phạm Vi Triển Khai
-
-### 1. Chuẩn Bị Model Local
-
-Model chính:
-
-```text
-bkai-foundation-models/vietnamese-bi-encoder
-```
-
-Thư mục local:
-
-```text
-models/embeddings/bkai-vietnamese-bi-encoder
-```
-
-Yêu cầu:
-- Model phải nằm local trước khi bật `EMBEDDING_BACKEND=sentence_transformers`.
-- Runtime không phụ thuộc tải model từ internet.
-- Thư mục `models/` không được commit.
-- Nếu model chưa sẵn sàng và `ALLOW_FAKE_EMBEDDINGS=false`, API/worker phải fail rõ ràng.
-
-### 2. Tạo Cấu Hình `.env` Local
-
-Nội dung dự kiến:
-
-```env
-EMBEDDING_BACKEND=sentence_transformers
-EMBEDDING_MODEL_NAME=bkai-foundation-models/vietnamese-bi-encoder
-EMBEDDING_MODEL_PATH=/models/embeddings/bkai-vietnamese-bi-encoder
-EMBEDDING_DEVICE=cpu
-EMBEDDING_DIMENSIONS=768
-EMBEDDING_BATCH_SIZE=16
-EMBEDDING_LOCAL_FILES_ONLY=true
-ALLOW_FAKE_EMBEDDINGS=false
-QDRANT_COLLECTION=document_chunks_bkai_768_v1
-```
-
-Ghi chú:
-- Không dùng lại collection fake/current khi đổi dimensions.
-- Mỗi model hoặc vector dimension phải dùng collection version riêng.
-
-### 3. Recreate Services Với Config Mới
+Kiểm tra cấu hình trong worker:
 
 ```bash
-docker compose up -d api worker
+docker compose exec -T worker python - <<'PY'
+from app.core.config import get_settings
+settings = get_settings()
+print(settings.embedding_backend, settings.embedding_dimensions, settings.qdrant_collection)
+PY
 ```
 
-Kiểm tra logs:
+Kết quả:
 
-```bash
-docker compose logs --tail=100 api
-docker compose logs --tail=100 worker
+```text
+sentence_transformers 768 document_chunks_bkai_768_v1
 ```
 
-### 4. Smoke Test Model Trong Worker
+Smoke test model:
 
 ```bash
 docker compose exec -T worker python - <<'PY'
@@ -84,86 +47,78 @@ print(service.backend, len(vector), round(sum(v*v for v in vector), 4))
 PY
 ```
 
-Kỳ vọng:
+Kết quả:
 
 ```text
 sentence_transformers 768 1.0
 ```
 
-### 5. Reindex Toàn Bộ Chunks
+Reindex:
 
 ```bash
 docker compose exec -T worker python -m app.scripts.reindex_embeddings --batch-size 16
 ```
 
-Kiểm tra sau reindex:
-- Qdrant có collection `document_chunks_bkai_768_v1`.
-- Vector size của collection là `768`.
-- Số point trong Qdrant tương ứng số chunks đã index.
-- Search API không còn dùng collection fake mặc định.
-
-### 6. Benchmark Search Tiếng Việt
-
-Bộ query tối thiểu:
+Kết quả:
 
 ```text
-phạm vi điều chỉnh đấu thầu
-hiệu lực thi hành luật đấu thầu
-trách nhiệm của chủ đầu tư
-lựa chọn nhà thầu
-cơ sở dữ liệu nhà thầu
+indexed: 1584 chunks
 ```
 
-Lệnh test:
+Qdrant:
 
 ```bash
-curl -X POST http://localhost:8000/api/v1/search/semantic \
-  -H "Content-Type: application/json" \
-  -d '{"query":"phạm vi điều chỉnh đấu thầu","limit":5}'
+curl http://localhost:6333/collections/document_chunks_bkai_768_v1
 ```
 
-Ghi nhận cho từng query:
-- Top 5 chunks có liên quan nghiệp vụ không.
-- Score có phân tách tốt hơn fake embedding không.
-- Có duplicate document/chunk quá nhiều không.
-- Có cần task sau để lọc trùng theo `document_id`, `content_hash` hoặc `section_title` không.
+Kết quả chính:
+- `points_count=1584`
+- `vectors.size=768`
+- `distance=Cosine`
 
-### 7. Cập Nhật Tài Liệu
-
-Cập nhật sau benchmark:
-- `PROJECT_STATUS.md`: trạng thái model local, reindex và kết quả benchmark.
-- `TASK_NEXT.md`: chuyển task này sang đã hoàn thành và ghi task kế tiếp.
-- `README.md`: chỉnh hướng dẫn nếu phát hiện bước setup cần rõ hơn.
-
-### 8. Commit
-
-Chạy kiểm tra:
+API health:
 
 ```bash
-git status --short
-git diff --check
-git diff --stat
+curl http://localhost:8000/health
 ```
 
-Commit dự kiến:
+Kết quả:
 
-```bash
-git add PROJECT_STATUS.md TASK_NEXT.md README.md
-git commit -m "chore: benchmark local Vietnamese embeddings"
+```json
+{"status":"ok"}
 ```
 
-## Tiêu Chí Hoàn Thành
+## Benchmark Search
 
-- Worker load model local thành công.
-- Query embedding trả vector 768 chiều và norm xấp xỉ `1.0`.
-- Reindex chạy xong không lỗi.
-- Search API trả kết quả từ collection `document_chunks_bkai_768_v1`.
-- Có benchmark tối thiểu 5 query tiếng Việt.
-- Không dùng cloud service, không đổi stack, không commit model files.
+Đã benchmark các query:
+- `phạm vi điều chỉnh đấu thầu`
+- `hiệu lực thi hành luật đấu thầu`
+- `trách nhiệm của chủ đầu tư`
+- `lựa chọn nhà thầu`
+- `cơ sở dữ liệu nhà thầu`
 
-## Rủi Ro Và Theo Dõi
+Ghi nhận:
+- Query `hiệu lực thi hành luật đấu thầu` trả đúng `Điều 95. Hiệu lực thi hành` ở top results, score khoảng `0.6735`.
+- Query `trách nhiệm của chủ đầu tư` trả đúng `Điều 78. Trách nhiệm của chủ đầu tư` ở top results.
+- Query `lựa chọn nhà thầu` trả đúng các điều liên quan đến ưu đãi/hình thức lựa chọn nhà thầu.
+- Query `phạm vi điều chỉnh đấu thầu` có trả `Điều 1. Phạm vi điều chỉnh` trong top 5, nhưng top 1 vẫn nghiêng về nội dung cấm trong hoạt động đấu thầu.
+- Query `cơ sở dữ liệu nhà thầu` trả kết quả liên quan nhưng chưa thật sắc nét, cần cải thiện bằng dedup/reranking hoặc hybrid keyword.
 
-- Máy local CPU có thể reindex chậm; giảm `EMBEDDING_BATCH_SIZE` nếu thiếu RAM.
-- Nếu Qdrant báo dimension mismatch, kiểm tra `QDRANT_COLLECTION` đã đổi sang collection version mới chưa.
-- Nếu kết quả search duplicate nhiều, task sau nên thêm dedup/reranking ở `SearchService`.
-- Nếu model BKAI quá nặng cho máy local, task sau benchmark model nhẹ hơn nhưng vẫn local/on-prem.
+## Giới Hạn Còn Lại
+
+- Dữ liệu hiện có nhiều bản upload trùng nội dung PDF/DOCX, nên top results bị duplicate.
+- Search hiện chỉ vector search, chưa có hybrid keyword/BM25.
+- Chưa có dedup theo `document_id`, `content_hash`, `section_title` hoặc normalized text.
+- Chưa có reranking kết quả theo keyword exact match cho truy vấn pháp lý.
+- API tài liệu/search hiện chưa enforce backend authorization dependency.
+
+## Task Tiếp Theo Đề Xuất
+
+Thêm dedup/reranking cho semantic search để giảm kết quả trùng và đẩy điều/khoản khớp truy vấn lên cao hơn.
+
+Phạm vi gợi ý:
+- Tăng số hits lấy từ Qdrant nội bộ, ví dụ `limit * 4`.
+- Dedup theo `content_hash` hoặc normalized text trong `SearchService`.
+- Ưu tiên kết quả có keyword exact match trong `section_title` hoặc `text`.
+- Giữ response API không đổi để frontend không cần sửa nhiều.
+- Benchmark lại cùng 5 query sau khi dedup/rerank.
