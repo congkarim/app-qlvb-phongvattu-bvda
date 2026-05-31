@@ -30,6 +30,7 @@ class DocumentPageContent:
 class DocumentContentService:
     TEXT_EXTENSIONS = {".txt", ".md"}
     IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp"}
+    MIN_NATIVE_PDF_TEXT_CHARS = 20
     _shared_ocr_engine: Any | None = None
 
     def extract_pages(self, file_path: Path, filename: str) -> list[DocumentPageContent]:
@@ -145,14 +146,37 @@ class DocumentContentService:
             for page_index in range(len(pdf)):
                 page = pdf[page_index]
                 try:
+                    page_number = page_index + 1
+                    native_text = self._extract_native_pdf_text(page)
+                    if len(native_text) >= self.MIN_NATIVE_PDF_TEXT_CHARS:
+                        pages.append(
+                            DocumentPageContent(page_number=page_number, text=native_text, confidence=1.0)
+                        )
+                        continue
+
                     bitmap = page.render(scale=2.0)
                     image = bitmap.to_pil()
-                    pages.append(self._ocr_pil_image(image, page_number=page_index + 1))
+                    pages.append(self._ocr_pil_image(image, page_number=page_number))
                 finally:
                     page.close()
         finally:
             pdf.close()
         return pages
+
+    def _extract_native_pdf_text(self, page: Any) -> str:
+        try:
+            text_page = page.get_textpage()
+            try:
+                char_count = text_page.count_chars()
+                if char_count <= 0:
+                    return ""
+                return self._clean_multiline_text(text_page.get_text_range(0, char_count))
+            finally:
+                close = getattr(text_page, "close", None)
+                if close:
+                    close()
+        except Exception:
+            return ""
 
     def _ocr_image_file(self, file_path: Path, page_number: int) -> DocumentPageContent:
         image = Image.open(file_path)
@@ -225,3 +249,10 @@ class DocumentContentService:
 
     def _clean_text(self, text: str) -> str:
         return " ".join(text.replace("\x00", " ").split())
+
+    def _clean_multiline_text(self, text: str) -> str:
+        lines = [
+            self._clean_text(line)
+            for line in text.replace("\r\n", "\n").replace("\r", "\n").split("\n")
+        ]
+        return "\n".join(line for line in lines if line)

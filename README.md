@@ -156,7 +156,7 @@ Các định dạng hiện hỗ trợ:
 - `.txt`, `.md`: đọc text trực tiếp.
 - `.docx`: trích xuất paragraph và table text.
 - `.xlsx`, `.xls`: trích xuất text theo sheet và row.
-- `.pdf`: render từng page rồi OCR bằng PaddleOCR.
+- `.pdf`: ưu tiên trích xuất text nhúng bằng `pypdfium2`; page không có text mới render ảnh rồi OCR bằng PaddleOCR.
 - `.png`, `.jpg`, `.jpeg`, `.tif`, `.tiff`, `.bmp`: OCR bằng PaddleOCR.
 - `.doc`: chưa hỗ trợ trong MVP; worker đánh `failed` và yêu cầu convert sang `.docx` hoặc `.pdf`.
 
@@ -197,7 +197,7 @@ curl -X POST http://localhost:8000/api/v1/search/semantic \
 
 ## Ghi Chú MVP
 
-- OCR thật đã chạy cho PDF/image scan bằng PaddleOCR/OpenCV.
+- PDF có text nhúng được đọc trực tiếp để giữ Unicode tiếng Việt; PDF/image scan vẫn OCR bằng PaddleOCR/OpenCV.
 - Office text extraction đã chạy cho `.docx`, `.xlsx`, `.xls`.
 - `.doc` legacy chưa hỗ trợ converter local trong MVP này.
 - Embedding hiện là fake deterministic embedding để test luồng Qdrant.

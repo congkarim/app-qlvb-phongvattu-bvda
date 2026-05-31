@@ -52,8 +52,9 @@ Backend skeleton:
 Worker:
 - Poll OCR job đang pending.
 - Trích xuất text trực tiếp cho `.txt`, `.md`, `.docx`, `.xlsx`, `.xls`.
-- OCR thật cho PDF/image scan bằng PaddleOCR/OpenCV.
-- Render PDF thành image từng page bằng `pypdfium2`.
+- PDF có text nhúng được trích xuất trực tiếp bằng `pypdfium2` để giữ Unicode tiếng Việt.
+- OCR thật cho PDF/image scan bằng PaddleOCR/OpenCV khi page không có text nhúng.
+- Render PDF scan thành image từng page bằng `pypdfium2`.
 - Preprocess ảnh bằng OpenCV trước OCR.
 - Lưu OCR/extracted text theo page logic.
 - Tạo document chunks.
@@ -115,7 +116,7 @@ Test trích xuất/OCR đã chạy thành công cho:
 - `.docx`: trích xuất paragraph/table text, document chuyển `searchable`.
 - `.xlsx`: trích xuất sheet/row text, document chuyển `searchable`.
 - `.png`: OCR thật bằng PaddleOCR, document chuyển `searchable`.
-- `.pdf`: render PDF ảnh rồi OCR thật bằng PaddleOCR, document chuyển `searchable`.
+- `.pdf`: trích xuất text nhúng trước, fallback OCR cho page scan, document chuyển `searchable`.
 - `.doc`: document/job chuyển `failed` với message yêu cầu convert sang `.docx` hoặc `.pdf`.
 
 Test semantic search:
@@ -157,6 +158,7 @@ Frontend:
 
 OCR:
 - Đã triển khai OCR thật cho PDF/image scan bằng PaddleOCR/OpenCV.
+- PDF có text nhúng được trích xuất trực tiếp bằng `pypdfium2` trước khi fallback OCR để giữ dấu tiếng Việt.
 - Worker đọc trực tiếp file `.txt` và `.md`.
 - Worker trích xuất text thật từ `.docx`, `.xlsx`, `.xls`.
 - `.doc` legacy chưa hỗ trợ LibreOffice converter, hiện fail rõ ràng.

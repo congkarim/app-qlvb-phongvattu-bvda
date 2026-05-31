@@ -1,4 +1,4 @@
-# Task Đã Hoàn Thành: Bổ Sung Admin Seed Và Route Guard MVP
+# Task Đã Hoàn Thành: Sửa Trích Xuất PDF Tiếng Việt
 
 Trạng thái: đã triển khai.
 
@@ -9,47 +9,34 @@ Ngày hoàn thành: 2026-05-31
 ## Kết Quả
 
 Đã triển khai:
-- API seed admin local khi FastAPI khởi động nếu tài khoản chưa tồn tại.
-- Cấu hình admin qua settings/env: `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_FULL_NAME`.
-- Admin mặc định Docker Compose: `admin@example.com` / `admin123`.
-- Chuyển password hashing sang `pbkdf2_sha256` của `passlib` để tránh lỗi tương thích binary `bcrypt`.
-- Frontend lưu token bằng cookie `auth_token`.
-- Frontend API client tự gắn `Authorization: Bearer <token>`.
-- Nuxt global route middleware bảo vệ các route MVP.
+- PDF có text nhúng được trích xuất trực tiếp bằng `pypdfium2` trước khi OCR.
+- Page PDF không có text hoặc quá ít text vẫn fallback sang render ảnh và PaddleOCR.
+- Text PDF native được clean theo dòng để giữ cấu trúc đọc tốt hơn trên màn chi tiết.
+- README và PROJECT_STATUS đã cập nhật workflow PDF mới.
 
 ## Kiểm Tra Đã Chạy
 
 ```bash
-docker compose config
+docker compose exec -T worker python -m py_compile /app/app/services/document_content_service.py
 ```
 
 ```bash
-python3 - <<'PY'
-import ast
+docker compose exec -T worker python - <<'PY'
 from pathlib import Path
-for path in Path('apps/api/app').rglob('*.py'):
-    ast.parse(path.read_text(encoding='utf-8'), filename=str(path))
-print('python syntax ok')
+from app.services.document_content_service import DocumentContentService
+path = Path('/data/uploads/3fb4e2b5-78ea-412e-8c7e-7feea777b831_Văn-bản-hợp-nhất-74-VBHN-VPQH.pdf')
+pages = DocumentContentService().extract_pages(path, path.name)
+print(len(pages), pages[0].confidence)
+print(pages[0].text[:120])
 PY
 ```
 
-```bash
-docker compose run --rm web npm run build
-```
-
-```bash
-curl -X POST http://localhost:8000/api/v1/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"email":"admin@example.com","password":"admin123"}'
-```
-
-Kết quả login: HTTP 200, response có `access_token` và `token_type= bearer`.
+Kết quả với file `Văn-bản-hợp-nhất-74-VBHN-VPQH.pdf`: đọc được 90 page, page đầu có `confidence=1.0` và giữ dấu tiếng Việt như `CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM`.
 
 ## Giới Hạn Còn Lại
 
-- Backend documents/search endpoints chưa enforce JWT dependency, route guard hiện mới ở frontend MVP.
-- Chưa có user management UI.
-- Chưa có refresh token hoặc logout button ở layout.
+- Các document PDF đã xử lý trước fix vẫn đang lưu text OCR cũ; cần upload lại hoặc thêm cơ chế reprocess để sinh lại page/chunk.
+- PaddleOCR tiếng Việt vẫn phụ thuộc model Latin khi gặp PDF scan/image scan nên chất lượng dấu có thể thấp hơn PDF text-native.
 - Embedding vẫn là fake deterministic embedding.
 
 ## Task Tiếp Theo Đề Xuất
