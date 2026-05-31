@@ -35,12 +35,20 @@ services:
       DATABASE_URL: postgresql+psycopg://legal:legal@postgres:5432/legal_doc_ai
       REDIS_URL: redis://redis:6379/0
       QDRANT_URL: http://qdrant:6333
-      QDRANT_COLLECTION: document_chunks
+      QDRANT_COLLECTION: ${QDRANT_COLLECTION:-document_chunks}
       UPLOAD_DIR: /data/uploads
       JWT_SECRET_KEY: local-dev-secret
       ADMIN_EMAIL: admin@example.com
       ADMIN_PASSWORD: admin123
       ADMIN_FULL_NAME: System Admin
+      EMBEDDING_BACKEND: ${EMBEDDING_BACKEND:-fake}
+      EMBEDDING_MODEL_NAME: ${EMBEDDING_MODEL_NAME:-bkai-foundation-models/vietnamese-bi-encoder}
+      EMBEDDING_MODEL_PATH: ${EMBEDDING_MODEL_PATH:-/models/embeddings/bkai-vietnamese-bi-encoder}
+      EMBEDDING_DEVICE: ${EMBEDDING_DEVICE:-cpu}
+      EMBEDDING_DIMENSIONS: ${EMBEDDING_DIMENSIONS:-384}
+      EMBEDDING_BATCH_SIZE: ${EMBEDDING_BATCH_SIZE:-16}
+      EMBEDDING_LOCAL_FILES_ONLY: ${EMBEDDING_LOCAL_FILES_ONLY:-true}
+      ALLOW_FAKE_EMBEDDINGS: ${ALLOW_FAKE_EMBEDDINGS:-true}
     ports:
       - "8000:8000"
     command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
@@ -51,6 +59,7 @@ services:
       retries: 20
     volumes:
       - ./apps/api:/app
+      - ./models:/models
       - uploads_data:/data/uploads
     depends_on:
       postgres:
@@ -68,12 +77,21 @@ services:
       DATABASE_URL: postgresql+psycopg://legal:legal@postgres:5432/legal_doc_ai
       REDIS_URL: redis://redis:6379/0
       QDRANT_URL: http://qdrant:6333
-      QDRANT_COLLECTION: document_chunks
+      QDRANT_COLLECTION: ${QDRANT_COLLECTION:-document_chunks}
       UPLOAD_DIR: /data/uploads
       JWT_SECRET_KEY: local-dev-secret
+      EMBEDDING_BACKEND: ${EMBEDDING_BACKEND:-fake}
+      EMBEDDING_MODEL_NAME: ${EMBEDDING_MODEL_NAME:-bkai-foundation-models/vietnamese-bi-encoder}
+      EMBEDDING_MODEL_PATH: ${EMBEDDING_MODEL_PATH:-/models/embeddings/bkai-vietnamese-bi-encoder}
+      EMBEDDING_DEVICE: ${EMBEDDING_DEVICE:-cpu}
+      EMBEDDING_DIMENSIONS: ${EMBEDDING_DIMENSIONS:-384}
+      EMBEDDING_BATCH_SIZE: ${EMBEDDING_BATCH_SIZE:-16}
+      EMBEDDING_LOCAL_FILES_ONLY: ${EMBEDDING_LOCAL_FILES_ONLY:-true}
+      ALLOW_FAKE_EMBEDDINGS: ${ALLOW_FAKE_EMBEDDINGS:-true}
     volumes:
       - ./apps/api:/app
       - ./apps/worker/runner.py:/app/worker_runner.py
+      - ./models:/models
       - uploads_data:/data/uploads
     command: python worker_runner.py
     depends_on:

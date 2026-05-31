@@ -195,12 +195,68 @@ curl -X POST http://localhost:8000/api/v1/search/semantic \
   -d '{"query":"quản lý vật tư","limit":5}'
 ```
 
+## Local Embedding Model
+
+Mặc định Docker Compose vẫn dùng fake embedding để môi trường dev khởi động được ngay. Khi chạy semantic search thật, chuẩn bị model local trước rồi bật backend `sentence_transformers`.
+
+Model khuyến nghị cho MVP tiếng Việt:
+
+```text
+bkai-foundation-models/vietnamese-bi-encoder
+```
+
+Đặt model đã tải sẵn vào:
+
+```text
+models/embeddings/bkai-vietnamese-bi-encoder
+```
+
+Ví dụ file `.env` để bật embedding thật:
+
+```env
+EMBEDDING_BACKEND=sentence_transformers
+EMBEDDING_MODEL_NAME=bkai-foundation-models/vietnamese-bi-encoder
+EMBEDDING_MODEL_PATH=/models/embeddings/bkai-vietnamese-bi-encoder
+EMBEDDING_DEVICE=cpu
+EMBEDDING_DIMENSIONS=768
+EMBEDDING_BATCH_SIZE=16
+EMBEDDING_LOCAL_FILES_ONLY=true
+ALLOW_FAKE_EMBEDDINGS=false
+QDRANT_COLLECTION=document_chunks_bkai_768_v1
+```
+
+Build lại image sau khi đổi dependencies:
+
+```bash
+docker compose build api worker
+docker compose up -d postgres redis qdrant api worker
+```
+
+Reindex chunks hiện có sang collection đang cấu hình:
+
+```bash
+docker compose exec -T worker python -m app.scripts.reindex_embeddings --batch-size 16
+```
+
+Kiểm tra search:
+
+```bash
+curl -X POST http://localhost:8000/api/v1/search/semantic \
+  -H "Content-Type: application/json" \
+  -d '{"query":"phạm vi điều chỉnh đấu thầu","limit":5}'
+```
+
+Lưu ý:
+- Không dùng lại Qdrant collection cũ khi đổi model hoặc đổi `EMBEDDING_DIMENSIONS`.
+- Mỗi model/dimension nên dùng collection version riêng, ví dụ `document_chunks_bkai_768_v1`.
+- Nếu model local chưa có và `ALLOW_FAKE_EMBEDDINGS=false`, API/worker sẽ báo lỗi rõ ràng thay vì âm thầm dùng vector giả.
+
 ## Ghi Chú MVP
 
 - PDF có text nhúng được đọc trực tiếp để giữ Unicode tiếng Việt; PDF/image scan vẫn OCR bằng PaddleOCR/OpenCV.
 - Office text extraction đã chạy cho `.docx`, `.xlsx`, `.xls`.
 - `.doc` legacy chưa hỗ trợ converter local trong MVP này.
-- Embedding hiện là fake deterministic embedding để test luồng Qdrant.
+- Embedding hỗ trợ fake deterministic cho dev và local `sentence-transformers` cho semantic search thật.
 - API seed admin local mặc định `admin@example.com` / `admin123`.
 - Frontend có route guard cơ bản và lưu token bằng cookie.
 - Workflow browser hiện hỗ trợ upload -> detail auto-refresh -> searchable -> dashboard search -> mở document nguồn.

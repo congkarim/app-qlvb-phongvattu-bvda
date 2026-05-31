@@ -18,7 +18,14 @@ class Settings(BaseSettings):
     admin_email: str = "admin@example.com"
     admin_password: str = "admin123"
     admin_full_name: str = "System Admin"
+    embedding_backend: str = "fake"
+    embedding_model_name: str = "bkai-foundation-models/vietnamese-bi-encoder"
+    embedding_model_path: Path | None = None
+    embedding_device: str = "cpu"
     embedding_dimensions: int = 384
+    embedding_batch_size: int = 16
+    embedding_local_files_only: bool = True
+    allow_fake_embeddings: bool = True
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 

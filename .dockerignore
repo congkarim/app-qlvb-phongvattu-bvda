@@ -1,0 +1,10 @@
+.git
+.env
+models/
+uploads/
+**/__pycache__/
+**/*.pyc
+apps/web/node_modules/
+apps/web/.nuxt/
+apps/web/.output/
+apps/web/dist/

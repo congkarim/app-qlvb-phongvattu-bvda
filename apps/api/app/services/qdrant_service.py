@@ -4,6 +4,10 @@ from qdrant_client.http.models import Distance, FieldCondition, Filter, MatchVal
 from app.core.config import get_settings
 
 
+class QdrantCollectionConfigError(RuntimeError):
+    pass
+
+
 class QdrantService:
     def __init__(self) -> None:
         self.settings = get_settings()
@@ -12,6 +16,7 @@ class QdrantService:
     def ensure_collection(self) -> None:
         collections = self.client.get_collections().collections
         if any(collection.name == self.settings.qdrant_collection for collection in collections):
+            self._validate_collection_dimensions()
             return
         self.client.create_collection(
             collection_name=self.settings.qdrant_collection,
@@ -39,3 +44,20 @@ class QdrantService:
             query_filter=query_filter,
             limit=limit,
         )
+
+    def _validate_collection_dimensions(self) -> None:
+        collection = self.client.get_collection(self.settings.qdrant_collection)
+        vectors_config = collection.config.params.vectors
+        actual_size = getattr(vectors_config, "size", None)
+        if isinstance(vectors_config, dict):
+            actual_size = next(
+                (getattr(vector_config, "size", None) for vector_config in vectors_config.values()),
+                None,
+            )
+        if actual_size != self.settings.embedding_dimensions:
+            raise QdrantCollectionConfigError(
+                "Qdrant collection vector size mismatch: "
+                f"collection={self.settings.qdrant_collection}, "
+                f"actual={actual_size}, expected={self.settings.embedding_dimensions}. "
+                "Use a versioned QDRANT_COLLECTION for each embedding model/dimension."
+            )

@@ -91,8 +91,7 @@ class OCRWorker:
                         "page_to": chunk.page_to,
                     },
                 )
-                chunk.qdrant_point_id = point_id
-                self.db.add(chunk)
+                self.documents.update_chunk_qdrant_point_id(chunk, point_id)
 
             self.documents.update_status(document, "searchable")
             job.status = "completed"

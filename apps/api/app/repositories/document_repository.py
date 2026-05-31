@@ -94,6 +94,27 @@ class DocumentRepository:
         self.db.flush()
         return chunk
 
+    def list_chunks_for_indexing(self, *, limit: int = 100, offset: int = 0) -> list[DocumentChunk]:
+        stmt = (
+            select(DocumentChunk)
+            .join(Document)
+            .where(
+                DocumentChunk.deleted_at.is_(None),
+                Document.deleted_at.is_(None),
+            )
+            .options(selectinload(DocumentChunk.document))
+            .order_by(DocumentChunk.created_at.asc(), DocumentChunk.chunk_index.asc())
+            .limit(limit)
+            .offset(offset)
+        )
+        return list(self.db.scalars(stmt))
+
+    def update_chunk_qdrant_point_id(self, chunk: DocumentChunk, point_id: str) -> DocumentChunk:
+        chunk.qdrant_point_id = point_id
+        self.db.add(chunk)
+        self.db.flush()
+        return chunk
+
 
 class OCRJobRepository:
     def __init__(self, db: Session):

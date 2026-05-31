@@ -58,7 +58,7 @@ Worker:
 - Preprocess ảnh bằng OpenCV trước OCR.
 - Lưu OCR/extracted text theo page logic.
 - Tạo document chunks, giới hạn `section_title` ngắn hơn schema PostgreSQL để tránh lỗi insert.
-- Tạo fake deterministic embeddings.
+- Tạo embedding qua backend cấu hình được: fake deterministic cho dev hoặc local `sentence-transformers`.
 - Upsert vector vào Qdrant.
 - Chuyển document sang trạng thái `searchable`.
 - Đánh document/job `failed` với error rõ ràng cho định dạng lỗi hoặc unsupported như `.doc`.
@@ -169,12 +169,14 @@ Chunking:
 - Các document VBHN lỗi cũ đã reprocess lại, trạng thái `searchable/completed`.
 
 Embedding:
-- Embedding hiện là fake deterministic embedding.
-- Chưa tích hợp local embedding model thật.
+- Đã thêm backend local `sentence-transformers` có thể bật bằng env.
+- Mặc định Docker Compose vẫn dùng fake embedding để dev khởi động nhanh.
+- Model khuyến nghị: `bkai-foundation-models/vietnamese-bi-encoder`, `EMBEDDING_DIMENSIONS=768`.
+- Đã thêm script reindex chunks hiện có sang Qdrant collection đang cấu hình.
 
 Search:
 - Qdrant search đã chạy được cho skeleton flow.
-- Điểm score chưa có ý nghĩa thực tế vì embedding còn giả.
+- Score có ý nghĩa hơn khi bật local embedding thật và reindex sang collection version mới.
 - Metadata filters hiện còn tối thiểu.
 
 Auth:
@@ -196,7 +198,7 @@ Generated files:
 
 OCR thật và trích xuất Office text mức MVP đã được triển khai.
 
-Task tiếp theo nên ưu tiên tích hợp local embedding model thật để score semantic search có ý nghĩa hơn.
+Task tiếp theo nên ưu tiên chuẩn bị model local trong `models/embeddings`, bật env `sentence_transformers`, reindex dữ liệu thật và benchmark truy vấn tiếng Việt.
 
 Workflow MVP hiện có:
 
