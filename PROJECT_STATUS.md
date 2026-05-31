@@ -57,7 +57,7 @@ Worker:
 - Render PDF scan thành image từng page bằng `pypdfium2`.
 - Preprocess ảnh bằng OpenCV trước OCR.
 - Lưu OCR/extracted text theo page logic.
-- Tạo document chunks.
+- Tạo document chunks, giới hạn `section_title` ngắn hơn schema PostgreSQL để tránh lỗi insert.
 - Tạo fake deterministic embeddings.
 - Upsert vector vào Qdrant.
 - Chuyển document sang trạng thái `searchable`.
@@ -163,6 +163,10 @@ OCR:
 - Worker trích xuất text thật từ `.docx`, `.xlsx`, `.xls`.
 - `.doc` legacy chưa hỗ trợ LibreOffice converter, hiện fail rõ ràng.
 - PaddleOCR model có thể được tải ở lần OCR đầu tiên nếu container chưa có model cache.
+
+Chunking:
+- Đã sửa lỗi `section_title` quá dài làm PostgreSQL báo `value too long for type character varying(512)`.
+- Các document VBHN lỗi cũ đã reprocess lại, trạng thái `searchable/completed`.
 
 Embedding:
 - Embedding hiện là fake deterministic embedding.

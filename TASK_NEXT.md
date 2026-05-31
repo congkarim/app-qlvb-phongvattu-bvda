@@ -1,4 +1,4 @@
-# Task Đã Hoàn Thành: Sửa Trích Xuất PDF Tiếng Việt
+# Task Đã Hoàn Thành: Sửa Lỗi Section Title Quá Dài Khi Chunking
 
 Trạng thái: đã triển khai.
 
@@ -9,33 +9,30 @@ Ngày hoàn thành: 2026-05-31
 ## Kết Quả
 
 Đã triển khai:
-- PDF có text nhúng được trích xuất trực tiếp bằng `pypdfium2` trước khi OCR.
-- Page PDF không có text hoặc quá ít text vẫn fallback sang render ảnh và PaddleOCR.
-- Text PDF native được clean theo dòng để giữ cấu trúc đọc tốt hơn trên màn chi tiết.
-- README và PROJECT_STATUS đã cập nhật workflow PDF mới.
+- Sửa regex tách `Điều N` trong `ChunkingService` để không lấy cả đoạn dài làm `section_title`.
+- Giới hạn `section_title` sinh ra dưới giới hạn `varchar(512)` của PostgreSQL.
+- Reprocess các job VBHN từng failed vì `value too long for type character varying(512)`.
+- PROJECT_STATUS đã cập nhật trạng thái fix.
 
 ## Kiểm Tra Đã Chạy
 
 ```bash
-docker compose exec -T worker python -m py_compile /app/app/services/document_content_service.py
+docker compose exec -T worker python -m py_compile /app/app/services/chunking_service.py
 ```
 
 ```bash
 docker compose exec -T worker python - <<'PY'
-from pathlib import Path
-from app.services.document_content_service import DocumentContentService
-path = Path('/data/uploads/3fb4e2b5-78ea-412e-8c7e-7feea777b831_Văn-bản-hợp-nhất-74-VBHN-VPQH.pdf')
-pages = DocumentContentService().extract_pages(path, path.name)
-print(len(pages), pages[0].confidence)
-print(pages[0].text[:120])
+from app.services.chunking_service import ChunkingService
+text = 'Điều 3 của Luật này để: 2 thuế nhập khẩu, Luật Đầu tư, Luật Đầu tư công, Luật Quản lý, sử dụng tài sản công ' * 30
+chunks = ChunkingService().create_chunks(text)
+print(max(len(chunk['section_title'] or '') for chunk in chunks))
 PY
 ```
 
-Kết quả với file `Văn-bản-hợp-nhất-74-VBHN-VPQH.pdf`: đọc được 90 page, page đầu có `confidence=1.0` và giữ dấu tiếng Việt như `CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM`.
+Kết quả DB: các document `Văn-bản-hợp-nhất-74-VBHN-VPQH` lỗi cũ đã chuyển `searchable/completed`; không còn job có error `value too long for type character varying(512)`.
 
 ## Giới Hạn Còn Lại
 
-- Các document PDF đã xử lý trước fix vẫn đang lưu text OCR cũ; cần upload lại hoặc thêm cơ chế reprocess để sinh lại page/chunk.
 - PaddleOCR tiếng Việt vẫn phụ thuộc model Latin khi gặp PDF scan/image scan nên chất lượng dấu có thể thấp hơn PDF text-native.
 - Embedding vẫn là fake deterministic embedding.
 
