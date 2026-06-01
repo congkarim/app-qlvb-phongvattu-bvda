@@ -54,7 +54,8 @@ Worker:
 - Trích xuất text trực tiếp cho `.txt`, `.md`, `.docx`, `.xlsx`, `.xls`.
 - PDF có text nhúng được trích xuất trực tiếp bằng `pypdfium2` để giữ Unicode tiếng Việt.
 - OCR thật cho PDF/image scan bằng PaddleOCR/OpenCV khi page không có text nhúng.
-- OCR scan tiếng Việt đã nâng lên PaddleOCR 3.3.0, PaddlePaddle 3.2.0 CPU, PP-OCRv5 và hậu xử lý cụm pháp lý tiếng Việt.
+- OCR scan tiếng Việt mặc định chạy `OCR_ENGINE=paddle_vietocr`: PaddleOCR detect text box, VietOCR recognize crop tiếng Việt.
+- PaddleOCR baseline vẫn giữ được bằng `OCR_ENGINE=paddleocr`.
 - Render PDF scan thành image từng page bằng `pypdfium2`.
 - Preprocess ảnh bằng OpenCV trước OCR, hỗ trợ `OCR_PREPROCESS_MODE=auto/raw/clahe/threshold`.
 - Lưu OCR/extracted text theo page logic.
@@ -150,18 +151,26 @@ OCR tiếng Việt kiểm tra ngày 2026-06-01:
 docker compose config
 docker compose build api worker
 docker compose up -d api worker
-docker compose exec -T worker python -m py_compile /app/app/services/document_content_service.py /app/app/core/config.py
+docker compose exec -T worker sh -lc 'python -m py_compile /app/app/core/config.py /app/app/services/document_content_service.py /app/app/services/ocr/*.py /app/app/scripts/benchmark_ocr_vi.py'
 curl -fsS http://localhost:8000/health
 ```
 
-Kết quả ảnh scan mẫu tiếng Việt trong worker:
+Kết quả `OCR_ENGINE=paddle_vietocr` trên fixture `tests/fixtures/ocr_vi/sample_001.png`:
 
 ```text
-confidence=0.9671
+confidence=0.9259
 CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM
 Độc lập - Tự do - Hạnh phúc
 Điều 1. Phạm vi điều chỉnh đấu thầu
 Khoản 1. Văn bản scan phải giữ dấu tiếng Việt.
+Số 74/VBHN-VPQH ngày 15 tháng 5 năm 2025.
+```
+
+Benchmark fixture:
+
+```text
+paddleocr: CER 0.0053, WER 0.0238, accent loss 0.0294, 34.944s
+paddle_vietocr: CER 0.0, WER 0.0, accent loss 0.0, 49.487s
 ```
 
 ## Lỗi Đã Sửa
@@ -179,15 +188,18 @@ Frontend:
 
 OCR:
 - Đã triển khai OCR thật cho PDF/image scan bằng PaddleOCR/OpenCV.
-- Đã nâng OCR scan lên PaddleOCR 3.3.0/PP-OCRv5; `lang=vi` vẫn dùng recognizer Latin `latin_PP-OCRv5_mobile_rec`, nên hệ thống có lớp restore cụm pháp lý tiếng Việt cho MVP.
-- Có cấu hình OCR qua env: `OCR_ENGINE`, `OCR_LANG`, `OCR_DEVICE`, `OCR_MODEL_DIR`, `OCR_PREPROCESS_MODE`, `OCR_MIN_CONFIDENCE`, `OCR_RESTORE_VIETNAMESE_TERMS`.
+- Đã tích hợp VietOCR local cho nhận dạng tiếng Việt có dấu; mặc định `OCR_ENGINE=paddle_vietocr`.
+- Đã nâng OCR scan lên PaddleOCR 3.3.0/PP-OCRv5 để detect/crop text line; `OCR_ENGINE=paddleocr` vẫn dùng recognizer Latin `latin_PP-OCRv5_mobile_rec` làm baseline/fallback thủ công.
+- Có cấu hình OCR qua env: `OCR_ENGINE`, `OCR_LANG`, `OCR_DEVICE`, `OCR_MODEL_DIR`, `OCR_PREPROCESS_MODE`, `OCR_MIN_CONFIDENCE`, `OCR_RESTORE_VIETNAMESE_TERMS`, `VIETOCR_MODEL_DIR`, `VIETOCR_DEVICE`, `VIETOCR_CONFIG`, `VIETOCR_WEIGHT_PATH`.
 - PDF có text nhúng được trích xuất trực tiếp bằng `pypdfium2` trước khi fallback OCR để giữ dấu tiếng Việt.
 - Worker đọc trực tiếp file `.txt` và `.md`.
 - Worker trích xuất text thật từ `.docx`, `.xlsx`, `.xls`.
 - `.doc` legacy chưa hỗ trợ LibreOffice converter, hiện fail rõ ràng.
 - PaddleOCR model có thể được tải ở lần OCR đầu tiên nếu container chưa có model cache.
 - Nếu chuẩn bị sẵn `models/ocr/PP-OCRv5_server_det` và `models/ocr/latin_PP-OCRv5_mobile_rec`, worker sẽ dùng model local qua `/models/ocr`.
-- Chất lượng OCR scan xấu vẫn phụ thuộc chất lượng ảnh và recognizer Latin; task sau có thể cần fine-tune recognizer tiếng Việt local nếu cần độ chính xác cao hơn.
+- VietOCR weight local đã được chuẩn bị tại `models/ocr/vietocr/transformerocr.pth` trên máy local và không được commit.
+- Nếu `OCR_ENGINE=paddle_vietocr` nhưng thiếu `VIETOCR_WEIGHT_PATH`, worker báo `FileNotFoundError` rõ ràng.
+- Chất lượng OCR scan xấu vẫn phụ thuộc detection box và chất lượng crop; task sau có thể cần mở rộng fixture/fine-tune recognizer tiếng Việt local nếu tài liệu thực tế khó hơn.
 
 Chunking:
 - Đã sửa lỗi `section_title` quá dài làm PostgreSQL báo `value too long for type character varying(512)`.
@@ -225,7 +237,7 @@ Generated files:
 
 ## Quyết Định Hiện Tại
 
-OCR thật và trích xuất Office text mức MVP đã được triển khai.
+OCR thật và trích xuất Office text mức MVP đã được triển khai. OCR scan tiếng Việt hiện ưu tiên VietOCR local.
 
 Task tiếp theo nên ưu tiên dedup/reranking kết quả search để giảm trùng lặp giữa các bản upload cùng nội dung.
 

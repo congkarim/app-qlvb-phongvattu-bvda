@@ -13,6 +13,8 @@ from PIL import Image
 from xlrd import open_workbook
 
 from app.core.config import get_settings
+from app.services.ocr import get_ocr_engine
+from app.services.ocr.schemas import OcrLine
 
 
 class UnsupportedDocumentFormatError(ValueError):
@@ -34,7 +36,6 @@ class DocumentContentService:
     TEXT_EXTENSIONS = {".txt", ".md"}
     IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp"}
     MIN_NATIVE_PDF_TEXT_CHARS = 20
-    _shared_ocr_engine: Any | None = None
     _OCR_LINE_REPLACEMENTS: tuple[tuple[re.Pattern[str], str], ...] = (
         (
             re.compile(r"^C\s*NG\s+H(?:A|ÒA)\s+X\s+HI\s+CH\s+NGH(?:A|ÎA)\s+VI\s*T\s+NAM$", re.IGNORECASE),
@@ -221,7 +222,7 @@ class DocumentContentService:
         rgb_image = image.convert("RGB")
         image_array = np.array(rgb_image)
         candidates = self._preprocess_image_candidates(image_array)
-        results = [self._run_paddleocr(candidate, page_number=page_number) for candidate in candidates]
+        results = [self._run_ocr(candidate, page_number=page_number) for candidate in candidates]
         return max(results, key=self._ocr_result_score)
 
     def _preprocess_image_candidates(self, image_array: np.ndarray) -> list[np.ndarray]:
@@ -275,116 +276,29 @@ class DocumentContentService:
         )
         return cv2.cvtColor(thresholded, cv2.COLOR_GRAY2RGB)
 
-    def _run_paddleocr(self, image_array: np.ndarray, page_number: int) -> DocumentPageContent:
-        result = self._run_ocr_engine(image_array)
-        lines = self._extract_ocr_lines(result)
-        text = "\n".join(line_text for line_text, _confidence in lines)
-        confidence = sum(confidence for _line_text, confidence in lines) / len(lines) if lines else 0.0
+    def _run_ocr(self, image_array: np.ndarray, page_number: int) -> DocumentPageContent:
+        raw_lines = self._recognize_ocr_lines(image_array)
+        lines = self._clean_ocr_lines(raw_lines)
+        text = "\n".join(line.text for line in lines)
+        confidence = sum(line.confidence for line in lines) / len(lines) if lines else 0.0
         return DocumentPageContent(page_number=page_number, text=text, confidence=round(confidence, 4))
 
-    def _run_ocr_engine(self, image_array: np.ndarray) -> Any:
-        engine = self._get_ocr_engine()
-        if hasattr(engine, "predict"):
-            return engine.predict(image_array)
-        return engine.ocr(image_array, cls=True)
-
-    def _get_ocr_engine(self) -> Any:
-        if DocumentContentService._shared_ocr_engine is None:
-            if self.settings.ocr_engine.lower() != "paddleocr":
-                raise ValueError(f"Unsupported OCR_ENGINE: {self.settings.ocr_engine}")
-            from paddleocr import PaddleOCR
-
-            DocumentContentService._shared_ocr_engine = self._create_paddleocr_engine(PaddleOCR)
-        return DocumentContentService._shared_ocr_engine
-
-    def _create_paddleocr_engine(self, paddleocr_class: Any) -> Any:
-        common_kwargs = {
-            "lang": self.settings.ocr_lang,
-        }
+    def _recognize_ocr_lines(self, image_array: np.ndarray) -> list[OcrLine]:
         try:
-            return paddleocr_class(
-                **common_kwargs,
-                **self._paddleocr_v3_model_kwargs(),
-                use_doc_orientation_classify=False,
-                use_doc_unwarping=False,
-                use_textline_orientation=False,
-                device="gpu" if self.settings.ocr_use_gpu else self.settings.ocr_device,
-            )
-        except (TypeError, ValueError):
-            return paddleocr_class(
-                **common_kwargs,
-                use_angle_cls=True,
-                show_log=False,
-                use_gpu=self.settings.ocr_use_gpu,
-            )
+            return get_ocr_engine(self.settings).recognize(image_array)
+        except FileNotFoundError:
+            fallback_engine = (self.settings.ocr_fallback_engine or "").strip()
+            if not fallback_engine:
+                raise
+            return get_ocr_engine(self.settings, fallback_engine).recognize(image_array)
 
-    def _paddleocr_v3_model_kwargs(self) -> dict[str, str]:
-        model_dir = self.settings.ocr_model_dir
-        model_paths = {
-            "text_detection_model_dir": model_dir / "PP-OCRv5_server_det",
-            "text_recognition_model_dir": model_dir / "latin_PP-OCRv5_mobile_rec",
-        }
-        return {
-            key: str(path)
-            for key, path in model_paths.items()
-            if path.exists()
-        }
-
-    def _extract_ocr_lines(self, result: Any) -> list[tuple[str, float]]:
-        v3_lines = self._extract_paddleocr_v3_lines(result)
-        if v3_lines:
-            return v3_lines
-
-        lines: list[tuple[str, float]] = []
-        for page_result in result or []:
-            for item in page_result or []:
-                if len(item) < 2:
-                    continue
-                text_payload = item[1]
-                if not isinstance(text_payload, (list, tuple)) or len(text_payload) < 2:
-                    continue
-                text = self._clean_ocr_text(str(text_payload[0]))
-                if not text:
-                    continue
-                try:
-                    confidence = float(text_payload[1])
-                except (TypeError, ValueError):
-                    confidence = 0.0
-                lines.append((text, confidence))
-        return lines
-
-    def _extract_paddleocr_v3_lines(self, result: Any) -> list[tuple[str, float]]:
-        lines: list[tuple[str, float]] = []
-        for page_result in result or []:
-            payload = self._paddleocr_v3_payload(page_result)
-            if not payload:
-                continue
-            texts = payload.get("rec_texts") or []
-            scores = payload.get("rec_scores") or []
-            for index, raw_text in enumerate(texts):
-                text = self._clean_ocr_text(str(raw_text))
-                if not text:
-                    continue
-                try:
-                    confidence = float(scores[index])
-                except (IndexError, TypeError, ValueError):
-                    confidence = 0.0
-                if confidence < self.settings.ocr_min_confidence:
-                    continue
-                lines.append((text, confidence))
-        return lines
-
-    def _paddleocr_v3_payload(self, page_result: Any) -> dict[str, Any] | None:
-        if isinstance(page_result, dict):
-            payload = page_result
-        else:
-            payload = getattr(page_result, "json", None)
-            if callable(payload):
-                payload = payload()
-        if not isinstance(payload, dict):
-            return None
-        result_payload = payload.get("res", payload)
-        return result_payload if isinstance(result_payload, dict) else None
+    def _clean_ocr_lines(self, lines: list[OcrLine]) -> list[OcrLine]:
+        cleaned_lines: list[OcrLine] = []
+        for line in lines:
+            text = self._clean_ocr_text(line.text)
+            if text:
+                cleaned_lines.append(OcrLine(text=text, confidence=line.confidence, box=line.box))
+        return cleaned_lines
 
     def _ocr_result_score(self, page_content: DocumentPageContent) -> tuple[float, int, int]:
         return (

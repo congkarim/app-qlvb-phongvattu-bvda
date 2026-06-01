@@ -10,7 +10,7 @@ python-jose[cryptography]==3.3.0
 passlib==1.7.4
 qdrant-client==1.12.1
 redis==5.2.1
-Pillow==11.0.0
+Pillow==10.2.0
 numpy==1.26.4
 opencv-python-headless==4.10.0.84
 paddlepaddle==3.2.0
@@ -22,4 +22,6 @@ xlrd==2.0.1
 --extra-index-url https://www.paddlepaddle.org.cn/packages/stable/cpu/
 --extra-index-url https://download.pytorch.org/whl/cpu
 torch==2.2.2+cpu
+torchvision==0.17.2+cpu
 sentence-transformers==3.3.1
+vietocr==0.3.13

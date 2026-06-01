@@ -156,8 +156,8 @@ Các định dạng hiện hỗ trợ:
 - `.txt`, `.md`: đọc text trực tiếp.
 - `.docx`: trích xuất paragraph và table text.
 - `.xlsx`, `.xls`: trích xuất text theo sheet và row.
-- `.pdf`: ưu tiên trích xuất text nhúng bằng `pypdfium2`; page không có text mới render ảnh rồi OCR bằng PaddleOCR.
-- `.png`, `.jpg`, `.jpeg`, `.tif`, `.tiff`, `.bmp`: OCR bằng PaddleOCR.
+- `.pdf`: ưu tiên trích xuất text nhúng bằng `pypdfium2`; page không có text mới render ảnh rồi OCR bằng PaddleOCR detector + VietOCR recognizer.
+- `.png`, `.jpg`, `.jpeg`, `.tif`, `.tiff`, `.bmp`: OCR bằng PaddleOCR detector + VietOCR recognizer.
 - `.doc`: chưa hỗ trợ trong MVP; worker đánh `failed` và yêu cầu convert sang `.docx` hoặc `.pdf`.
 
 Upload Office/PDF/image:
@@ -197,12 +197,12 @@ curl -X POST http://localhost:8000/api/v1/search/semantic \
 
 ## Local OCR Tiếng Việt
 
-OCR scan chạy local bằng PaddleOCR 3.x, PaddlePaddle CPU và OpenCV. PDF có text layer vẫn được đọc trực tiếp bằng `pypdfium2` để giữ Unicode tiếng Việt; chỉ page scan hoặc ảnh mới đi qua OCR.
+OCR scan mặc định chạy local bằng PaddleOCR detector, VietOCR recognizer, PaddlePaddle CPU, PyTorch CPU và OpenCV. PDF có text layer vẫn được đọc trực tiếp bằng `pypdfium2` để giữ Unicode tiếng Việt; chỉ page scan hoặc ảnh mới đi qua OCR.
 
 Env OCR mặc định trong Docker Compose:
 
 ```env
-OCR_ENGINE=paddleocr
+OCR_ENGINE=paddle_vietocr
 OCR_LANG=vi
 OCR_USE_GPU=false
 OCR_DEVICE=cpu
@@ -210,6 +210,12 @@ OCR_MODEL_DIR=/models/ocr
 OCR_PREPROCESS_MODE=auto
 OCR_MIN_CONFIDENCE=0.0
 OCR_RESTORE_VIETNAMESE_TERMS=true
+VIETOCR_MODEL_DIR=/models/ocr/vietocr
+VIETOCR_DEVICE=cpu
+VIETOCR_CONFIG=vgg_transformer
+VIETOCR_WEIGHT_PATH=/models/ocr/vietocr/transformerocr.pth
+VIETOCR_MAX_BATCH_SIZE=1
+VIETOCR_BEAMSEARCH=false
 ```
 
 `OCR_PREPROCESS_MODE=auto` chạy nhiều candidate ảnh:
@@ -217,29 +223,39 @@ OCR_RESTORE_VIETNAMESE_TERMS=true
 - CLAHE tăng tương phản nhẹ;
 - adaptive threshold cho scan mờ.
 
-Worker chọn kết quả theo confidence, số ký tự tiếng Việt có dấu và độ dài text. `OCR_RESTORE_VIETNAMESE_TERMS=true` bật lớp hậu xử lý cục bộ cho các cụm pháp lý/tiêu ngữ thường bị recognizer Latin làm rơi dấu, ví dụ `CỘNG HÒA`, `Độc lập`, `Phạm vi điều chỉnh`, `đấu thầu`.
+Worker chọn kết quả theo confidence, số ký tự tiếng Việt có dấu và độ dài text. `OCR_RESTORE_VIETNAMESE_TERMS=true` vẫn có thể sửa một số cụm pháp lý/tiêu ngữ phổ biến, nhưng kết quả chính với scan tiếng Việt đến từ VietOCR.
 
 Model OCR local/offline:
 
 ```text
 models/ocr/PP-OCRv5_server_det
 models/ocr/latin_PP-OCRv5_mobile_rec
+models/ocr/vietocr/transformerocr.pth
 ```
 
-Nếu hai thư mục model trên tồn tại, service sẽ truyền trực tiếp vào PaddleOCR và không dùng cache ẩn trong container. Không commit model files vì `models/` đã nằm trong `.gitignore`.
+Nếu hai thư mục PaddleOCR tồn tại, service sẽ truyền trực tiếp vào PaddleOCR và không dùng cache ẩn trong container. VietOCR weight phải có ở `VIETOCR_WEIGHT_PATH` khi `OCR_ENGINE=paddle_vietocr`; nếu thiếu, worker báo lỗi rõ ràng. Không commit model files vì `models/` đã nằm trong `.gitignore`.
+
+Chuẩn bị VietOCR weight local:
+
+```bash
+mkdir -p models/ocr/vietocr
+docker compose exec -T worker python - <<'PY'
+from pathlib import Path
+import urllib.request
+
+target = Path("/models/ocr/vietocr/transformerocr.pth")
+target.parent.mkdir(parents=True, exist_ok=True)
+urllib.request.urlretrieve("https://vocr.vn/data/vietocr/vgg_transformer.pth", target)
+print(target, target.stat().st_size)
+PY
+```
 
 Kiểm tra OCR tiếng Việt nhanh trong worker:
 
 ```bash
-docker compose exec -T worker python - <<'PY'
-from pathlib import Path
-from app.services.document_content_service import DocumentContentService
-
-path = Path("/tmp/vi_ocr_test_noto.png")
-page = DocumentContentService().extract_pages(path, path.name)[0]
-print(page.confidence)
-print(page.text)
-PY
+docker compose exec -T worker python -m app.scripts.benchmark_ocr_vi \
+  --fixtures /app/tests/fixtures/ocr_vi \
+  --engine all
 ```
 
 ## Local Embedding Model

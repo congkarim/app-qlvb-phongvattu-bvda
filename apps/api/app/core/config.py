@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     embedding_batch_size: int = 16
     embedding_local_files_only: bool = True
     allow_fake_embeddings: bool = True
-    ocr_engine: str = "paddleocr"
+    ocr_engine: str = "paddle_vietocr"
     ocr_lang: str = "vi"
     ocr_use_gpu: bool = False
     ocr_device: str = "cpu"
@@ -34,6 +34,13 @@ class Settings(BaseSettings):
     ocr_preprocess_mode: str = "auto"
     ocr_min_confidence: float = 0.0
     ocr_restore_vietnamese_terms: bool = True
+    ocr_fallback_engine: str | None = None
+    vietocr_model_dir: Path = Path("/models/ocr/vietocr")
+    vietocr_device: str = "cpu"
+    vietocr_config: str = "vgg_transformer"
+    vietocr_weight_path: Path | None = None
+    vietocr_max_batch_size: int = 1
+    vietocr_beamsearch: bool = False
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
