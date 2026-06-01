@@ -1,6 +1,6 @@
 # Trạng Thái Dự Án
 
-Cập nhật lần cuối: 2026-05-31
+Cập nhật lần cuối: 2026-06-01
 
 ## Giai Đoạn Hiện Tại
 
@@ -54,8 +54,9 @@ Worker:
 - Trích xuất text trực tiếp cho `.txt`, `.md`, `.docx`, `.xlsx`, `.xls`.
 - PDF có text nhúng được trích xuất trực tiếp bằng `pypdfium2` để giữ Unicode tiếng Việt.
 - OCR thật cho PDF/image scan bằng PaddleOCR/OpenCV khi page không có text nhúng.
+- OCR scan tiếng Việt đã nâng lên PaddleOCR 3.3.0, PaddlePaddle 3.2.0 CPU, PP-OCRv5 và hậu xử lý cụm pháp lý tiếng Việt.
 - Render PDF scan thành image từng page bằng `pypdfium2`.
-- Preprocess ảnh bằng OpenCV trước OCR.
+- Preprocess ảnh bằng OpenCV trước OCR, hỗ trợ `OCR_PREPROCESS_MODE=auto/raw/clahe/threshold`.
 - Lưu OCR/extracted text theo page logic.
 - Tạo document chunks, giới hạn `section_title` ngắn hơn schema PostgreSQL để tránh lỗi insert.
 - Tạo embedding qua backend cấu hình được: fake deterministic cho dev hoặc local `sentence-transformers`.
@@ -143,6 +144,26 @@ curl -X POST http://localhost:8000/api/v1/auth/login \
 
 Kết quả: HTTP 200, response có `access_token` và `token_type= bearer`.
 
+OCR tiếng Việt kiểm tra ngày 2026-06-01:
+
+```bash
+docker compose config
+docker compose build api worker
+docker compose up -d api worker
+docker compose exec -T worker python -m py_compile /app/app/services/document_content_service.py /app/app/core/config.py
+curl -fsS http://localhost:8000/health
+```
+
+Kết quả ảnh scan mẫu tiếng Việt trong worker:
+
+```text
+confidence=0.9671
+CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM
+Độc lập - Tự do - Hạnh phúc
+Điều 1. Phạm vi điều chỉnh đấu thầu
+Khoản 1. Văn bản scan phải giữ dấu tiếng Việt.
+```
+
 ## Lỗi Đã Sửa
 
 Docker/runtime:
@@ -158,11 +179,15 @@ Frontend:
 
 OCR:
 - Đã triển khai OCR thật cho PDF/image scan bằng PaddleOCR/OpenCV.
+- Đã nâng OCR scan lên PaddleOCR 3.3.0/PP-OCRv5; `lang=vi` vẫn dùng recognizer Latin `latin_PP-OCRv5_mobile_rec`, nên hệ thống có lớp restore cụm pháp lý tiếng Việt cho MVP.
+- Có cấu hình OCR qua env: `OCR_ENGINE`, `OCR_LANG`, `OCR_DEVICE`, `OCR_MODEL_DIR`, `OCR_PREPROCESS_MODE`, `OCR_MIN_CONFIDENCE`, `OCR_RESTORE_VIETNAMESE_TERMS`.
 - PDF có text nhúng được trích xuất trực tiếp bằng `pypdfium2` trước khi fallback OCR để giữ dấu tiếng Việt.
 - Worker đọc trực tiếp file `.txt` và `.md`.
 - Worker trích xuất text thật từ `.docx`, `.xlsx`, `.xls`.
 - `.doc` legacy chưa hỗ trợ LibreOffice converter, hiện fail rõ ràng.
 - PaddleOCR model có thể được tải ở lần OCR đầu tiên nếu container chưa có model cache.
+- Nếu chuẩn bị sẵn `models/ocr/PP-OCRv5_server_det` và `models/ocr/latin_PP-OCRv5_mobile_rec`, worker sẽ dùng model local qua `/models/ocr`.
+- Chất lượng OCR scan xấu vẫn phụ thuộc chất lượng ảnh và recognizer Latin; task sau có thể cần fine-tune recognizer tiếng Việt local nếu cần độ chính xác cao hơn.
 
 Chunking:
 - Đã sửa lỗi `section_title` quá dài làm PostgreSQL báo `value too long for type character varying(512)`.

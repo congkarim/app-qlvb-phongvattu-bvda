@@ -49,6 +49,14 @@ services:
       EMBEDDING_BATCH_SIZE: ${EMBEDDING_BATCH_SIZE:-16}
       EMBEDDING_LOCAL_FILES_ONLY: ${EMBEDDING_LOCAL_FILES_ONLY:-true}
       ALLOW_FAKE_EMBEDDINGS: ${ALLOW_FAKE_EMBEDDINGS:-true}
+      OCR_ENGINE: ${OCR_ENGINE:-paddleocr}
+      OCR_LANG: ${OCR_LANG:-vi}
+      OCR_USE_GPU: ${OCR_USE_GPU:-false}
+      OCR_DEVICE: ${OCR_DEVICE:-cpu}
+      OCR_MODEL_DIR: ${OCR_MODEL_DIR:-/models/ocr}
+      OCR_PREPROCESS_MODE: ${OCR_PREPROCESS_MODE:-auto}
+      OCR_MIN_CONFIDENCE: ${OCR_MIN_CONFIDENCE:-0.0}
+      OCR_RESTORE_VIETNAMESE_TERMS: ${OCR_RESTORE_VIETNAMESE_TERMS:-true}
     ports:
       - "8000:8000"
     command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
@@ -88,6 +96,14 @@ services:
       EMBEDDING_BATCH_SIZE: ${EMBEDDING_BATCH_SIZE:-16}
       EMBEDDING_LOCAL_FILES_ONLY: ${EMBEDDING_LOCAL_FILES_ONLY:-true}
       ALLOW_FAKE_EMBEDDINGS: ${ALLOW_FAKE_EMBEDDINGS:-true}
+      OCR_ENGINE: ${OCR_ENGINE:-paddleocr}
+      OCR_LANG: ${OCR_LANG:-vi}
+      OCR_USE_GPU: ${OCR_USE_GPU:-false}
+      OCR_DEVICE: ${OCR_DEVICE:-cpu}
+      OCR_MODEL_DIR: ${OCR_MODEL_DIR:-/models/ocr}
+      OCR_PREPROCESS_MODE: ${OCR_PREPROCESS_MODE:-auto}
+      OCR_MIN_CONFIDENCE: ${OCR_MIN_CONFIDENCE:-0.0}
+      OCR_RESTORE_VIETNAMESE_TERMS: ${OCR_RESTORE_VIETNAMESE_TERMS:-true}
     volumes:
       - ./apps/api:/app
       - ./apps/worker/runner.py:/app/worker_runner.py

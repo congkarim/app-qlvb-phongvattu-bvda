@@ -26,6 +26,14 @@ class Settings(BaseSettings):
     embedding_batch_size: int = 16
     embedding_local_files_only: bool = True
     allow_fake_embeddings: bool = True
+    ocr_engine: str = "paddleocr"
+    ocr_lang: str = "vi"
+    ocr_use_gpu: bool = False
+    ocr_device: str = "cpu"
+    ocr_model_dir: Path = Path("/models/ocr")
+    ocr_preprocess_mode: str = "auto"
+    ocr_min_confidence: float = 0.0
+    ocr_restore_vietnamese_terms: bool = True
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 

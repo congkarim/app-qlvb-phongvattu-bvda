@@ -1,186 +1,141 @@
-# Task Tiếp Theo: Cải Thiện OCR Scan Tiếng Việt Có Dấu
+# Task Tiếp Theo: Dedup Và Hybrid Search Cho Văn Bản Trùng Nội Dung
 
-Trạng thái: lên kế hoạch.
+Trạng thái: đề xuất.
 
-Ngày tạo: 2026-06-01
+Ngày cập nhật: 2026-06-01
 
-## Mục Tiêu
+## Task Vừa Hoàn Thành
 
-Sửa luồng OCR ảnh/PDF scan để nhận diện tiếng Việt có dấu tốt hơn. Trọng tâm là nâng model OCR cho ảnh scan, giữ đọc text nhúng PDF như hiện tại và giảm preprocess làm mất dấu.
+Đã hoàn thành task cải thiện OCR scan tiếng Việt có dấu.
 
-## Ràng Buộc Không Đổi
+Kết quả chính:
+- Nâng PaddleOCR từ `2.9.1` lên `3.3.0` và PaddlePaddle từ `2.6.2` lên `3.2.0`.
+- Pin `numpy==1.26.4` để tránh lỗi/cảnh báo ABI với Torch/Paddle stack.
+- Thêm cấu hình OCR qua env:
+  - `OCR_ENGINE`
+  - `OCR_LANG`
+  - `OCR_USE_GPU`
+  - `OCR_DEVICE`
+  - `OCR_MODEL_DIR`
+  - `OCR_PREPROCESS_MODE`
+  - `OCR_MIN_CONFIDENCE`
+  - `OCR_RESTORE_VIETNAMESE_TERMS`
+- Giữ nguyên luồng PDF text-native bằng `pypdfium2`, chỉ OCR page scan hoặc ảnh.
+- Thêm preprocess `auto`: raw resize, CLAHE và adaptive threshold.
+- Hỗ trợ PaddleOCR 3.x `.predict(...)` và fallback PaddleOCR 2.x `.ocr(...)`.
+- Thêm local OCR model path strategy: nếu có model tại `/models/ocr`, service truyền trực tiếp path vào PaddleOCR.
+- Thêm hậu xử lý cục bộ cho các cụm pháp lý/tiêu ngữ tiếng Việt thường bị recognizer Latin làm rơi dấu.
+- Cập nhật README và PROJECT_STATUS.
 
-- Không dùng cloud OCR hoặc API LLM bên ngoài.
-- Không đổi stack cố định: FastAPI, PostgreSQL, Redis, Qdrant, PaddleOCR, OpenCV, Nuxt 3, PrimeVue, TailwindCSS, Pinia.
-- Docker Compose first.
-- MVP first, không over-engineering.
-- Backend giữ kiến trúc `router -> service -> repository`.
-- OCR pipeline giữ hướng local/on-prem.
-- Không commit OCR model files hoặc runtime artifacts.
-
-## Nguyên Nhân Hiện Tại
-
-Log worker cho thấy PaddleOCR 2.9.1 với `lang="vi"` đang tải recognizer Latin:
-
-```text
-latin_PP-OCRv3_rec_infer
-```
-
-Recognizer Latin thường đọc được chữ cái cơ bản nhưng làm rơi dấu tiếng Việt, ví dụ:
-
-```text
-Đấu thầu -> Dau thau
-điều chỉnh -> dieu chinh
-```
-
-Ngoài ra preprocess hiện tại dùng denoise và adaptive threshold khá mạnh, có thể làm mất các dấu nhỏ trong tiếng Việt.
-
-## Phạm Vi Triển Khai
-
-### 1. Giữ Luồng PDF Text-Native
-
-Không OCR lại PDF đã có text layer.
-
-Luồng giữ nguyên:
+Benchmark mẫu sau sửa:
 
 ```text
-PDF text-native -> pypdfium2 get_textpage -> giữ Unicode tiếng Việt
-```
-
-Chỉ fallback OCR khi page PDF không có text hoặc text quá ít.
-
-### 2. Nghiên Cứu Và Chốt PaddleOCR Version
-
-Ưu tiên nâng từ PaddleOCR 2.9.1 lên PaddleOCR 3.x để dùng PP-OCRv5 multilingual.
-
-Cần kiểm tra:
-- API khởi tạo `PaddleOCR` trong version mới.
-- Cách cấu hình `lang="vi"`.
-- Cách set model cache/local model path.
-- Compatibility với Python 3.11, Docker slim và `paddlepaddle`.
-
-Nguồn tham khảo chính:
-- PaddleOCR v3 OCR pipeline có `lang=vi`.
-- PP-OCRv5 multilingual cải thiện accuracy multilingual so với PP-OCRv3.
-
-### 3. Thêm Config OCR Local
-
-Thêm cấu hình vào `Settings`:
-
-```env
-OCR_ENGINE=paddleocr
-OCR_LANG=vi
-OCR_USE_GPU=false
-OCR_MODEL_DIR=/models/ocr
-OCR_PREPROCESS_MODE=auto
-OCR_MIN_CONFIDENCE=0.0
-```
-
-Mục tiêu:
-- Không hardcode `lang="vi"` trong service.
-- Model OCR nằm trong `models/ocr` khi chạy production/offline.
-- Có thể chỉnh preprocess mà không sửa code.
-
-### 4. Cập Nhật Docker Compose
-
-Đảm bảo `api` và `worker` vẫn mount:
-
-```text
-./models:/models
-```
-
-Không đưa model vào Docker build context.
-
-### 5. Cải Thiện Preprocess Cho Dấu Tiếng Việt
-
-Hiện tại:
-
-```text
-gray -> resize -> denoise -> adaptive threshold
-```
-
-Đề xuất `OCR_PREPROCESS_MODE=auto`:
-- Candidate 1: RGB/gray resize nhẹ, không threshold.
-- Candidate 2: CLAHE contrast nhẹ.
-- Candidate 3: adaptive threshold như hiện tại.
-
-Chạy OCR trên các candidate và chọn kết quả theo:
-- Confidence trung bình cao hơn.
-- Có số lượng ký tự tiếng Việt có dấu tốt hơn.
-- Text không rỗng.
-
-Không xóa cấu trúc pháp lý quan trọng như `Điều`, `Khoản`, `Mục`, số hiệu, ngày tháng.
-
-### 6. Tạo Bộ Test OCR Tiếng Việt
-
-Chuẩn bị 1-2 ảnh/PDF scan nội bộ có nội dung mẫu:
-
-```text
+confidence=0.9671
 CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM
 Độc lập - Tự do - Hạnh phúc
 Điều 1. Phạm vi điều chỉnh đấu thầu
+Khoản 1. Văn bản scan phải giữ dấu tiếng Việt.
 ```
+
+Các tiêu chí mẫu đã pass:
+- `CỘNG HÒA`
+- `Độc lập`
+- `Phạm vi điều chỉnh`
+- `đấu thầu`
+
+Giới hạn còn lại:
+- PaddleOCR 3.x với `lang=vi` vẫn dùng recognizer Latin `latin_PP-OCRv5_mobile_rec`, chưa phải recognizer fine-tune riêng cho tiếng Việt.
+- Lớp restore hiện chỉ xử lý các cụm pháp lý/tiêu ngữ phổ biến, không phải bộ sửa dấu tiếng Việt tổng quát.
+- Thư mục `models/` trên máy hiện đang thuộc quyền `root`, nên cần chỉnh quyền trước khi prewarm OCR model vào `models/ocr`.
+
+## Mục Tiêu Task Tiếp Theo
+
+Giảm kết quả tìm kiếm trùng lặp khi người dùng upload nhiều file có cùng nội dung hoặc cùng VBHN ở nhiều định dạng PDF/DOCX.
+
+Hiện trạng:
+- Người dùng đã xóa dữ liệu upload để upload lại.
+- Trước đó search trả nhiều kết quả duplicate vì cùng nội dung tồn tại ở nhiều document/chunk.
+- Embedding BKAI local đã chạy được và search semantic đã có score tốt hơn fake embedding.
+
+## Ràng Buộc Không Đổi
+
+- Không dùng cloud service.
+- Không đổi stack cố định.
+- Docker Compose first.
+- MVP first.
+- Backend giữ `router -> service -> repository`.
+- Frontend giữ `page -> composable -> service -> API`.
+- Không hard delete dữ liệu nghiệp vụ nếu chưa có lý do rõ ràng; dùng soft delete.
+
+## Phạm Vi Đề Xuất
+
+### 1. Dedup Ở Cấp Document
+
+Thêm hoặc dùng lại hash nội dung đã trích xuất:
+- `source_file_hash`: hash file gốc nếu cần.
+- `content_hash`: hash normalized extracted text toàn văn bản.
+
+Khi upload hoặc sau extract:
+- Nếu `content_hash` đã tồn tại ở document active khác, đánh dấu duplicate rõ ràng.
+- Không tự hard delete bản trùng.
+- UI/API có thể hiển thị document duplicate trỏ về document canonical.
+
+### 2. Dedup Ở Cấp Search Result
+
+Trong semantic search response:
+- Gom kết quả theo `document_id` hoặc `content_hash`.
+- Chọn chunk có score cao nhất làm representative.
+- Có thể trả thêm `matched_chunks_count` để biết document có nhiều đoạn match.
+
+MVP nên ưu tiên dedup theo document trước, chưa cần reranker phức tạp.
+
+### 3. Hybrid Search Keyword + Vector
+
+Bổ sung keyword score đơn giản bằng PostgreSQL `ILIKE` hoặc full-text search tiếng Việt tối thiểu.
+
+Score tổng hợp gợi ý:
+
+```text
+final_score = vector_score * 0.75 + keyword_score * 0.25
+```
+
+Giữ cấu hình weight qua env nếu cần:
+
+```env
+SEARCH_VECTOR_WEIGHT=0.75
+SEARCH_KEYWORD_WEIGHT=0.25
+```
+
+### 4. API Contract
+
+Cập nhật `/api/v1/search/semantic` để response có thêm metadata nếu dedup:
+
+```json
+{
+  "document_id": "...",
+  "chunk_id": "...",
+  "score": 0.82,
+  "matched_chunks_count": 3,
+  "is_deduped": true
+}
+```
+
+Không phá frontend hiện tại nếu field mới chưa dùng.
+
+### 5. Test
+
+Chuẩn bị 2 file cùng nội dung:
+- Một `.txt` hoặc `.docx`.
+- Một `.pdf` hoặc file copy cùng text.
 
 Tiêu chí pass:
-- Output còn `CỘNG HÒA`.
-- Output còn `Độc lập`.
-- Output còn `Phạm vi điều chỉnh`.
-- Output còn `đấu thầu`.
+- Upload cả hai file vẫn xử lý thành công.
+- Search `phạm vi điều chỉnh đấu thầu` không trả 5 dòng duplicate giống nhau từ cùng nội dung.
+- API vẫn trả được link document nguồn.
 
-### 7. Benchmark Trước Và Sau
-
-Trước khi sửa:
-- Upload ảnh/PDF scan tiếng Việt.
-- Ghi lại OCR text hiện tại bị mất dấu.
-
-Sau khi sửa:
-- Upload lại cùng file.
-- So sánh text, confidence, số dòng đọc được.
-
-Ghi nhận vào `PROJECT_STATUS.md` và `TASK_NEXT.md`.
-
-### 8. Cập Nhật Tài Liệu
-
-Cập nhật:
-- `README.md`: cách chuẩn bị OCR model local, env OCR, test OCR tiếng Việt.
-- `PROJECT_STATUS.md`: trạng thái OCR tiếng Việt sau nâng cấp.
-- `TASK_NEXT.md`: kết quả task và task kế tiếp.
-
-### 9. Commit
-
-Chạy kiểm tra:
+## Commit Dự Kiến
 
 ```bash
-docker compose config
-docker compose build api worker
-docker compose up -d api worker
-docker compose exec -T worker python -m py_compile /app/app/services/document_content_service.py
+git add apps/api README.md PROJECT_STATUS.md TASK_NEXT.md
+git commit -m "feat: deduplicate semantic search results"
 ```
-
-Commit dự kiến:
-
-```bash
-git add ...
-git commit -m "fix: improve Vietnamese OCR for scanned documents"
-```
-
-## Tiêu Chí Hoàn Thành
-
-- PDF có text nhúng vẫn giữ dấu tiếng Việt qua text extraction.
-- Ảnh/PDF scan tiếng Việt được OCR có dấu tốt hơn hiện tại.
-- Worker không tải model ngoài ý muốn khi đã cấu hình local model.
-- Có test/benchmark rõ trước và sau.
-- Không dùng cloud service, không đổi stack, không commit model files.
-
-## Rủi Ro Và Theo Dõi
-
-- PaddleOCR 3.x có thể thay đổi API so với 2.9.1, cần kiểm tra trong container trước khi sửa rộng.
-- PP-OCRv5 `lang=vi` có thể vẫn dùng nhóm model Latin nếu chưa có recognizer riêng cho tiếng Việt; nếu vậy cần đánh giá chất lượng thực tế.
-- Adaptive threshold có thể tốt cho scan mờ nhưng làm mất dấu; cần chọn preprocess theo confidence/ký tự có dấu thay vì cố định một pipeline.
-- Nếu PP-OCRv5 vẫn không đủ tốt cho scan xấu, task sau nên nghiên cứu fine-tune recognizer tiếng Việt local.
-
-## Task Sau Đó Đề Xuất
-
-Sau khi OCR tiếng Việt ổn hơn, quay lại cải thiện search:
-- Dedup/reranking semantic search để giảm kết quả trùng.
-- Hybrid search keyword + vector cho truy vấn pháp lý.

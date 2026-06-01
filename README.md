@@ -195,6 +195,53 @@ curl -X POST http://localhost:8000/api/v1/search/semantic \
   -d '{"query":"quản lý vật tư","limit":5}'
 ```
 
+## Local OCR Tiếng Việt
+
+OCR scan chạy local bằng PaddleOCR 3.x, PaddlePaddle CPU và OpenCV. PDF có text layer vẫn được đọc trực tiếp bằng `pypdfium2` để giữ Unicode tiếng Việt; chỉ page scan hoặc ảnh mới đi qua OCR.
+
+Env OCR mặc định trong Docker Compose:
+
+```env
+OCR_ENGINE=paddleocr
+OCR_LANG=vi
+OCR_USE_GPU=false
+OCR_DEVICE=cpu
+OCR_MODEL_DIR=/models/ocr
+OCR_PREPROCESS_MODE=auto
+OCR_MIN_CONFIDENCE=0.0
+OCR_RESTORE_VIETNAMESE_TERMS=true
+```
+
+`OCR_PREPROCESS_MODE=auto` chạy nhiều candidate ảnh:
+- ảnh RGB resize nhẹ;
+- CLAHE tăng tương phản nhẹ;
+- adaptive threshold cho scan mờ.
+
+Worker chọn kết quả theo confidence, số ký tự tiếng Việt có dấu và độ dài text. `OCR_RESTORE_VIETNAMESE_TERMS=true` bật lớp hậu xử lý cục bộ cho các cụm pháp lý/tiêu ngữ thường bị recognizer Latin làm rơi dấu, ví dụ `CỘNG HÒA`, `Độc lập`, `Phạm vi điều chỉnh`, `đấu thầu`.
+
+Model OCR local/offline:
+
+```text
+models/ocr/PP-OCRv5_server_det
+models/ocr/latin_PP-OCRv5_mobile_rec
+```
+
+Nếu hai thư mục model trên tồn tại, service sẽ truyền trực tiếp vào PaddleOCR và không dùng cache ẩn trong container. Không commit model files vì `models/` đã nằm trong `.gitignore`.
+
+Kiểm tra OCR tiếng Việt nhanh trong worker:
+
+```bash
+docker compose exec -T worker python - <<'PY'
+from pathlib import Path
+from app.services.document_content_service import DocumentContentService
+
+path = Path("/tmp/vi_ocr_test_noto.png")
+page = DocumentContentService().extract_pages(path, path.name)[0]
+print(page.confidence)
+print(page.text)
+PY
+```
+
 ## Local Embedding Model
 
 Mặc định Docker Compose vẫn dùng fake embedding để môi trường dev khởi động được ngay. Khi chạy semantic search thật, chuẩn bị model local trước rồi bật backend `sentence_transformers`.
