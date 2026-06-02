@@ -190,6 +190,29 @@ Kết quả chính:
 - `sample_006.pdf` giữ dấu tốt hơn với VietOCR nhưng còn tách dòng tiêu đề; runtime khoảng 39.6s/page.
 - Benchmark full với `OCR_PREPROCESS_MODE=auto` bị dừng sau hơn 5 phút vì quá chậm cho kiểm tra thường xuyên.
 
+OCR tài liệu thực tế kiểm tra ngày 2026-06-02:
+
+```bash
+docker compose ps
+docker compose logs --tail=160 worker
+docker compose exec -T postgres psql -U legal -d legal_doc_ai -c "select id, original_filename, content_type, document_type, status, created_at, updated_at from documents order by created_at desc limit 8;"
+docker compose exec -T postgres psql -U legal -d legal_doc_ai -c "select j.document_id, d.original_filename, j.status as job_status, d.status as doc_status, j.attempts, j.error_message, j.updated_at from ocr_jobs j join documents d on d.id=j.document_id order by j.created_at desc limit 4;"
+curl -fsS -X POST http://localhost:8000/api/v1/search/semantic -H 'Content-Type: application/json' -d '{"query":"Lê Thế Anh hồ sơ xin thôi việc Xuân Lâm","limit":5}'
+curl -fsS -X POST http://localhost:8000/api/v1/search/semantic -H 'Content-Type: application/json' -d '{"query":"Luật Đấu thầu phạm vi điều chỉnh","limit":5}'
+```
+
+Kết quả:
+- `22-qh-15.signed.pdf`: document `searchable`, OCR job `completed`, 84 pages, 184 chunks, average confidence `0.9272`, total OCR text `175497` chars.
+- `0f53863c-d731-4b39-b0ff-d883ab039a88.jpeg`: document `searchable`, OCR job `completed`, 1 page, 1 chunk, confidence `0.9037`.
+- Qdrant đã nhận upsert cho PDF lúc `2026-06-02T08:26:44Z` và JPEG lúc `2026-06-02T08:28:05Z`.
+- Search `Lê Thế Anh hồ sơ xin thôi việc Xuân Lâm` trả JPEG mới nhất ở top 1.
+- Search `Luật Đấu thầu phạm vi điều chỉnh` có chunk đúng `Điều 1. Phạm vi điều chính` nhưng chỉ đứng thứ 5, đồng thời kết quả còn lẫn bản PDF upload cũ.
+
+Lỗi OCR thực tế đã thấy:
+- PDF `22-qh-15.signed.pdf`: giữ dấu tiếng Việt khá tốt nhưng có lỗi từ như `LUẶT`, `điều chính`, `dầu khi`, và dấu phân tách header `CÔNG BÁO/SỐ 869 ? 870`.
+- JPEG công văn xã Xuân Lâm: có hallucination/nhiễu như `Thuật`, `Nhất`, `Thành`, `Nhà Tháng`, `Các thuận`; số hiệu/ngày có lỗi `72]`, `27IS/2026`.
+- Search cần dedup/reranking vì cùng file `22-qh-15.signed.pdf` đã được upload nhiều lần và chunk đúng không luôn đứng top 1.
+
 ## Lỗi Đã Sửa
 
 Docker/runtime:
@@ -218,7 +241,7 @@ OCR:
 - Nếu `OCR_ENGINE=paddle_vietocr` nhưng thiếu `VIETOCR_WEIGHT_PATH`, worker báo `FileNotFoundError` rõ ràng.
 - Chất lượng OCR scan xấu vẫn phụ thuộc detection box, chất lượng crop và thứ tự đọc layout; fixture hai cột hiện còn trộn cột trái/phải.
 - PDF scan với VietOCR giữ dấu tốt hơn baseline nhưng còn tách dòng tiêu đề và runtime cao.
-- Chưa kiểm tra được tài liệu thực tế người dùng upload lại trong task 2026-06-02 vì repo chưa có file thực tế mới.
+- Tài liệu thực tế upload từ web đã chạy hết pipeline đến `searchable`, nhưng vẫn còn lỗi OCR ở số hiệu/ngày tháng và nhiễu từ trên ảnh scan chất lượng khó.
 
 Chunking:
 - Đã sửa lỗi `section_title` quá dài làm PostgreSQL báo `value too long for type character varying(512)`.
@@ -258,7 +281,7 @@ Generated files:
 
 OCR thật và trích xuất Office text mức MVP đã được triển khai. OCR scan tiếng Việt hiện ưu tiên VietOCR local.
 
-Task tiếp theo nên ưu tiên upload lại tài liệu thực tế của người dùng để kiểm tra OCR end-to-end, đồng thời tối ưu lỗi layout hai cột/PDF scan đã thấy trong fixture. Khi OCR thực tế đủ ổn, chuyển sang dedup/reranking kết quả search để giảm trùng lặp giữa các bản upload cùng nội dung.
+Task tiếp theo nên ưu tiên tối ưu OCR cho ảnh scan thực tế chất lượng khó, đặc biệt lỗi số hiệu/ngày tháng và hallucination từ nhiễu nền. Song song đó, cần làm dedup/reranking kết quả search để giảm trùng lặp giữa các bản upload cùng nội dung và đưa chunk đúng lên cao hơn.
 
 Workflow MVP hiện có:
 

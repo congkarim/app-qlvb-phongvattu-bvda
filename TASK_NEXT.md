@@ -1,4 +1,4 @@
-# Task Tiếp Theo: Kiểm Tra OCR Với File Thực Tế Và Tối Ưu Layout Khó
+# Task Tiếp Theo: Tối Ưu OCR Ảnh Scan Thực Tế Và Reranking Search
 
 Trạng thái: đề xuất.
 
@@ -6,7 +6,7 @@ Ngày cập nhật: 2026-06-02
 
 ## Task Vừa Hoàn Thành
 
-Đã mở rộng fixture OCR tiếng Việt và chạy benchmark trên nhiều mẫu không nhạy cảm.
+Đã mở rộng fixture OCR tiếng Việt, chạy benchmark trên nhiều mẫu không nhạy cảm và kiểm tra tài liệu thực tế upload từ web.
 
 Kết quả chính:
 - Thêm generator deterministic: `tests/fixtures/ocr_vi/generate_fixtures.py`.
@@ -53,15 +53,22 @@ docker compose run --rm --no-deps -e OCR_PREPROCESS_MODE=raw worker python -m ap
 
 Ghi chú:
 - Lệnh benchmark full với `OCR_PREPROCESS_MODE=auto` bị dừng sau hơn 5 phút vì quá chậm cho kiểm tra thường xuyên.
-- Chưa kiểm tra được tài liệu thực tế người dùng upload lại vì repo chưa có file thực tế mới.
+
+Kiểm tra tài liệu thực tế upload từ web:
+
+| file | trạng thái | OCR/chunk | Nhận xét |
+| --- | --- | --- | --- |
+| `22-qh-15.signed.pdf` | `searchable`, job `completed` | 84 pages, 184 chunks, avg confidence `0.9272` | Giữ dấu khá tốt, còn lỗi như `LUẶT`, `điều chính`, `dầu khi`, header `869 ? 870`. |
+| `0f53863c-d731-4b39-b0ff-d883ab039a88.jpeg` | `searchable`, job `completed` | 1 page, 1 chunk, confidence `0.9037` | Có nhiễu/hallucination: `Thuật`, `Nhất`, `Thành`, `Nhà Tháng`, `Các thuận`; số hiệu/ngày lỗi `72]`, `27IS/2026`. |
+
+Search kiểm tra:
+- Query `Lê Thế Anh hồ sơ xin thôi việc Xuân Lâm` trả JPEG mới nhất top 1.
+- Query `Luật Đấu thầu phạm vi điều chỉnh` có chunk đúng Điều 1 nhưng chỉ đứng thứ 5.
+- Kết quả search còn lẫn bản upload cũ của cùng file PDF, xác nhận cần dedup/reranking.
 
 ## Mục Tiêu Task Tiếp Theo
 
-Upload lại tài liệu thực tế của người dùng và kiểm tra OCR end-to-end trên workflow thật:
-
-```text
-upload -> preprocess -> OCR -> chunk -> embedding -> qdrant -> search
-```
+Tối ưu chất lượng OCR cho ảnh scan thực tế và cải thiện ranking search cho văn bản pháp lý đã index.
 
 ## Ràng Buộc Không Đổi
 
@@ -75,19 +82,25 @@ upload -> preprocess -> OCR -> chunk -> embedding -> qdrant -> search
 
 ## Phạm Vi Đề Xuất
 
-### 1. Kiểm Tra Tài Liệu Thực Tế
+### 1. Tối Ưu OCR Ảnh Scan Thực Tế
 
-Sau khi người dùng cung cấp/upload lại file thực tế:
-- Theo dõi worker log.
-- Kiểm tra OCR page text.
-- Kiểm tra chunk/search.
-- Ghi lại file/page nào vẫn lỗi dấu, sai số hiệu, sai ngày tháng hoặc sai điều/khoản.
+Ưu tiên lỗi đã thấy trên JPEG công văn:
+- Số hiệu `72]/UBND-KT` cần đọc đúng hơn.
+- Ngày `27IS/2026` cần giảm lỗi ký tự ngày tháng.
+- Nhiễu từ như `Thuật`, `Nhất`, `Thành`, `Nhà Tháng`, `Các thuận` cần giảm.
 
-### 2. Tối Ưu Layout Khó
+Hướng xử lý:
+- Thử deskew/denoise nhẹ cho ảnh scan công văn.
+- So sánh `raw`, `clahe`, `threshold` trên chính JPEG thực tế.
+- Điều chỉnh scoring candidate để ưu tiên text ít nhiễu hơn, không chỉ confidence/accent count.
+- Nếu cần, thêm fixture không nhạy cảm mô phỏng nhiễu nền từ ảnh thực tế.
+
+### 2. Tối Ưu Layout Khó Và PDF
 
 Ưu tiên xử lý các lỗi đã thấy trong benchmark:
 - `sample_004.png`: trang hai cột bị sai thứ tự đọc.
 - `sample_006.pdf`: tiêu đề PDF bị tách dòng không tự nhiên.
+- `22-qh-15.signed.pdf`: lỗi header `869 ? 870`, từ `điều chính`, `LUẶT`.
 - `OCR_PREPROCESS_MODE=auto`: runtime quá cao trên full fixture.
 
 Hướng xử lý:
@@ -96,12 +109,24 @@ Hướng xử lý:
 - Giảm số preprocess candidate khi scan rõ hoặc cho phép benchmark chạy theo mode cụ thể.
 - Cache/reuse detector và predictor trong benchmark/service path nếu còn init lặp.
 
+### 3. Dedup/Reranking Search
+
+Vấn đề đã thấy:
+- Cùng file `22-qh-15.signed.pdf` tồn tại nhiều bản upload.
+- Query đúng ngữ cảnh có chunk Điều 1 nhưng chưa đứng top 1.
+
+Hướng xử lý:
+- Dedup kết quả theo `document_id`, `content_hash` hoặc fingerprint gần đúng.
+- Rerank ưu tiên chunk có keyword exact match như `Điều 1`, `phạm vi điều chỉnh`, `Luật Đấu thầu`.
+- Xem xét hybrid search keyword + vector cho truy vấn pháp lý.
+
 ## Tiêu Chí Hoàn Thành
 
-- Có kết quả OCR trên ít nhất một tài liệu thực tế người dùng upload lại.
-- Có danh sách lỗi cụ thể theo file/page nếu OCR chưa đạt.
+- OCR JPEG công văn giảm rõ lỗi số hiệu/ngày tháng và hallucination từ nhiễu.
 - Với layout hai cột, thứ tự đọc không còn trộn cột trái/phải trên fixture hiện có.
 - Runtime benchmark có cấu hình kiểm tra nhanh ổn định cho toàn bộ fixture.
+- Search `Luật Đấu thầu phạm vi điều chỉnh` đưa chunk Điều 1 lên top 1 hoặc top 2.
+- Kết quả search giảm trùng lặp giữa các bản upload cùng nội dung.
 - Không phát sinh model/runtime artifact trong git.
 
 ## Task Sau Đó Đề Xuất
