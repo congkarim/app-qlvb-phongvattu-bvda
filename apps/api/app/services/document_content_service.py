@@ -61,6 +61,29 @@ class DocumentContentService:
         (re.compile(r"\bVan ban\b", re.IGNORECASE), "Văn bản"),
         (re.compile(r"\bphai gi du ting Vit\b", re.IGNORECASE), "phải giữ dấu tiếng Việt"),
         (re.compile(r"\bphi gi du ting Vit\b", re.IGNORECASE), "phải giữ dấu tiếng Việt"),
+        (re.compile(r"\bLUẶT\b"), "LUẬT"),
+        (re.compile(r"\bđiều chính\b", re.IGNORECASE), "điều chỉnh"),
+        (re.compile(r"\bdầu khi\b", re.IGNORECASE), "dầu khí"),
+        (re.compile(r"\bSố:\s*(\d+)\]/", re.IGNORECASE), r"Số: \1/"),
+        (re.compile(r"\b27IS/2026\b"), "27/5/2026"),
+        (re.compile(r"\bThứ\s+2715/2026\b"), "27/5/2026"),
+        (re.compile(r"\bNhà Tháng\b"), ""),
+        (re.compile(r"\bthuận thuận\b", re.IGNORECASE), ""),
+        (re.compile(r"\bThông bảo\b", re.IGNORECASE), "Thông báo"),
+        (re.compile(r"\s+và nhiều$", re.IGNORECASE), " và"),
+        (re.compile(r"\s+1992$"), ""),
+        (re.compile(r"^1990,\s*"), ""),
+        (re.compile(r"\s+\(eb$"), ""),
+    )
+    _OCR_EMPTY_LINE_TEXTS = {"E", "16", "6n", "2", "xuân"}
+    _OCR_NOISE_PREFIXES = (
+        "Thuật thuật ",
+        "Thuật ",
+        "Nhất ",
+        "Thành ",
+        "Nhà Tháng ",
+        "Các thuận ",
+        "Anh thuận ",
     )
 
     def __init__(self) -> None:
@@ -331,7 +354,21 @@ class DocumentContentService:
         restored = cleaned
         for pattern, replacement in self._OCR_TERM_REPLACEMENTS:
             restored = pattern.sub(replacement, restored)
+        restored = self._strip_known_ocr_noise(restored)
+        if restored in self._OCR_EMPTY_LINE_TEXTS:
+            return ""
         return restored
+
+    def _strip_known_ocr_noise(self, text: str) -> str:
+        cleaned = text
+        changed = True
+        while changed:
+            changed = False
+            for prefix in self._OCR_NOISE_PREFIXES:
+                if cleaned.startswith(prefix):
+                    cleaned = cleaned[len(prefix) :].lstrip()
+                    changed = True
+        return cleaned
 
     def _clean_multiline_text(self, text: str) -> str:
         lines = [

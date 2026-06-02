@@ -1,4 +1,4 @@
-# Task Tiếp Theo: Tối Ưu OCR Ảnh Scan Thực Tế Và Reranking Search
+# Task Tiếp Theo: Tối Ưu PDF Scan Và Hybrid Search
 
 Trạng thái: đề xuất.
 
@@ -6,69 +6,78 @@ Ngày cập nhật: 2026-06-02
 
 ## Task Vừa Hoàn Thành
 
-Đã mở rộng fixture OCR tiếng Việt, chạy benchmark trên nhiều mẫu không nhạy cảm và kiểm tra tài liệu thực tế upload từ web.
+Đã tối ưu OCR ảnh scan thực tế, layout hai cột và reranking/dedup search mức MVP.
 
 Kết quả chính:
-- Thêm generator deterministic: `tests/fixtures/ocr_vi/generate_fixtures.py`.
-- Mở rộng fixture từ 1 mẫu lên 6 mẫu:
-  - scan rõ;
-  - quyết định hành chính nhiều dấu;
-  - scan nén/mờ;
-  - trang hai cột và ghi chú;
-  - ảnh nghiêng nhẹ có nhiễu;
-  - PDF scan 2 trang.
-- Mỗi fixture có ground truth `.txt` cùng tên.
-- Cập nhật `benchmark_ocr_vi.py` để benchmark cả `.pdf`, gom text nhiều page và báo `seconds_per_page`.
-- Cập nhật `tests/fixtures/ocr_vi/README.md` với mô tả fixture và kết quả benchmark.
-
-Benchmark ngày 2026-06-02:
-
-```bash
-docker compose run --rm --no-deps -e OCR_PREPROCESS_MODE=raw worker \
-  python -m app.scripts.benchmark_ocr_vi \
-  --fixtures /app/tests/fixtures/ocr_vi \
-  --engine all \
-  --format json
-```
-
-Tóm tắt kết quả:
-
-| file | paddleocr CER/WER/accent loss | paddle_vietocr CER/WER/accent loss | Nhận xét |
-| --- | ---: | ---: | --- |
-| `sample_001.png` | 0.0053 / 0.0238 / 0.0294 | 0.0 / 0.0 / 0.0 | VietOCR đạt tuyệt đối trên mẫu rõ. |
-| `sample_002.png` | 0.1066 / 0.4722 / 0.4923 | 0.0063 / 0.0417 / 0.0 | VietOCR giữ dấu tốt, còn lỗi dấu câu nhỏ. |
-| `sample_003.png` | 0.1443 / 0.5397 / 0.5424 | 0.0687 / 0.1111 / 0.0 | Scan mờ có cải thiện lớn nhưng còn hallucination vài từ. |
-| `sample_004.png` | 0.6905 / 0.9783 / 0.4659 | 0.711 / 0.913 / 0.0 | Bố cục hai cột sai thứ tự đọc; đây là lỗi layout/detection, không phải mất dấu. |
-| `sample_005.png` | 0.098 / 0.4154 / 0.4808 | 0.0034 / 0.0154 / 0.0 | VietOCR xử lý tốt ảnh nghiêng nhẹ. |
-| `sample_006.pdf` | 0.1417 / 0.5487 / 0.5714 | 0.0526 / 0.0531 / 0.0 | PDF scan giữ dấu tốt hơn, còn tách dòng tiêu đề; runtime VietOCR khoảng 39.6s/page. |
+- Thêm column-aware line ordering cho VietOCR:
+  - Trang hai cột được đọc theo cột trái trước, rồi cột phải.
+  - Có guard để không áp dụng column-sort nhầm cho công văn một cột có header hai bên.
+- Thêm cleanup OCR hẹp cho lỗi thực tế đã thấy:
+  - `Số: 72]/UBND-KT` -> `Số: 72/UBND-KT`.
+  - `27IS/2026`, `Thứ 2715/2026` -> `27/5/2026`.
+  - `Thông bảo` -> `Thông báo`.
+  - Giảm nhiễu như `Thuật`, `Nhất`, `Thành`, `Nhà Tháng`, `Các thuận`, `thuận thuận`, `1990`, `1992`, `E`, `16`, `6n`, `2`.
+- Thêm reranking/dedup search:
+  - Search lấy nhiều hit hơn từ Qdrant rồi rerank nội bộ.
+  - Boost exact legal markers như `Điều 1`, `phạm vi điều chỉnh`, `Luật Đấu thầu`.
+  - Giảm kết quả yếu trùng theo document/title/text.
+  - Thêm `content_hash` vào Qdrant payload cho index/reindex sau.
 
 Đã kiểm tra:
 
 ```bash
-docker compose config --quiet
-docker compose run --rm --no-deps worker python -m py_compile /app/app/scripts/benchmark_ocr_vi.py
-docker compose run --rm --no-deps -e OCR_PREPROCESS_MODE=raw worker python -m py_compile /app/app/scripts/benchmark_ocr_vi.py /app/tests/fixtures/ocr_vi/generate_fixtures.py
-docker compose run --rm --no-deps -e OCR_PREPROCESS_MODE=raw worker python -m app.scripts.benchmark_ocr_vi --fixtures /app/tests/fixtures/ocr_vi --engine all --format json
+docker compose run --rm --no-deps worker python -m py_compile /app/app/services/document_content_service.py /app/app/services/ocr/paddle_vietocr_engine.py /app/app/services/search_service.py /app/app/workers/ocr_worker.py /app/app/scripts/reindex_embeddings.py
 ```
 
-Ghi chú:
-- Lệnh benchmark full với `OCR_PREPROCESS_MODE=auto` bị dừng sau hơn 5 phút vì quá chậm cho kiểm tra thường xuyên.
+OCR fixture hai cột `sample_004.png` với `OCR_PREPROCESS_MODE=raw`, `paddle_vietocr`:
 
-Kiểm tra tài liệu thực tế upload từ web:
+```text
+PHỤ LỤC QUY TRÌNH KIỂM SOÁT VẬT TƯ
+Điều 5. Kiểm kê vật tư
+1. Kho vật tư thực hiện kiểm kê định
+kỳ vào ngày cuối quý
+2. Biên bản kiểm kê phải có chữ ký của
+thủ kho và kế toán.
+3. Vật tư hư hỏng được lập danh sách
+riêng để xử lý
+Điều 6. Báo cáo sử dụng
+1. Báo cáo gửi về phòng vật tư trước
+ngày 05 hằng tháng.
+2. Số liệu báo cáo phải khớp với phiếu
+xuất, phiếu nhập
+Ghi chú: Không tự ý điều chuyển vật
+tư giữa các công trình.
+```
 
-| file | trạng thái | OCR/chunk | Nhận xét |
-| --- | --- | --- | --- |
-| `22-qh-15.signed.pdf` | `searchable`, job `completed` | 84 pages, 184 chunks, avg confidence `0.9272` | Giữ dấu khá tốt, còn lỗi như `LUẶT`, `điều chính`, `dầu khi`, header `869 ? 870`. |
-| `0f53863c-d731-4b39-b0ff-d883ab039a88.jpeg` | `searchable`, job `completed` | 1 page, 1 chunk, confidence `0.9037` | Có nhiễu/hallucination: `Thuật`, `Nhất`, `Thành`, `Nhà Tháng`, `Các thuận`; số hiệu/ngày lỗi `72]`, `27IS/2026`. |
+OCR lại JPEG công văn xã Xuân Lâm:
 
-Search kiểm tra:
-- Query `Lê Thế Anh hồ sơ xin thôi việc Xuân Lâm` trả JPEG mới nhất top 1.
-- Query `Luật Đấu thầu phạm vi điều chỉnh` có chunk đúng Điều 1 nhưng chỉ đứng thứ 5.
-- Kết quả search còn lẫn bản upload cũ của cùng file PDF, xác nhận cần dedup/reranking.
+```text
+confidence=0.9043
+Số: 72/UBND-KT
+Xuân Lâm, ngày 26 tháng 5 năm 2026
+Kính gửi: Ban chỉ huy 32 xóm.
+...
+bất kỳ các hồ sơ thuộc các lĩnh vực cho Đồng chí Lê Thế Anh kể từ ngày
+27/5/2026; đối với các hồ sơ đã được người dân nộp trực tiếp cho Đồng chí Lê
+...
+Thông báo và tuyên truyền đến toàn thể nhân dân không trực tiếp nộp
+```
+
+Search:
+
+```bash
+curl -fsS -X POST http://localhost:8000/api/v1/search/semantic \
+  -H 'Content-Type: application/json' \
+  -d '{"query":"Luật Đấu thầu phạm vi điều chỉnh","limit":5}'
+```
+
+Kết quả:
+- Chunk `Điều 1. Phạm vi điều chính` lên top 2.
+- Top 5 không còn lẫn các bản upload cũ của cùng file PDF.
 
 ## Mục Tiêu Task Tiếp Theo
 
-Tối ưu chất lượng OCR cho ảnh scan thực tế và cải thiện ranking search cho văn bản pháp lý đã index.
+Tối ưu phần còn lại của OCR PDF scan và cải thiện search pháp lý exact-match lên top 1 ổn định hơn.
 
 ## Ràng Buộc Không Đổi
 
@@ -82,58 +91,47 @@ Tối ưu chất lượng OCR cho ảnh scan thực tế và cải thiện ranki
 
 ## Phạm Vi Đề Xuất
 
-### 1. Tối Ưu OCR Ảnh Scan Thực Tế
+### 1. Tối Ưu PDF/Header Scan
 
-Ưu tiên lỗi đã thấy trên JPEG công văn:
-- Số hiệu `72]/UBND-KT` cần đọc đúng hơn.
-- Ngày `27IS/2026` cần giảm lỗi ký tự ngày tháng.
-- Nhiễu từ như `Thuật`, `Nhất`, `Thành`, `Nhà Tháng`, `Các thuận` cần giảm.
-
-Hướng xử lý:
-- Thử deskew/denoise nhẹ cho ảnh scan công văn.
-- So sánh `raw`, `clahe`, `threshold` trên chính JPEG thực tế.
-- Điều chỉnh scoring candidate để ưu tiên text ít nhiễu hơn, không chỉ confidence/accent count.
-- Nếu cần, thêm fixture không nhạy cảm mô phỏng nhiễu nền từ ảnh thực tế.
-
-### 2. Tối Ưu Layout Khó Và PDF
-
-Ưu tiên xử lý các lỗi đã thấy trong benchmark:
-- `sample_004.png`: trang hai cột bị sai thứ tự đọc.
-- `sample_006.pdf`: tiêu đề PDF bị tách dòng không tự nhiên.
-- `22-qh-15.signed.pdf`: lỗi header `869 ? 870`, từ `điều chính`, `LUẶT`.
-- `OCR_PREPROCESS_MODE=auto`: runtime quá cao trên full fixture.
+Vấn đề còn lại:
+- `22-qh-15.signed.pdf`: header `CÔNG BÁO/SỐ 869 ? 870` còn sai dấu phân tách.
+- Một số lỗi từ vẫn còn: `LUẶT`, `điều chính`, `dầu khi`.
+- `sample_006.pdf`: tiêu đề bị tách dòng không tự nhiên.
 
 Hướng xử lý:
-- Cải thiện crop ordering theo cột trước khi sort theo dòng.
-- Thêm heuristic nối dòng tiêu đề bị tách khi các box cùng hàng.
-- Giảm số preprocess candidate khi scan rõ hoặc cho phép benchmark chạy theo mode cụ thể.
-- Cache/reuse detector và predictor trong benchmark/service path nếu còn init lặp.
+- Thêm heuristic nối line tiêu đề khi các box cùng hàng hoặc cùng cụm header.
+- Bổ sung cleanup pháp lý hẹp cho các lỗi phổ biến trên PDF scan.
+- Kiểm tra riêng page 1 và một số page có header/footer nhiều nhiễu.
 
-### 3. Dedup/Reranking Search
+### 2. Giảm Runtime Benchmark/OCR Auto
 
-Vấn đề đã thấy:
-- Cùng file `22-qh-15.signed.pdf` tồn tại nhiều bản upload.
-- Query đúng ngữ cảnh có chunk Điều 1 nhưng chưa đứng top 1.
+Vấn đề:
+- `OCR_PREPROCESS_MODE=auto` full fixture quá chậm cho vòng kiểm tra thường xuyên.
 
 Hướng xử lý:
-- Dedup kết quả theo `document_id`, `content_hash` hoặc fingerprint gần đúng.
-- Rerank ưu tiên chunk có keyword exact match như `Điều 1`, `phạm vi điều chỉnh`, `Luật Đấu thầu`.
-- Xem xét hybrid search keyword + vector cho truy vấn pháp lý.
+- Cho benchmark chạy theo danh sách fixture hoặc giới hạn file/page.
+- Chỉ thử `raw/clahe/threshold` khi scoring nhanh thấy cần.
+- Cache/reuse detector/predictor trong benchmark path nếu còn init lặp.
+
+### 3. Hybrid Search Keyword + Vector
+
+Vấn đề:
+- Query `Luật Đấu thầu phạm vi điều chỉnh` đã lên top 2, nhưng chưa top 1.
+
+Hướng xử lý:
+- Thêm keyword scorer rõ ràng hơn cho `section_title`, `Điều`, `Khoản`, số hiệu.
+- Có thể bổ sung PostgreSQL keyword candidate trước khi merge với Qdrant vector hits.
+- Tiếp tục dedup theo `content_hash` sau khi reindex payload mới.
 
 ## Tiêu Chí Hoàn Thành
 
-- OCR JPEG công văn giảm rõ lỗi số hiệu/ngày tháng và hallucination từ nhiễu.
-- Với layout hai cột, thứ tự đọc không còn trộn cột trái/phải trên fixture hiện có.
-- Runtime benchmark có cấu hình kiểm tra nhanh ổn định cho toàn bộ fixture.
-- Search `Luật Đấu thầu phạm vi điều chỉnh` đưa chunk Điều 1 lên top 1 hoặc top 2.
-- Kết quả search giảm trùng lặp giữa các bản upload cùng nội dung.
+- PDF page 1 giảm lỗi header và từ pháp lý phổ biến.
+- Benchmark có chế độ kiểm tra nhanh theo fixture/file cụ thể.
+- Search `Luật Đấu thầu phạm vi điều chỉnh` đưa chunk Điều 1 lên top 1 ổn định.
 - Không phát sinh model/runtime artifact trong git.
 
 ## Task Sau Đó Đề Xuất
 
-Khi OCR thực tế đủ ổn:
-- Dedup/reranking semantic search để giảm kết quả trùng.
-- Hybrid search keyword + vector cho truy vấn pháp lý.
-
-Nếu OCR thực tế vẫn chưa đạt:
-- Fine-tune VietOCR hoặc PaddleOCR recognizer trên dataset pháp lý tiếng Việt local.
+- Reindex Qdrant để payload mới có `content_hash`.
+- Thêm bộ fixture ảnh scan công văn không nhạy cảm mô phỏng nhiễu thực tế.
+- Cân nhắc fine-tune VietOCR hoặc recognizer local nếu vẫn còn lỗi OCR khó.

@@ -89,6 +89,7 @@ class OCRWorker:
                         "department_id": document.department_id,
                         "page_from": chunk.page_from,
                         "page_to": chunk.page_to,
+                        "content_hash": chunk.content_hash,
                     },
                 )
                 self.documents.update_chunk_qdrant_point_id(chunk, point_id)

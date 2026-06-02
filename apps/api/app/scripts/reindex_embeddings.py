@@ -47,6 +47,7 @@ def reindex_embeddings(*, batch_size: int, limit: int | None, dry_run: bool) -> 
                         "department_id": document.department_id,
                         "page_from": chunk.page_from,
                         "page_to": chunk.page_to,
+                        "content_hash": chunk.content_hash,
                     },
                 )
                 documents.update_chunk_qdrant_point_id(chunk, point_id)
