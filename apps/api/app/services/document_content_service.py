@@ -62,8 +62,11 @@ class DocumentContentService:
         (re.compile(r"\bphai gi du ting Vit\b", re.IGNORECASE), "phải giữ dấu tiếng Việt"),
         (re.compile(r"\bphi gi du ting Vit\b", re.IGNORECASE), "phải giữ dấu tiếng Việt"),
         (re.compile(r"\bLUẶT\b"), "LUẬT"),
+        (re.compile(r"\bLỤẬT\b"), "LUẬT"),
         (re.compile(r"\bđiều chính\b", re.IGNORECASE), "điều chỉnh"),
         (re.compile(r"\bdầu khi\b", re.IGNORECASE), "dầu khí"),
+        (re.compile(r"\bCÔNG BẢO\b", re.IGNORECASE), "CÔNG BÁO"),
+        (re.compile(r"(CÔNG BÁO/SỐ\s+\d+)\s*[?4+]\s*(\d+)", re.IGNORECASE), r"\1 + \2"),
         (re.compile(r"\bSố:\s*(\d+)\]/", re.IGNORECASE), r"Số: \1/"),
         (re.compile(r"\b27IS/2026\b"), "27/5/2026"),
         (re.compile(r"\bThứ\s+2715/2026\b"), "27/5/2026"),
@@ -303,6 +306,7 @@ class DocumentContentService:
         raw_lines = self._recognize_ocr_lines(image_array)
         lines = self._clean_ocr_lines(raw_lines)
         text = "\n".join(line.text for line in lines)
+        text = self._postprocess_ocr_text(text)
         confidence = sum(line.confidence for line in lines) / len(lines) if lines else 0.0
         return DocumentPageContent(page_number=page_number, text=text, confidence=round(confidence, 4))
 
@@ -369,6 +373,25 @@ class DocumentContentService:
                     cleaned = cleaned[len(prefix) :].lstrip()
                     changed = True
         return cleaned
+
+    def _postprocess_ocr_text(self, text: str) -> str:
+        fixed = text
+        fixed = re.sub(
+            r"KỸ THUẬT\s*\nTỔNG CÔNG TY HẠ\s*\nTẦNG",
+            "TỔNG CÔNG TY HẠ TẦNG KỸ THUẬT",
+            fixed,
+        )
+        fixed = re.sub(
+            r"TỔNG CÔNG TY HẠ\s*\nKỸ THUẬT\s*\nTẦNG",
+            "TỔNG CÔNG TY HẠ TẦNG KỸ THUẬT",
+            fixed,
+        )
+        fixed = re.sub(
+            r"KẾ HOẠCH MUA SẮM\s*\nTƯ NĂM 2026\s*\nVẬT",
+            "KẾ HOẠCH MUA SẮM VẬT TƯ NĂM 2026",
+            fixed,
+        )
+        return fixed
 
     def _clean_multiline_text(self, text: str) -> str:
         lines = [

@@ -35,6 +35,8 @@ def main() -> None:
     parser.add_argument("--engine", choices=["paddleocr", "paddle_vietocr", "all"], default="all")
     parser.add_argument("--format", choices=["markdown", "json"], default="markdown")
     parser.add_argument("--generate-sample", action="store_true")
+    parser.add_argument("--files", nargs="*", help="Only benchmark the listed fixture filenames.")
+    parser.add_argument("--limit", type=int, default=None, help="Maximum number of fixture files to benchmark.")
     args = parser.parse_args()
 
     if args.generate_sample:
@@ -42,12 +44,9 @@ def main() -> None:
 
     engines = ["paddleocr", "paddle_vietocr"] if args.engine == "all" else [args.engine]
     rows = []
-    for fixture_path in sorted(args.fixtures.iterdir()):
-        if fixture_path.suffix.lower() not in BENCHMARK_SUFFIXES:
-            continue
+    fixture_paths = list(iter_fixture_paths(args.fixtures, args.files, args.limit))
+    for fixture_path in fixture_paths:
         truth_path = fixture_path.with_suffix(".txt")
-        if not truth_path.exists():
-            continue
         truth = truth_path.read_text(encoding="utf-8")
         for engine in engines:
             rows.append(run_benchmark(fixture_path, truth, engine))
@@ -56,6 +55,22 @@ def main() -> None:
         print(json.dumps(rows, ensure_ascii=False, indent=2))
     else:
         print_markdown(rows)
+
+
+def iter_fixture_paths(fixtures: Path, files: list[str] | None, limit: int | None):
+    selected_names = set(files or [])
+    count = 0
+    for fixture_path in sorted(fixtures.iterdir()):
+        if fixture_path.suffix.lower() not in BENCHMARK_SUFFIXES:
+            continue
+        if not fixture_path.with_suffix(".txt").exists():
+            continue
+        if selected_names and fixture_path.name not in selected_names:
+            continue
+        yield fixture_path
+        count += 1
+        if limit is not None and count >= limit:
+            break
 
 
 def run_benchmark(fixture_path: Path, truth: str, engine: str) -> dict[str, object]:

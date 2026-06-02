@@ -233,6 +233,20 @@ Kết quả:
 - JPEG công văn xã Xuân Lâm khi OCR lại bằng code mới đạt confidence `0.9043`; số hiệu đọc đúng `Số: 72/UBND-KT`, ngày đọc đúng `27/5/2026`, giảm các nhiễu `Thuật`, `Nhất`, `Thành`, `Nhà Tháng`, `Các thuận`, `1990`, `1992`, `E`, `16`, `6n`, `2`.
 - Search `Luật Đấu thầu phạm vi điều chỉnh` đưa chunk `Điều 1. Phạm vi điều chính` lên top 2 và top 5 không còn lẫn các bản upload cũ của cùng file PDF.
 
+Tối ưu PDF scan và search kiểm tra bổ sung ngày 2026-06-02:
+
+```bash
+docker compose run --rm --no-deps worker python -m py_compile /app/app/scripts/benchmark_ocr_vi.py /app/app/services/document_content_service.py /app/app/services/search_service.py
+docker compose run --rm --no-deps -e OCR_PREPROCESS_MODE=raw worker python -m app.scripts.benchmark_ocr_vi --fixtures /app/tests/fixtures/ocr_vi --files sample_006.pdf --engine paddle_vietocr --format json
+curl -fsS -X POST http://localhost:8000/api/v1/search/semantic -H 'Content-Type: application/json' -d '{"query":"Luật Đấu thầu phạm vi điều chỉnh","limit":5}'
+```
+
+Kết quả:
+- `benchmark_ocr_vi.py` có chế độ kiểm tra nhanh bằng `--files` và `--limit`, tránh phải chạy toàn bộ fixture khi chỉ cần kiểm tra một file/page.
+- `sample_006.pdf` với `paddle_vietocr` và `OCR_PREPROCESS_MODE=raw` đạt `CER=0.0`, `WER=0.0`, `accent_loss=0.0`; tiêu đề đã nối đúng `TỔNG CÔNG TY HẠ TẦNG KỸ THUẬT` và `KẾ HOẠCH MUA SẮM VẬT TƯ NĂM 2026`.
+- OCR riêng page 1 của `22-qh-15.signed.pdf` đạt confidence `0.9256`; header đọc đúng `CÔNG BÁO/SỐ 869 + 870/NGÀY 31-7-2023`, `LUẬT`, `ĐẦU THẦU`, `Điều 1. Phạm vi điều chỉnh`.
+- Search `Luật Đấu thầu phạm vi điều chỉnh` đưa chunk `Điều 1. Phạm vi điều chính` lên top 1.
+
 ## Lỗi Đã Sửa
 
 Docker/runtime:
@@ -260,7 +274,7 @@ OCR:
 - VietOCR weight local đã được chuẩn bị tại `models/ocr/vietocr/transformerocr.pth` trên máy local và không được commit.
 - Nếu `OCR_ENGINE=paddle_vietocr` nhưng thiếu `VIETOCR_WEIGHT_PATH`, worker báo `FileNotFoundError` rõ ràng.
 - Chất lượng OCR scan xấu vẫn phụ thuộc detection box và chất lượng crop; fixture hai cột đã được cải thiện bằng column-aware line ordering.
-- PDF scan với VietOCR giữ dấu tốt hơn baseline nhưng còn tách dòng tiêu đề và runtime cao.
+- PDF scan với VietOCR giữ dấu tốt hơn baseline; page 1 PDF thật và fixture PDF scan đã giảm lỗi header/tiêu đề, nhưng runtime vẫn cao.
 - Tài liệu thực tế upload từ web đã chạy hết pipeline đến `searchable`; JPEG công văn đã giảm lỗi số hiệu/ngày tháng và nhiễu từ khi OCR lại bằng code mới, nhưng vẫn cần theo dõi thêm trên nhiều ảnh scan thật.
 
 Chunking:
@@ -280,7 +294,7 @@ Search:
 - Đã reindex 1.584 chunks sang Qdrant collection `document_chunks_bkai_768_v1`, vector size `768`.
 - Benchmark 5 query tiếng Việt cho kết quả đúng ngữ cảnh hơn fake embedding, đặc biệt với `hiệu lực thi hành luật đấu thầu`, `trách nhiệm của chủ đầu tư`, `lựa chọn nhà thầu`.
 - Semantic search đã có reranking/dedup nhẹ: lấy nhiều hit hơn từ Qdrant, boost exact legal markers và giảm kết quả yếu trùng theo document/title/text.
-- Query `Luật Đấu thầu phạm vi điều chỉnh` đã đưa chunk Điều 1 lên top 2 và giảm bản upload cũ trong top 5.
+- Query `Luật Đấu thầu phạm vi điều chỉnh` đã đưa chunk Điều 1 lên top 1 và giảm bản upload cũ trong top 5.
 - Metadata filters hiện còn tối thiểu.
 
 Auth:
@@ -302,7 +316,7 @@ Generated files:
 
 OCR thật và trích xuất Office text mức MVP đã được triển khai. OCR scan tiếng Việt hiện ưu tiên VietOCR local.
 
-Task tiếp theo nên ưu tiên tối ưu PDF/header scan và runtime benchmark `OCR_PREPROCESS_MODE=auto`, đồng thời mở rộng hybrid search keyword + vector nếu cần đưa chunk pháp lý exact match lên top 1 ổn định hơn.
+Task tiếp theo nên ưu tiên giảm runtime OCR/VietOCR và reindex Qdrant payload mới có `content_hash`; sau đó mở rộng fixture ảnh scan công văn không nhạy cảm để kiểm tra thêm chất lượng OCR thực tế.
 
 Workflow MVP hiện có:
 

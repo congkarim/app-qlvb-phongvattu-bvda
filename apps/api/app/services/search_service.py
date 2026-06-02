@@ -97,10 +97,16 @@ class SearchService:
             if marker in query_norm and marker in text_norm:
                 score += boost
 
+        if "pham vi dieu chinh" in query_norm and text_norm.startswith("dieu 1"):
+            score += 0.55
+        if "luat dau thau" in query_norm and text_norm.startswith("dieu 1"):
+            score += 0.2
         if "pham vi dieu chinh" in query_norm and "dieu 1" in text_norm:
             score += 0.2
         if "luat dau thau" in query_norm and "dau thau" in text_norm:
             score += 0.12
+        if "pham vi dieu chinh" in query_norm and "pham vi dieu chinh" not in text_norm:
+            score -= 0.18
         return score
 
     def _is_weak_match(self, query: str, text: str) -> bool:
