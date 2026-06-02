@@ -1,6 +1,6 @@
 # Trạng Thái Dự Án
 
-Cập nhật lần cuối: 2026-06-01
+Cập nhật lần cuối: 2026-06-02
 
 ## Giai Đoạn Hiện Tại
 
@@ -173,6 +173,23 @@ paddleocr: CER 0.0053, WER 0.0238, accent loss 0.0294, 34.944s
 paddle_vietocr: CER 0.0, WER 0.0, accent loss 0.0, 49.487s
 ```
 
+OCR fixture mở rộng kiểm tra ngày 2026-06-02:
+
+```bash
+docker compose config --quiet
+docker compose run --rm --no-deps worker python -m py_compile /app/app/scripts/benchmark_ocr_vi.py
+docker compose run --rm --no-deps -e OCR_PREPROCESS_MODE=raw worker python -m py_compile /app/app/scripts/benchmark_ocr_vi.py /app/tests/fixtures/ocr_vi/generate_fixtures.py
+docker compose run --rm --no-deps -e OCR_PREPROCESS_MODE=raw worker python -m app.scripts.benchmark_ocr_vi --fixtures /app/tests/fixtures/ocr_vi --engine all --format json
+```
+
+Kết quả chính:
+- Đã mở rộng `tests/fixtures/ocr_vi` lên 6 fixture không nhạy cảm, gồm 5 ảnh scan và 1 PDF scan 2 trang.
+- `benchmark_ocr_vi.py` đã benchmark được cả PDF, gom text nhiều page và báo runtime/page.
+- Với `OCR_PREPROCESS_MODE=raw`, `paddle_vietocr` giữ dấu tiếng Việt tốt hơn `paddleocr` trên các mẫu scan rõ, scan mờ và ảnh nghiêng.
+- `sample_004.png` hai cột vẫn sai thứ tự đọc; đây là lỗi layout/detection cần xử lý riêng.
+- `sample_006.pdf` giữ dấu tốt hơn với VietOCR nhưng còn tách dòng tiêu đề; runtime khoảng 39.6s/page.
+- Benchmark full với `OCR_PREPROCESS_MODE=auto` bị dừng sau hơn 5 phút vì quá chậm cho kiểm tra thường xuyên.
+
 ## Lỗi Đã Sửa
 
 Docker/runtime:
@@ -199,7 +216,9 @@ OCR:
 - Nếu chuẩn bị sẵn `models/ocr/PP-OCRv5_server_det` và `models/ocr/latin_PP-OCRv5_mobile_rec`, worker sẽ dùng model local qua `/models/ocr`.
 - VietOCR weight local đã được chuẩn bị tại `models/ocr/vietocr/transformerocr.pth` trên máy local và không được commit.
 - Nếu `OCR_ENGINE=paddle_vietocr` nhưng thiếu `VIETOCR_WEIGHT_PATH`, worker báo `FileNotFoundError` rõ ràng.
-- Chất lượng OCR scan xấu vẫn phụ thuộc detection box và chất lượng crop; task sau có thể cần mở rộng fixture/fine-tune recognizer tiếng Việt local nếu tài liệu thực tế khó hơn.
+- Chất lượng OCR scan xấu vẫn phụ thuộc detection box, chất lượng crop và thứ tự đọc layout; fixture hai cột hiện còn trộn cột trái/phải.
+- PDF scan với VietOCR giữ dấu tốt hơn baseline nhưng còn tách dòng tiêu đề và runtime cao.
+- Chưa kiểm tra được tài liệu thực tế người dùng upload lại trong task 2026-06-02 vì repo chưa có file thực tế mới.
 
 Chunking:
 - Đã sửa lỗi `section_title` quá dài làm PostgreSQL báo `value too long for type character varying(512)`.
@@ -239,7 +258,7 @@ Generated files:
 
 OCR thật và trích xuất Office text mức MVP đã được triển khai. OCR scan tiếng Việt hiện ưu tiên VietOCR local.
 
-Task tiếp theo nên ưu tiên dedup/reranking kết quả search để giảm trùng lặp giữa các bản upload cùng nội dung.
+Task tiếp theo nên ưu tiên upload lại tài liệu thực tế của người dùng để kiểm tra OCR end-to-end, đồng thời tối ưu lỗi layout hai cột/PDF scan đã thấy trong fixture. Khi OCR thực tế đủ ổn, chuyển sang dedup/reranking kết quả search để giảm trùng lặp giữa các bản upload cùng nội dung.
 
 Workflow MVP hiện có:
 

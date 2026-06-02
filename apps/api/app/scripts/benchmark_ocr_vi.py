@@ -17,7 +17,7 @@ VIETNAMESE_ACCENT_CHARS = set(
     "ĂÂĐÊÔƠƯÁÀẢÃẠẮẰẲẴẶẤẦẨẪẬÉÈẺẼẸẾỀỂỄỆÍÌỈĨỊ"
     "ÓÒỎÕỌỐỒỔỖỘỚỜỞỠỢÚÙỦŨỤỨỪỬỮỰÝỲỶỸỴ"
 )
-IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp"}
+BENCHMARK_SUFFIXES = {".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp", ".pdf"}
 SAMPLE_TEXT = "\n".join(
     [
         "CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM",
@@ -42,15 +42,15 @@ def main() -> None:
 
     engines = ["paddleocr", "paddle_vietocr"] if args.engine == "all" else [args.engine]
     rows = []
-    for image_path in sorted(args.fixtures.iterdir()):
-        if image_path.suffix.lower() not in IMAGE_SUFFIXES:
+    for fixture_path in sorted(args.fixtures.iterdir()):
+        if fixture_path.suffix.lower() not in BENCHMARK_SUFFIXES:
             continue
-        truth_path = image_path.with_suffix(".txt")
+        truth_path = fixture_path.with_suffix(".txt")
         if not truth_path.exists():
             continue
         truth = truth_path.read_text(encoding="utf-8")
         for engine in engines:
-            rows.append(run_benchmark(image_path, truth, engine))
+            rows.append(run_benchmark(fixture_path, truth, engine))
 
     if args.format == "json":
         print(json.dumps(rows, ensure_ascii=False, indent=2))
@@ -58,28 +58,32 @@ def main() -> None:
         print_markdown(rows)
 
 
-def run_benchmark(image_path: Path, truth: str, engine: str) -> dict[str, object]:
+def run_benchmark(fixture_path: Path, truth: str, engine: str) -> dict[str, object]:
     service = DocumentContentService()
     service.settings = service.settings.model_copy(update={"ocr_engine": engine})
     start = time.perf_counter()
     error = ""
     text = ""
     confidence = 0.0
+    page_count = 0
     try:
-        page = service.extract_pages(image_path, image_path.name)[0]
-        text = page.text
-        confidence = page.confidence
+        pages = service.extract_pages(fixture_path, fixture_path.name)
+        page_count = len(pages)
+        text = "\n".join(page.text for page in pages)
+        confidence = round(sum(page.confidence for page in pages) / max(page_count, 1), 4)
     except Exception as exc:
         error = f"{type(exc).__name__}: {exc}"
     runtime = time.perf_counter() - start
     return {
-        "file": image_path.name,
+        "file": fixture_path.name,
         "engine": engine,
+        "pages": page_count,
         "confidence": confidence,
         "cer": character_error_rate(truth, text) if not error else None,
         "wer": word_error_rate(truth, text) if not error else None,
         "accent_loss_rate": accent_loss_rate(truth, text) if not error else None,
         "runtime_seconds": round(runtime, 3),
+        "seconds_per_page": round(runtime / max(page_count, 1), 3),
         "error": error,
         "text": text,
     }
@@ -128,12 +132,12 @@ def edit_distance(left, right) -> int:
 
 
 def print_markdown(rows: list[dict[str, object]]) -> None:
-    print("| file | engine | confidence | CER | WER | accent loss | seconds | error |")
-    print("| --- | --- | ---: | ---: | ---: | ---: | ---: | --- |")
+    print("| file | engine | pages | confidence | CER | WER | accent loss | seconds | sec/page | error |")
+    print("| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |")
     for row in rows:
         print(
-            "| {file} | {engine} | {confidence} | {cer} | {wer} | {accent_loss_rate} | "
-            "{runtime_seconds} | {error} |".format(**row)
+            "| {file} | {engine} | {pages} | {confidence} | {cer} | {wer} | {accent_loss_rate} | "
+            "{runtime_seconds} | {seconds_per_page} | {error} |".format(**row)
         )
 
 

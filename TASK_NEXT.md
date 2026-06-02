@@ -1,73 +1,67 @@
-# Task Tiếp Theo: Mở Rộng Fixture OCR Và Kiểm Tra Tài Liệu Thực Tế
+# Task Tiếp Theo: Kiểm Tra OCR Với File Thực Tế Và Tối Ưu Layout Khó
 
 Trạng thái: đề xuất.
 
-Ngày cập nhật: 2026-06-01
+Ngày cập nhật: 2026-06-02
 
 ## Task Vừa Hoàn Thành
 
-Đã tích hợp VietOCR local cho OCR tiếng Việt.
+Đã mở rộng fixture OCR tiếng Việt và chạy benchmark trên nhiều mẫu không nhạy cảm.
 
 Kết quả chính:
-- Thêm dependency `vietocr==0.3.13` và `torchvision==0.17.2+cpu`.
-- Hạ `Pillow` xuống `10.2.0` để thỏa dependency VietOCR.
-- Thêm config:
-  - `OCR_ENGINE=paddle_vietocr`
-  - `VIETOCR_MODEL_DIR`
-  - `VIETOCR_DEVICE`
-  - `VIETOCR_CONFIG`
-  - `VIETOCR_WEIGHT_PATH`
-  - `VIETOCR_MAX_BATCH_SIZE`
-  - `VIETOCR_BEAMSEARCH`
-- Tách OCR engine module:
-  - `app/services/ocr/schemas.py`
-  - `app/services/ocr/paddle_ocr_engine.py`
-  - `app/services/ocr/paddle_vietocr_engine.py`
-- Luồng `paddle_vietocr`:
-  - PaddleOCR detect text boxes.
-  - Crop từng line bằng perspective transform.
-  - VietOCR recognize crop tiếng Việt.
-  - DocumentContentService clean text và chọn preprocess candidate tốt nhất.
-- Giữ `OCR_ENGINE=paddleocr` làm baseline/fallback thủ công.
-- Thêm benchmark script `app/scripts/benchmark_ocr_vi.py`.
-- Thêm fixture mẫu không nhạy cảm tại `tests/fixtures/ocr_vi`.
-- Chuẩn bị model local bị ignore bởi git:
-  - `models/ocr/vietocr/transformerocr.pth`
-  - `models/ocr/PP-OCRv5_server_det`
-  - `models/ocr/latin_PP-OCRv5_mobile_rec`
+- Thêm generator deterministic: `tests/fixtures/ocr_vi/generate_fixtures.py`.
+- Mở rộng fixture từ 1 mẫu lên 6 mẫu:
+  - scan rõ;
+  - quyết định hành chính nhiều dấu;
+  - scan nén/mờ;
+  - trang hai cột và ghi chú;
+  - ảnh nghiêng nhẹ có nhiễu;
+  - PDF scan 2 trang.
+- Mỗi fixture có ground truth `.txt` cùng tên.
+- Cập nhật `benchmark_ocr_vi.py` để benchmark cả `.pdf`, gom text nhiều page và báo `seconds_per_page`.
+- Cập nhật `tests/fixtures/ocr_vi/README.md` với mô tả fixture và kết quả benchmark.
 
-Benchmark fixture `sample_001.png`:
+Benchmark ngày 2026-06-02:
 
-```text
-paddleocr: CER 0.0053, WER 0.0238, accent loss 0.0294, 34.944s
-paddle_vietocr: CER 0.0, WER 0.0, accent loss 0.0, 49.487s
+```bash
+docker compose run --rm --no-deps -e OCR_PREPROCESS_MODE=raw worker \
+  python -m app.scripts.benchmark_ocr_vi \
+  --fixtures /app/tests/fixtures/ocr_vi \
+  --engine all \
+  --format json
 ```
 
-OCR mẫu với default `OCR_ENGINE=paddle_vietocr`:
+Tóm tắt kết quả:
 
-```text
-confidence=0.9259
-CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM
-Độc lập - Tự do - Hạnh phúc
-Điều 1. Phạm vi điều chỉnh đấu thầu
-Khoản 1. Văn bản scan phải giữ dấu tiếng Việt.
-Số 74/VBHN-VPQH ngày 15 tháng 5 năm 2025.
-```
+| file | paddleocr CER/WER/accent loss | paddle_vietocr CER/WER/accent loss | Nhận xét |
+| --- | ---: | ---: | --- |
+| `sample_001.png` | 0.0053 / 0.0238 / 0.0294 | 0.0 / 0.0 / 0.0 | VietOCR đạt tuyệt đối trên mẫu rõ. |
+| `sample_002.png` | 0.1066 / 0.4722 / 0.4923 | 0.0063 / 0.0417 / 0.0 | VietOCR giữ dấu tốt, còn lỗi dấu câu nhỏ. |
+| `sample_003.png` | 0.1443 / 0.5397 / 0.5424 | 0.0687 / 0.1111 / 0.0 | Scan mờ có cải thiện lớn nhưng còn hallucination vài từ. |
+| `sample_004.png` | 0.6905 / 0.9783 / 0.4659 | 0.711 / 0.913 / 0.0 | Bố cục hai cột sai thứ tự đọc; đây là lỗi layout/detection, không phải mất dấu. |
+| `sample_005.png` | 0.098 / 0.4154 / 0.4808 | 0.0034 / 0.0154 / 0.0 | VietOCR xử lý tốt ảnh nghiêng nhẹ. |
+| `sample_006.pdf` | 0.1417 / 0.5487 / 0.5714 | 0.0526 / 0.0531 / 0.0 | PDF scan giữ dấu tốt hơn, còn tách dòng tiêu đề; runtime VietOCR khoảng 39.6s/page. |
 
 Đã kiểm tra:
 
 ```bash
-docker compose config
-docker compose build api worker
-docker compose up -d api worker
-docker compose exec -T worker sh -lc 'python -m py_compile /app/app/core/config.py /app/app/services/document_content_service.py /app/app/services/ocr/*.py /app/app/scripts/benchmark_ocr_vi.py'
-curl -fsS http://localhost:8000/health
-docker compose exec -T worker python -m app.scripts.benchmark_ocr_vi --fixtures /app/tests/fixtures/ocr_vi --engine all --format json
+docker compose config --quiet
+docker compose run --rm --no-deps worker python -m py_compile /app/app/scripts/benchmark_ocr_vi.py
+docker compose run --rm --no-deps -e OCR_PREPROCESS_MODE=raw worker python -m py_compile /app/app/scripts/benchmark_ocr_vi.py /app/tests/fixtures/ocr_vi/generate_fixtures.py
+docker compose run --rm --no-deps -e OCR_PREPROCESS_MODE=raw worker python -m app.scripts.benchmark_ocr_vi --fixtures /app/tests/fixtures/ocr_vi --engine all --format json
 ```
+
+Ghi chú:
+- Lệnh benchmark full với `OCR_PREPROCESS_MODE=auto` bị dừng sau hơn 5 phút vì quá chậm cho kiểm tra thường xuyên.
+- Chưa kiểm tra được tài liệu thực tế người dùng upload lại vì repo chưa có file thực tế mới.
 
 ## Mục Tiêu Task Tiếp Theo
 
-Mở rộng kiểm tra OCR trên tài liệu thực tế người dùng upload lại, đặc biệt PDF scan pháp lý, để xác nhận VietOCR cải thiện đủ trong điều kiện thật.
+Upload lại tài liệu thực tế của người dùng và kiểm tra OCR end-to-end trên workflow thật:
+
+```text
+upload -> preprocess -> OCR -> chunk -> embedding -> qdrant -> search
+```
 
 ## Ràng Buộc Không Đổi
 
@@ -81,58 +75,33 @@ Mở rộng kiểm tra OCR trên tài liệu thực tế người dùng upload l
 
 ## Phạm Vi Đề Xuất
 
-### 1. Mở Rộng Fixtures
+### 1. Kiểm Tra Tài Liệu Thực Tế
 
-Thêm 5-10 ảnh/PDF scan không nhạy cảm:
-- Scan rõ.
-- Scan mờ/nén.
-- Trang nhiều cột hoặc nhiều footnote nếu có.
-- Mẫu văn bản có số hiệu, ngày tháng, điều/khoản.
-
-Mỗi file có ground truth `.txt` cùng tên.
-
-### 2. Chạy Benchmark Lại
-
-Command:
-
-```bash
-docker compose exec -T worker python -m app.scripts.benchmark_ocr_vi \
-  --fixtures /app/tests/fixtures/ocr_vi \
-  --engine all
-```
-
-Ghi nhận:
-- CER.
-- WER.
-- Accent loss.
-- Runtime/page.
-- Lỗi số hiệu/ngày tháng/điều khoản.
-
-### 3. Upload Lại Tài Liệu Thực Tế
-
-Sau khi người dùng upload lại file thực tế:
+Sau khi người dùng cung cấp/upload lại file thực tế:
 - Theo dõi worker log.
 - Kiểm tra OCR page text.
 - Kiểm tra chunk/search.
-- Ghi lại file/page nào vẫn lỗi dấu hoặc sai số hiệu.
+- Ghi lại file/page nào vẫn lỗi dấu, sai số hiệu, sai ngày tháng hoặc sai điều/khoản.
 
-### 4. Tối Ưu Nếu Cần
+### 2. Tối Ưu Layout Khó
 
-Nếu VietOCR chậm:
-- Giảm số preprocess candidate khi scan rõ.
-- Chỉ dùng `raw/clahe` thay vì `auto`.
-- Cache detector/predictor theo process đã có, tránh init lại.
+Ưu tiên xử lý các lỗi đã thấy trong benchmark:
+- `sample_004.png`: trang hai cột bị sai thứ tự đọc.
+- `sample_006.pdf`: tiêu đề PDF bị tách dòng không tự nhiên.
+- `OCR_PREPROCESS_MODE=auto`: runtime quá cao trên full fixture.
 
-Nếu detection box sai:
-- Cải thiện crop ordering.
-- Điều chỉnh render scale PDF.
-- Thử deskew trước OCR.
+Hướng xử lý:
+- Cải thiện crop ordering theo cột trước khi sort theo dòng.
+- Thêm heuristic nối dòng tiêu đề bị tách khi các box cùng hàng.
+- Giảm số preprocess candidate khi scan rõ hoặc cho phép benchmark chạy theo mode cụ thể.
+- Cache/reuse detector và predictor trong benchmark/service path nếu còn init lặp.
 
 ## Tiêu Chí Hoàn Thành
 
-- Có benchmark trên nhiều hơn một fixture.
-- Có nhận xét rõ VietOCR đạt/chưa đạt với tài liệu thực tế.
-- Nếu còn lỗi, có danh sách lỗi cụ thể theo file/page.
+- Có kết quả OCR trên ít nhất một tài liệu thực tế người dùng upload lại.
+- Có danh sách lỗi cụ thể theo file/page nếu OCR chưa đạt.
+- Với layout hai cột, thứ tự đọc không còn trộn cột trái/phải trên fixture hiện có.
+- Runtime benchmark có cấu hình kiểm tra nhanh ổn định cho toàn bộ fixture.
 - Không phát sinh model/runtime artifact trong git.
 
 ## Task Sau Đó Đề Xuất
