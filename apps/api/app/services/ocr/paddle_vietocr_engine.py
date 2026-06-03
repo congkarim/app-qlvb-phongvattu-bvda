@@ -82,6 +82,9 @@ class PaddleVietOcrEngine:
         if split_x is None:
             return sorted(lines, key=lambda line: (self._box_top(line.box), self._box_left(line.box)))
         if self._looks_like_single_column_body(boxed_lines, split_x):
+            header_first = self._sort_header_columns_then_body(boxed_lines, split_x)
+            if header_first:
+                return header_first
             return sorted(lines, key=lambda line: (self._box_top(line.box), self._box_left(line.box)))
 
         page_left = min(self._box_left(line.box) for line in boxed_lines)
@@ -98,6 +101,27 @@ class PaddleVietOcrEngine:
             return (1, column, top, left)
 
         return sorted(lines, key=sort_key)
+
+    def _sort_header_columns_then_body(self, lines: list[OcrLine], split_x: float) -> list[OcrLine] | None:
+        page_top = min(self._box_top(line.box) for line in lines)
+        page_bottom = max(self._box_bottom(line.box) for line in lines)
+        page_height = max(page_bottom - page_top, 1.0)
+        header_cutoff = page_top + page_height * 0.18
+        header_lines = [line for line in lines if self._box_top(line.box) <= header_cutoff]
+        if len(header_lines) < 4:
+            return None
+
+        left_header = [line for line in header_lines if self._box_center_x(line.box) < split_x]
+        right_header = [line for line in header_lines if self._box_center_x(line.box) >= split_x]
+        if len(left_header) < 2 or len(right_header) < 2:
+            return None
+
+        body_lines = [line for line in lines if self._box_top(line.box) > header_cutoff]
+        return [
+            *sorted(left_header, key=lambda line: (self._box_top(line.box), self._box_left(line.box))),
+            *sorted(right_header, key=lambda line: (self._box_top(line.box), self._box_left(line.box))),
+            *sorted(body_lines, key=lambda line: (self._box_top(line.box), self._box_left(line.box))),
+        ]
 
     def _column_split_x(self, lines: list[OcrLine]) -> float | None:
         centers = sorted(self._box_center_x(line.box) for line in lines)
@@ -140,6 +164,9 @@ class PaddleVietOcrEngine:
 
     def _box_right(self, box: tuple[tuple[float, float], ...] | None) -> float:
         return max((point[0] for point in box), default=0.0) if box else 0.0
+
+    def _box_bottom(self, box: tuple[tuple[float, float], ...] | None) -> float:
+        return max((point[1] for point in box), default=0.0) if box else 0.0
 
     def _box_width(self, box: tuple[tuple[float, float], ...] | None) -> float:
         return self._box_right(box) - self._box_left(box)

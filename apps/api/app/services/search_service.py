@@ -1,12 +1,16 @@
 import re
 import unicodedata
 
+from sqlalchemy.orm import Session
+
+from app.repositories.document_repository import DocumentRepository
 from app.services.embedding_service import EmbeddingService
 from app.services.qdrant_service import QdrantService
 
 
 class SearchService:
-    def __init__(self) -> None:
+    def __init__(self, db: Session | None = None) -> None:
+        self.db = db
         self.embeddings = EmbeddingService()
         self.qdrant = QdrantService()
 
@@ -37,10 +41,37 @@ class SearchService:
                 "title": payload.get("title"),
                 "page_from": payload.get("page_from"),
                 "page_to": payload.get("page_to"),
-                "_rerank_score": self._rerank_score(query, text, hit.score),
+                "_vector_score": float(hit.score),
+                "_keyword_score": self._keyword_score(query, text, str(payload.get("title") or "")),
                 "_dedup_key": self._dedup_key(payload),
             }
+            candidate["_rerank_score"] = self._rerank_score(
+                query,
+                text,
+                vector_score=candidate["_vector_score"],
+                keyword_score=candidate["_keyword_score"],
+            )
             candidates.append(candidate)
+
+        candidates_by_chunk_id = {str(candidate["chunk_id"]): candidate for candidate in candidates}
+        for candidate in self._keyword_candidates(
+            query=query,
+            limit=search_limit,
+            document_type=document_type,
+            department_id=department_id,
+        ):
+            existing = candidates_by_chunk_id.get(str(candidate["chunk_id"]))
+            if existing:
+                existing["_keyword_score"] = max(existing["_keyword_score"], candidate["_keyword_score"])
+                existing["_rerank_score"] = self._rerank_score(
+                    query,
+                    str(existing.get("text") or ""),
+                    vector_score=existing["_vector_score"],
+                    keyword_score=existing["_keyword_score"],
+                )
+                continue
+            candidates.append(candidate)
+            candidates_by_chunk_id[str(candidate["chunk_id"])] = candidate
 
         ranked = sorted(candidates, key=lambda item: item["_rerank_score"], reverse=True)
         results = []
@@ -49,7 +80,9 @@ class SearchService:
         seen_titles: set[str] = set()
         for item in ranked:
             dedup_key = str(item.pop("_dedup_key"))
-            item.pop("_rerank_score", None)
+            rank_score = float(item.pop("_rerank_score", item.get("score") or 0.0))
+            item.pop("_vector_score", None)
+            item.pop("_keyword_score", None)
             document_id = str(item.get("document_id") or "")
             title_key = self._normalize(str(item.get("title") or ""))
             if dedup_key in seen_keys:
@@ -66,7 +99,7 @@ class SearchService:
                 {
                     "document_id": item["document_id"],
                     "chunk_id": item["chunk_id"],
-                    "score": round(float(item["score"]), 6),
+                    "score": round(rank_score, 6),
                     "text": item["text"],
                     "title": item["title"],
                     "page_from": item["page_from"],
@@ -77,10 +110,59 @@ class SearchService:
                 break
         return results
 
-    def _rerank_score(self, query: str, text: str, vector_score: float) -> float:
+    def _keyword_candidates(
+        self,
+        *,
+        query: str,
+        limit: int,
+        document_type: str | None,
+        department_id: str | None,
+    ) -> list[dict]:
+        if self.db is None:
+            return []
+
+        chunks = DocumentRepository(self.db).search_chunks_by_keyword(
+            query=query,
+            limit=limit,
+            document_type=document_type,
+            department_id=department_id,
+        )
+        candidates = []
+        for chunk in chunks:
+            document = chunk.document
+            keyword_score = self._keyword_score(query, chunk.text, document.title)
+            candidate = {
+                "document_id": document.id,
+                "chunk_id": chunk.id,
+                "score": keyword_score,
+                "text": chunk.text,
+                "title": document.title,
+                "page_from": chunk.page_from,
+                "page_to": chunk.page_to,
+                "_vector_score": 0.0,
+                "_keyword_score": keyword_score,
+                "_dedup_key": chunk.content_hash or self._dedup_key(
+                    {
+                        "title": document.title,
+                        "page_from": chunk.page_from,
+                        "page_to": chunk.page_to,
+                        "text": chunk.text,
+                    }
+                ),
+            }
+            candidate["_rerank_score"] = self._rerank_score(
+                query,
+                chunk.text,
+                vector_score=0.0,
+                keyword_score=keyword_score,
+            )
+            candidates.append(candidate)
+        return candidates
+
+    def _rerank_score(self, query: str, text: str, *, vector_score: float, keyword_score: float) -> float:
         query_norm = self._normalize(query)
         text_norm = self._normalize(text)
-        score = float(vector_score)
+        score = float(vector_score) + keyword_score
 
         query_terms = [term for term in re.findall(r"\w+", query_norm) if len(term) >= 3]
         if query_terms:
@@ -108,6 +190,39 @@ class SearchService:
         if "pham vi dieu chinh" in query_norm and "pham vi dieu chinh" not in text_norm:
             score -= 0.18
         return score
+
+    def _keyword_score(self, query: str, text: str, title: str = "") -> float:
+        query_norm = self._normalize(query)
+        text_norm = self._normalize(text)
+        title_norm = self._normalize(title)
+        query_terms = {term for term in re.findall(r"\w+", query_norm) if len(term) >= 3}
+        if not query_terms:
+            return 0.0
+
+        matched_terms = sum(1 for term in query_terms if term in text_norm or term in title_norm)
+        coverage = matched_terms / len(query_terms)
+        score = 0.45 * coverage
+        if query_norm and query_norm in text_norm:
+            score += 0.75
+
+        phrases = self._query_phrases(query_norm)
+        for phrase in phrases:
+            if phrase in text_norm:
+                score += 0.2
+        return score
+
+    def _query_phrases(self, query_norm: str) -> list[str]:
+        phrase_candidates = [
+            "pham vi dieu chinh",
+            "nguoi lien he",
+            "so hieu",
+            "kinh gui",
+            "che do phu cap",
+            "ho tro hang thang",
+            "nhan vien y te thon",
+            "co do thon ban",
+        ]
+        return [phrase for phrase in phrase_candidates if phrase in query_norm]
 
     def _is_weak_match(self, query: str, text: str) -> bool:
         query_terms = {term for term in re.findall(r"\w+", self._normalize(query)) if len(term) >= 4}

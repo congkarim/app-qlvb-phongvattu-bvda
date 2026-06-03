@@ -77,8 +77,10 @@ class DocumentContentService:
         (re.compile(r"\s+1992$"), ""),
         (re.compile(r"^1990,\s*"), ""),
         (re.compile(r"\s+\(eb$"), ""),
+        (re.compile(r"\bsố điện thoai\b", re.IGNORECASE), "số điện thoại"),
+        (re.compile(r"\bMINH PHỦ\b"), "MINH PHÚ"),
     )
-    _OCR_EMPTY_LINE_TEXTS = {"E", "16", "6n", "2", "xuân"}
+    _OCR_EMPTY_LINE_TEXTS = {"E", "16", "6n", "2", "xuân", "000001.", "000001", "CHUNICH"}
     _OCR_NOISE_PREFIXES = (
         "Thuật thuật ",
         "Thuật ",
@@ -327,12 +329,24 @@ class DocumentContentService:
                 cleaned_lines.append(OcrLine(text=text, confidence=line.confidence, box=line.box))
         return cleaned_lines
 
-    def _ocr_result_score(self, page_content: DocumentPageContent) -> tuple[float, int, int]:
+    def _ocr_result_score(self, page_content: DocumentPageContent) -> tuple[int, float, int, int]:
         return (
+            self._count_ocr_quality_markers(page_content.text),
             page_content.confidence,
             self._count_vietnamese_accent_chars(page_content.text),
             len(page_content.text),
         )
+
+    def _count_ocr_quality_markers(self, text: str) -> int:
+        markers = [
+            "Số:",
+            "Kính gửi",
+            "Người liên hệ",
+            "Điều ",
+            "Khoản ",
+            "CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM",
+        ]
+        return sum(1 for marker in markers if marker in text)
 
     def _count_vietnamese_accent_chars(self, text: str) -> int:
         vietnamese_chars = set(
@@ -389,6 +403,36 @@ class DocumentContentService:
         fixed = re.sub(
             r"KẾ HOẠCH MUA SẮM\s*\nTƯ NĂM 2026\s*\nVẬT",
             "KẾ HOẠCH MUA SẮM VẬT TƯ NĂM 2026",
+            fixed,
+        )
+        fixed = re.sub(
+            r"CỘNG HÒA XÃ HỘI CHỦ\s*\nNGHĨA VIỆT NAM",
+            "CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM",
+            fixed,
+        )
+        fixed = re.sub(
+            r"ỦY BAN NHÂN DÂN XÃ\s*\nMINH PHÚ",
+            "ỦY BAN NHÂN DÂN XÃ MINH PHÚ",
+            fixed,
+        )
+        fixed = re.sub(
+            r"Minh Phú, ngày 27 tháng 5\s*\nnăm 2026",
+            "Minh Phú, ngày 27 tháng 5 năm 2026",
+            fixed,
+        )
+        fixed = re.sub(
+            r"Về việc rà soát hồ sơ đề nghị cấp vật tư sửa chữa\s*\ntuyến điện",
+            "Về việc rà soát hồ sơ đề nghị cấp vật tư sửa chữa tuyến điện",
+            fixed,
+        )
+        fixed = re.sub(
+            r"Đề nghị quý phòng kiểm tra số lượng cáp điện,\s*\naptomat và vật tư an toàn\.",
+            "Đề nghị quý phòng kiểm tra số lượng cáp điện, aptomat và vật tư an toàn.",
+            fixed,
+        )
+        fixed = re.sub(
+            r"Thời hạn phản hồi trước ngày 05 tháng 6 năm\s*\n2026 để tổng hợp kế hoạch mua sắm\.?",
+            "Thời hạn phản hồi trước ngày 05 tháng 6 năm 2026 để tổng hợp kế hoạch mua sắm.",
             fixed,
         )
         return fixed

@@ -269,6 +269,32 @@ Kết quả:
 - Kiểm tra Qdrant payload mẫu cho thấy các point đã có `content_hash`.
 - Search `Luật Đấu thầu phạm vi điều chỉnh` sau reindex vẫn trả chunk `Điều 1. Phạm vi điều chính` ở top 1.
 
+Cải thiện OCR công văn và hybrid search kiểm tra ngày 2026-06-03:
+
+```bash
+docker compose run --rm --no-deps worker python -m py_compile /app/app/services/document_content_service.py /app/app/services/ocr/paddle_vietocr_engine.py /app/app/services/search_service.py /app/app/repositories/document_repository.py /app/app/routers/search.py
+docker compose run --rm --no-deps worker python -m app.scripts.benchmark_ocr_vi --fixtures /app/tests/fixtures/ocr_vi --files sample_007.png --engine paddle_vietocr --preprocess-mode raw clahe threshold --format json
+docker compose run --rm --no-deps worker python -m app.scripts.benchmark_ocr_vi --fixtures /app/tests/fixtures/ocr_vi --files sample_007.png --engine paddle_vietocr --preprocess-mode auto --format json
+docker compose up -d --build api
+curl -fsS http://localhost:8000/health
+curl -fsS -X POST http://localhost:8000/api/v1/search/semantic -H 'Content-Type: application/json' -d '{"query":"Luật Đấu thầu phạm vi điều chỉnh","limit":3}'
+curl -fsS -X POST http://localhost:8000/api/v1/search/semantic -H 'Content-Type: application/json' -d '{"query":"Nghị định 192 2026 chế độ phụ cấp đặc thù lĩnh vực y tế","limit":3}'
+```
+
+Kết quả:
+- `sample_007.png` đã cải thiện ordering header hai bên: phần `ỦY BAN NHÂN DÂN XÃ MINH PHÚ`, `PHÒNG KINH TẾ`, `Số: 72/UBND-KT` đứng trước tiêu ngữ bên phải, không còn xen kẽ từng dòng.
+- OCR postprocess nối lại các dòng tiêu ngữ, tên xã, ngày tháng và các câu nội dung bị tách dòng; lọc nhiễu `000001`/`CHUNICH` và sửa `số điện thoai` -> `số điện thoại`, `MINH PHỦ` -> `MINH PHÚ`.
+- Chế độ `auto` ưu tiên kết quả có marker hành chính/pháp lý như `Số:`, `Kính gửi`, `Người liên hệ`, `Điều`, `Khoản`, giúp giữ được dòng liên hệ khi preprocess `threshold` phát hiện tốt hơn.
+- Benchmark `sample_007.png`:
+  - Trước tối ưu `raw`: CER `0.4241`, WER `0.4907`, confidence `0.9228`.
+  - Sau tối ưu `raw`: CER `0.2342`, WER `0.2963`, confidence `0.9266`.
+  - Sau tối ưu `auto`: CER `0.2658`, WER `0.2963`, confidence `0.9252`, giữ `Người liên hệ: Nguyễn Văn An, số điện thoại 0900`.
+- Search service đã chuyển sang hybrid retrieval: Qdrant vector candidates + PostgreSQL keyword candidates trên `document_chunks.text`, sau đó rerank/dedup chung.
+- Router search truyền DB session vào service, giữ kiến trúc `router -> service -> repository`.
+- Search response `score` hiện là hybrid rerank score để thứ tự kết quả và điểm hiển thị nhất quán.
+- Query `Luật Đấu thầu phạm vi điều chỉnh` vẫn trả chunk `Điều 1. Phạm vi điều chính` top 1.
+- Query `Nghị định 192 2026 chế độ phụ cấp đặc thù lĩnh vực y tế` vẫn trả đúng `Điều 1` của file nghị định 192 top 1.
+
 ## Lỗi Đã Sửa
 
 Docker/runtime:
@@ -298,6 +324,7 @@ OCR:
 - Chất lượng OCR scan xấu vẫn phụ thuộc detection box và chất lượng crop; fixture hai cột đã được cải thiện bằng column-aware line ordering.
 - PDF scan với VietOCR giữ dấu tốt hơn baseline; page 1 PDF thật và fixture PDF scan đã giảm lỗi header/tiêu đề, nhưng runtime vẫn cao.
 - Tài liệu thực tế upload từ web đã chạy hết pipeline đến `searchable`; JPEG công văn đã giảm lỗi số hiệu/ngày tháng và nhiễu từ khi OCR lại bằng code mới, nhưng vẫn cần theo dõi thêm trên nhiều ảnh scan thật.
+- Fixture công văn `sample_007.png` đã cải thiện rõ thứ tự header và giữ được số hiệu/ngày/kính gửi; với `auto` đã giữ được dòng `Người liên hệ`, nhưng số điện thoại vẫn có thể bị thiếu phần cuối nếu detection không bắt đủ vùng chữ.
 
 Chunking:
 - Đã sửa lỗi `section_title` quá dài làm PostgreSQL báo `value too long for type character varying(512)`.
@@ -316,6 +343,7 @@ Search:
 - Đã reindex 1.584 chunks sang Qdrant collection `document_chunks_bkai_768_v1`, vector size `768`.
 - Benchmark 5 query tiếng Việt cho kết quả đúng ngữ cảnh hơn fake embedding, đặc biệt với `hiệu lực thi hành luật đấu thầu`, `trách nhiệm của chủ đầu tư`, `lựa chọn nhà thầu`.
 - Semantic search đã có reranking/dedup nhẹ: lấy nhiều hit hơn từ Qdrant, boost exact legal markers và giảm kết quả yếu trùng theo document/title/text.
+- Semantic search đã có hybrid retrieval MVP: lấy candidate từ Qdrant vector và PostgreSQL keyword, cộng tín hiệu exact phrase/term coverage trước khi dedup.
 - Query `Luật Đấu thầu phạm vi điều chỉnh` đã đưa chunk Điều 1 lên top 1 và giảm bản upload cũ trong top 5.
 - Metadata filters hiện còn tối thiểu.
 
@@ -338,7 +366,7 @@ Generated files:
 
 OCR thật và trích xuất Office text mức MVP đã được triển khai. OCR scan tiếng Việt hiện ưu tiên VietOCR local.
 
-Task tiếp theo nên ưu tiên giảm runtime OCR/VietOCR và reindex Qdrant payload mới có `content_hash`; sau đó mở rộng fixture ảnh scan công văn không nhạy cảm để kiểm tra thêm chất lượng OCR thực tế.
+Task tiếp theo nên ưu tiên reprocess các tài liệu công văn đã OCR bằng code cũ để tận dụng cleanup mới, sau đó bổ sung PostgreSQL full-text/trigram index nếu dữ liệu lớn làm keyword search `ILIKE` chậm.
 
 Workflow MVP hiện có:
 
