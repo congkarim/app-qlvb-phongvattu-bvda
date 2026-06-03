@@ -1,6 +1,6 @@
 # Trạng Thái Dự Án
 
-Cập nhật lần cuối: 2026-06-02
+Cập nhật lần cuối: 2026-06-03
 
 ## Giai Đoạn Hiện Tại
 
@@ -246,6 +246,28 @@ Kết quả:
 - `sample_006.pdf` với `paddle_vietocr` và `OCR_PREPROCESS_MODE=raw` đạt `CER=0.0`, `WER=0.0`, `accent_loss=0.0`; tiêu đề đã nối đúng `TỔNG CÔNG TY HẠ TẦNG KỸ THUẬT` và `KẾ HOẠCH MUA SẮM VẬT TƯ NĂM 2026`.
 - OCR riêng page 1 của `22-qh-15.signed.pdf` đạt confidence `0.9256`; header đọc đúng `CÔNG BÁO/SỐ 869 + 870/NGÀY 31-7-2023`, `LUẬT`, `ĐẦU THẦU`, `Điều 1. Phạm vi điều chỉnh`.
 - Search `Luật Đấu thầu phạm vi điều chỉnh` đưa chunk `Điều 1. Phạm vi điều chính` lên top 1.
+
+Giảm runtime OCR benchmark và reindex payload kiểm tra ngày 2026-06-03:
+
+```bash
+docker compose run --rm --no-deps worker python -m py_compile /app/app/scripts/benchmark_ocr_vi.py /app/app/services/ocr/__init__.py /app/tests/fixtures/ocr_vi/generate_fixtures.py
+docker compose run --rm --no-deps worker python -m app.scripts.benchmark_ocr_vi --fixtures /app/tests/fixtures/ocr_vi --files sample_001.png --engine paddle_vietocr --preprocess-mode raw clahe --format json
+docker compose exec -T api python -m app.scripts.reindex_embeddings --dry-run
+docker compose exec -T api python -m app.scripts.reindex_embeddings
+curl -fsS -X POST http://localhost:8000/api/v1/search/semantic -H 'Content-Type: application/json' -d '{"query":"Luật Đấu thầu phạm vi điều chỉnh","limit":5}'
+```
+
+Kết quả:
+- `benchmark_ocr_vi.py` hỗ trợ `--preprocess-mode raw/clahe/threshold/auto/all`, output có cột `preprocess_mode`.
+- Benchmark tái sử dụng `DocumentContentService` theo engine/preprocess mode; OCR engine cache không còn phụ thuộc preprocess mode nên không khởi tạo lại model khi chỉ đổi preprocess.
+- Benchmark nhanh `sample_001.png` với `paddle_vietocr`:
+  - `raw`: CER `0.0`, WER `0.0`, accent loss `0.0`, confidence `0.9264`, runtime `20.682s`.
+  - `clahe`: CER `0.0`, WER `0.0`, accent loss `0.0`, confidence `0.9259`, runtime `11.944s`.
+- Đã thêm fixture không nhạy cảm `sample_007.png` mô phỏng công văn xã/phòng ban với header hai bên, số hiệu, ngày tháng, kính gửi, nội dung yêu cầu, dấu mộc và nhiễu nhẹ.
+- Benchmark `sample_007.png` với `paddle_vietocr/raw`: confidence `0.9228`, accent loss `0.0`; còn lỗi thứ tự header và thiếu một phần dòng liên hệ, phù hợp để theo dõi hồi quy OCR công văn.
+- Reindex dry-run xác nhận `453` chunks; reindex thật đã index `453` chunks vào Qdrant collection `document_chunks_bkai_768_v1`.
+- Kiểm tra Qdrant payload mẫu cho thấy các point đã có `content_hash`.
+- Search `Luật Đấu thầu phạm vi điều chỉnh` sau reindex vẫn trả chunk `Điều 1. Phạm vi điều chính` ở top 1.
 
 ## Lỗi Đã Sửa
 

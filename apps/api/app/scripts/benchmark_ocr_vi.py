@@ -18,6 +18,7 @@ VIETNAMESE_ACCENT_CHARS = set(
     "ÓÒỎÕỌỐỒỔỖỘỚỜỞỠỢÚÙỦŨỤỨỪỬỮỰÝỲỶỸỴ"
 )
 BENCHMARK_SUFFIXES = {".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp", ".pdf"}
+PREPROCESS_MODES = ("raw", "clahe", "threshold", "auto")
 SAMPLE_TEXT = "\n".join(
     [
         "CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM",
@@ -37,19 +38,37 @@ def main() -> None:
     parser.add_argument("--generate-sample", action="store_true")
     parser.add_argument("--files", nargs="*", help="Only benchmark the listed fixture filenames.")
     parser.add_argument("--limit", type=int, default=None, help="Maximum number of fixture files to benchmark.")
+    parser.add_argument(
+        "--preprocess-mode",
+        nargs="+",
+        default=None,
+        choices=[*PREPROCESS_MODES, "all"],
+        help="OCR preprocess mode(s) to benchmark. Defaults to OCR_PREPROCESS_MODE from the environment.",
+    )
     args = parser.parse_args()
 
     if args.generate_sample:
         generate_sample_fixture(args.fixtures)
 
     engines = ["paddleocr", "paddle_vietocr"] if args.engine == "all" else [args.engine]
+    preprocess_modes = resolve_preprocess_modes(args.preprocess_mode)
+    service_cache: dict[tuple[str, str], DocumentContentService] = {}
     rows = []
     fixture_paths = list(iter_fixture_paths(args.fixtures, args.files, args.limit))
     for fixture_path in fixture_paths:
         truth_path = fixture_path.with_suffix(".txt")
         truth = truth_path.read_text(encoding="utf-8")
         for engine in engines:
-            rows.append(run_benchmark(fixture_path, truth, engine))
+            for preprocess_mode in preprocess_modes:
+                rows.append(
+                    run_benchmark(
+                        fixture_path,
+                        truth,
+                        engine,
+                        preprocess_mode,
+                        service_cache=service_cache,
+                    )
+                )
 
     if args.format == "json":
         print(json.dumps(rows, ensure_ascii=False, indent=2))
@@ -73,9 +92,39 @@ def iter_fixture_paths(fixtures: Path, files: list[str] | None, limit: int | Non
             break
 
 
-def run_benchmark(fixture_path: Path, truth: str, engine: str) -> dict[str, object]:
-    service = DocumentContentService()
-    service.settings = service.settings.model_copy(update={"ocr_engine": engine})
+def resolve_preprocess_modes(preprocess_mode_args: list[str] | None) -> list[str]:
+    if not preprocess_mode_args:
+        return [DocumentContentService().settings.ocr_preprocess_mode.lower()]
+    if "all" in preprocess_mode_args:
+        return list(PREPROCESS_MODES)
+    return list(dict.fromkeys(mode.lower() for mode in preprocess_mode_args))
+
+
+def get_benchmark_service(
+    service_cache: dict[tuple[str, str], DocumentContentService],
+    *,
+    engine: str,
+    preprocess_mode: str,
+) -> DocumentContentService:
+    cache_key = (engine, preprocess_mode)
+    if cache_key not in service_cache:
+        service = DocumentContentService()
+        service.settings = service.settings.model_copy(
+            update={"ocr_engine": engine, "ocr_preprocess_mode": preprocess_mode}
+        )
+        service_cache[cache_key] = service
+    return service_cache[cache_key]
+
+
+def run_benchmark(
+    fixture_path: Path,
+    truth: str,
+    engine: str,
+    preprocess_mode: str,
+    *,
+    service_cache: dict[tuple[str, str], DocumentContentService],
+) -> dict[str, object]:
+    service = get_benchmark_service(service_cache, engine=engine, preprocess_mode=preprocess_mode)
     start = time.perf_counter()
     error = ""
     text = ""
@@ -92,6 +141,7 @@ def run_benchmark(fixture_path: Path, truth: str, engine: str) -> dict[str, obje
     return {
         "file": fixture_path.name,
         "engine": engine,
+        "preprocess_mode": preprocess_mode,
         "pages": page_count,
         "confidence": confidence,
         "cer": character_error_rate(truth, text) if not error else None,
@@ -147,11 +197,15 @@ def edit_distance(left, right) -> int:
 
 
 def print_markdown(rows: list[dict[str, object]]) -> None:
-    print("| file | engine | pages | confidence | CER | WER | accent loss | seconds | sec/page | error |")
-    print("| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |")
+    print(
+        "| file | engine | preprocess | pages | confidence | CER | WER | accent loss | "
+        "seconds | sec/page | error |"
+    )
+    print("| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |")
     for row in rows:
         print(
-            "| {file} | {engine} | {pages} | {confidence} | {cer} | {wer} | {accent_loss_rate} | "
+            "| {file} | {engine} | {preprocess_mode} | {pages} | {confidence} | {cer} | {wer} | "
+            "{accent_loss_rate} | "
             "{runtime_seconds} | {seconds_per_page} | {error} |".format(**row)
         )
 

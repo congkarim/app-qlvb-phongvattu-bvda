@@ -1,62 +1,53 @@
-# Task Tiếp Theo: Giảm Runtime OCR Và Reindex Payload Search
+# Task Tiếp Theo: Cải Thiện OCR Công Văn Và Hybrid Search
 
 Trạng thái: đề xuất.
 
-Ngày cập nhật: 2026-06-02
+Ngày cập nhật: 2026-06-03
 
 ## Task Vừa Hoàn Thành
 
-Đã tối ưu PDF scan, benchmark nhanh theo fixture và search pháp lý exact-match.
+Đã giảm runtime vòng benchmark OCR/VietOCR, reindex Qdrant payload để có `content_hash`, và thêm fixture công văn không nhạy cảm.
 
 Kết quả chính:
-- Bổ sung cleanup OCR hẹp cho PDF scan:
-  - `CÔNG BÁO/SỐ 869 ? 870` hoặc `869 4 870` -> `CÔNG BÁO/SỐ 869 + 870`.
-  - `LUẶT`/`LỤẬT` -> `LUẬT`.
-  - `điều chính` -> `điều chỉnh`.
-  - `dầu khi` -> `dầu khí`.
-- Thêm hậu xử lý text OCR để nối các tiêu đề PDF scan bị tách dòng:
-  - `TỔNG CÔNG TY HẠ TẦNG KỸ THUẬT`.
-  - `KẾ HOẠCH MUA SẮM VẬT TƯ NĂM 2026`.
-- Thêm chế độ benchmark nhanh:
-  - `--files sample_006.pdf`
-  - `--limit N`
-- Tăng keyword reranking cho query pháp lý:
-  - Query có `phạm vi điều chỉnh` ưu tiên chunk bắt đầu bằng `Điều 1`.
-  - Giảm điểm candidate không chứa phrase pháp lý cần tìm.
+- `benchmark_ocr_vi.py` có tùy chọn `--preprocess-mode raw/clahe/threshold/auto/all`.
+- Output benchmark có `preprocess_mode`, giúp so sánh runtime/chất lượng mà không cần đổi env ngoài.
+- Benchmark giữ lại `DocumentContentService` theo engine/preprocess mode trong cùng process.
+- OCR engine cache không còn phụ thuộc preprocess mode, nên đổi preprocess không khởi tạo lại model detect/recognize.
+- Thêm fixture `sample_007.png` và `sample_007.txt` cho công văn xã/phòng ban giả lập:
+  - Header hai bên.
+  - Số hiệu.
+  - Ngày tháng.
+  - Kính gửi.
+  - Nội dung yêu cầu.
+  - Dấu mộc và nhiễu nhẹ.
+- Reindex Qdrant thật đã cập nhật payload `content_hash` cho chunks hiện có.
+- Search sau reindex vẫn đưa chunk `Điều 1. Phạm vi điều chính` lên top 1 cho query `Luật Đấu thầu phạm vi điều chỉnh`.
 
 Đã kiểm tra:
 
 ```bash
-docker compose run --rm --no-deps worker python -m py_compile /app/app/scripts/benchmark_ocr_vi.py /app/app/services/document_content_service.py /app/app/services/search_service.py
-docker compose run --rm --no-deps -e OCR_PREPROCESS_MODE=raw worker python -m app.scripts.benchmark_ocr_vi --fixtures /app/tests/fixtures/ocr_vi --files sample_006.pdf --engine paddle_vietocr --format json
+docker compose run --rm --no-deps worker python -m py_compile /app/app/scripts/benchmark_ocr_vi.py /app/app/services/ocr/__init__.py /app/tests/fixtures/ocr_vi/generate_fixtures.py
+docker compose run --rm --no-deps worker python -m app.scripts.benchmark_ocr_vi --fixtures /app/tests/fixtures/ocr_vi --files sample_007.png --engine paddle_vietocr --preprocess-mode raw --format json
+docker compose run --rm --no-deps worker python -m app.scripts.benchmark_ocr_vi --fixtures /app/tests/fixtures/ocr_vi --files sample_001.png --engine paddle_vietocr --preprocess-mode raw clahe --format json
+docker compose config --quiet
+docker compose up -d postgres qdrant api
+curl -fsS http://localhost:8000/health
+docker compose exec -T api python -m app.scripts.reindex_embeddings --dry-run
+docker compose exec -T api python -m app.scripts.reindex_embeddings
 curl -fsS -X POST http://localhost:8000/api/v1/search/semantic -H 'Content-Type: application/json' -d '{"query":"Luật Đấu thầu phạm vi điều chỉnh","limit":5}'
 ```
 
-Kết quả benchmark `sample_006.pdf`:
-
-```text
-paddle_vietocr: CER 0.0, WER 0.0, accent loss 0.0, confidence 0.9279
-TỔNG CÔNG TY HẠ TẦNG KỸ THUẬT
-KẾ HOẠCH MUA SẮM VẬT TƯ NĂM 2026
-Số: 08/KH-HTKT
-```
-
-OCR riêng page 1 của `22-qh-15.signed.pdf`:
-
-```text
-confidence=0.9256
-CÔNG BÁO/SỐ 869 + 870/NGÀY 31-7-2023
-LUẬT
-ĐẦU THẦU
-Điều 1. Phạm vi điều chỉnh
-```
-
-Search:
-- Query `Luật Đấu thầu phạm vi điều chỉnh` đưa chunk `Điều 1. Phạm vi điều chính` lên top 1.
+Kết quả benchmark đáng chú ý:
+- `sample_001.png`, `paddle_vietocr/raw`: CER `0.0`, WER `0.0`, accent loss `0.0`, confidence `0.9264`, runtime `20.682s`.
+- `sample_001.png`, `paddle_vietocr/clahe`: CER `0.0`, WER `0.0`, accent loss `0.0`, confidence `0.9259`, runtime `11.944s`.
+- `sample_007.png`, `paddle_vietocr/raw`: confidence `0.9228`, accent loss `0.0`, còn lỗi thứ tự header và thiếu một phần dòng liên hệ.
+- Reindex dry-run: `453` chunks.
+- Reindex thật: `453` chunks.
+- Qdrant collection kiểm tra: `document_chunks_bkai_768_v1`, payload mẫu có `content_hash`.
 
 ## Mục Tiêu Task Tiếp Theo
 
-Giảm runtime OCR/VietOCR cho vòng kiểm tra và cập nhật lại payload search đã index để tận dụng `content_hash` dedup.
+Cải thiện OCR trên công văn có header hai bên/dấu mộc và bổ sung hybrid search PostgreSQL keyword + Qdrant vector cho các query pháp lý hoặc hành chính còn nhạy với thứ hạng vector.
 
 ## Ràng Buộc Không Đổi
 
@@ -70,48 +61,31 @@ Giảm runtime OCR/VietOCR cho vòng kiểm tra và cập nhật lại payload s
 
 ## Phạm Vi Đề Xuất
 
-### 1. Giảm Runtime OCR/VietOCR
+### 1. OCR Công Văn Có Header Hai Bên
 
 Vấn đề:
-- OCR VietOCR vẫn khoảng 36-44s/page trên PDF fixture vì detect + recognize nhiều crop.
-- `OCR_PREPROCESS_MODE=auto` vẫn không phù hợp cho check thường xuyên trên full fixture.
+- `sample_007.png` giữ dấu tốt nhưng thứ tự header hai bên chưa ổn.
+- Một phần dòng liên hệ bị mất hoặc bị gom sai khi gần vùng chữ ký/dấu mộc.
 
 Hướng xử lý:
-- Cho benchmark tái sử dụng service/engine theo engine thay vì khởi tạo lại nhiều lần.
-- Thêm tùy chọn benchmark `--preprocess-mode` để so sánh `raw/clahe/threshold/auto` rõ ràng.
-- Đo runtime trên `sample_001.png`, `sample_004.png`, `sample_006.pdf` với cùng engine.
+- Cải thiện line ordering cho layout header hai cột nhỏ ở đầu trang.
+- Thêm rule giữ các dòng chứa `Kính gửi`, `Số:`, ngày tháng và `Người liên hệ`.
+- Đo lại `sample_007.png` với `raw/clahe/threshold`.
 
-### 2. Reindex Qdrant Payload
+### 2. Hybrid Search Keyword + Vector
 
 Vấn đề:
-- Code mới đã đưa `content_hash` vào Qdrant payload cho index/reindex sau.
-- Collection hiện tại có thể vẫn còn payload cũ cho các chunk đã index trước thay đổi.
+- Exact legal/admin phrases vẫn cần reranking thủ công để ổn định top 1.
+- PostgreSQL text search có thể bổ sung tín hiệu keyword cho các cụm như `phạm vi điều chỉnh`, `người liên hệ`, `số hiệu`.
 
 Hướng xử lý:
-- Chạy dry-run reindex để xác nhận số chunk.
-- Chạy reindex thật khi service ổn.
-- Kiểm tra payload sau reindex có `content_hash`.
-- Kiểm tra search vẫn trả đúng top 1 cho `Luật Đấu thầu phạm vi điều chỉnh`.
-
-### 3. Mở Rộng Fixture Công Văn Không Nhạy Cảm
-
-Vấn đề:
-- JPEG công văn thực tế đã cải thiện nhưng chưa có fixture không nhạy cảm mô phỏng cùng dạng nhiễu.
-
-Hướng xử lý:
-- Tạo fixture công văn xã/phòng ban giả lập, có header hai bên và dấu mộc/nhiễu nhẹ.
-- Ground truth gồm số hiệu, ngày tháng, kính gửi, nội dung yêu cầu.
-- Benchmark `paddle_vietocr` trên fixture này.
+- Thêm repository query keyword trên `document_chunks.text`.
+- Kết hợp score keyword + Qdrant vector ở service search.
+- Giữ response schema hiện tại, không thêm RAG.
 
 ## Tiêu Chí Hoàn Thành
 
-- Benchmark có thể so sánh runtime theo preprocess mode mà không sửa env ngoài.
-- Reindex Qdrant payload có `content_hash` cho chunk hiện có.
-- Search sau reindex vẫn đưa Điều 1 lên top 1.
-- Có fixture công văn không nhạy cảm cho lỗi OCR thực tế.
+- `sample_007.png` cải thiện thứ tự header và giữ được số hiệu/ngày/kính gửi/người liên hệ.
+- Benchmark chạy được cho `sample_007.png` theo nhiều preprocess mode.
+- Search legal exact phrase không phụ thuộc quá nhiều vào rule riêng từng query.
 - Không phát sinh model/runtime artifact trong git.
-
-## Task Sau Đó Đề Xuất
-
-- Hybrid search PostgreSQL keyword + Qdrant vector nếu reranking payload vẫn chưa đủ cho các query khác.
-- Fine-tune VietOCR hoặc recognizer local nếu fixture công văn mới vẫn còn lỗi khó.

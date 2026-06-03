@@ -92,6 +92,26 @@ FIXTURES = {
             ],
         ],
     },
+    "sample_007": {
+        "kind": "official_dispatch",
+        "left_header": [
+            "ỦY BAN NHÂN DÂN XÃ MINH PHÚ",
+            "PHÒNG KINH TẾ",
+            "Số: 72/UBND-KT",
+        ],
+        "right_header": [
+            "CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM",
+            "Độc lập - Tự do - Hạnh phúc",
+            "Minh Phú, ngày 27 tháng 5 năm 2026",
+        ],
+        "lines": [
+            "Kính gửi: Phòng Vật tư Công ty Hạ tầng Kỹ thuật",
+            "Về việc rà soát hồ sơ đề nghị cấp vật tư sửa chữa tuyến điện.",
+            "Đề nghị quý phòng kiểm tra số lượng cáp điện, aptomat và vật tư an toàn.",
+            "Thời hạn phản hồi trước ngày 05 tháng 6 năm 2026 để tổng hợp kế hoạch mua sắm.",
+            "Người liên hệ: Nguyễn Văn An, số điện thoại 0900 000 001.",
+        ],
+    },
 }
 
 
@@ -105,6 +125,9 @@ def main() -> None:
         if config["kind"] == "two_column":
             image = render_two_column(config["left_lines"], config["right_lines"])
             truth_lines = [*config["left_lines"], *config["right_lines"]]
+        elif config["kind"] == "official_dispatch":
+            image = render_official_dispatch(config["left_header"], config["right_header"], config["lines"])
+            truth_lines = [*config["left_header"], *config["right_header"], *config["lines"]]
         else:
             image = render_single_column(config["lines"])
             truth_lines = config["lines"]
@@ -157,6 +180,70 @@ def render_two_column(left_lines: list[str], right_lines: list[str]) -> Image.Im
     return image
 
 
+def render_official_dispatch(left_header: list[str], right_header: list[str], lines: list[str]) -> Image.Image:
+    image = Image.new("RGB", PAGE_SIZE, "white")
+    draw = ImageDraw.Draw(image)
+    regular = load_font(size=40, bold=False)
+    small = load_font(size=34, bold=False)
+    bold = load_font(size=39, bold=True)
+    title = load_font(size=48, bold=True)
+
+    draw_wrapped_block(draw, left_header, x=45, y=70, width=480, font=bold, centered=True, line_gap=50)
+    draw_wrapped_block(draw, right_header, x=545, y=70, width=590, font=bold, centered=True, line_gap=50)
+    draw.line((90, 238, 410, 238), fill=(70, 70, 70), width=1)
+    draw.line((640, 238, 1035, 238), fill=(70, 70, 70), width=1)
+
+    draw.text((MARGIN_X, 330), "CÔNG VĂN", fill=(20, 20, 20), font=title)
+    draw.text((MARGIN_X, 405), "Về việc rà soát nhu cầu vật tư sửa chữa", fill=(20, 20, 20), font=bold)
+
+    current_y = 500
+    for index, line in enumerate(lines):
+        font = bold if index == 0 else regular
+        for wrapped in wrap_text(draw, line, font, 960):
+            draw.text((MARGIN_X, current_y), wrapped, fill=(20, 20, 20), font=font)
+            current_y += 62
+        current_y += 18
+
+    draw.text((710, 980), "TM. ỦY BAN NHÂN DÂN", fill=(20, 20, 20), font=bold)
+    draw.text((820, 1038), "CHỦ TỊCH", fill=(20, 20, 20), font=bold)
+    draw.text((780, 1230), "Trần Minh Đức", fill=(20, 20, 20), font=regular)
+    draw_stamp(draw, center=(855, 1125), radius=86)
+    draw.text((MARGIN_X, 1230), "Nơi nhận:", fill=(20, 20, 20), font=bold)
+    draw.text((MARGIN_X, 1285), "- Như trên;", fill=(20, 20, 20), font=small)
+    draw.text((MARGIN_X, 1335), "- Lưu: VT, KT.", fill=(20, 20, 20), font=small)
+    return image
+
+
+def draw_wrapped_block(
+    draw: ImageDraw.ImageDraw,
+    lines: list[str],
+    *,
+    x: int,
+    y: int,
+    width: int,
+    font: ImageFont.FreeTypeFont,
+    centered: bool,
+    line_gap: int,
+) -> None:
+    current_y = y
+    for line in lines:
+        for wrapped in wrap_text(draw, line, font, width):
+            bbox = draw.textbbox((0, 0), wrapped, font=font)
+            text_width = bbox[2] - bbox[0]
+            text_x = x + (width - text_width) // 2 if centered else x
+            draw.text((text_x, current_y), wrapped, fill=(20, 20, 20), font=font)
+            current_y += line_gap
+
+
+def draw_stamp(draw: ImageDraw.ImageDraw, center: tuple[int, int], radius: int) -> None:
+    x, y = center
+    color = (185, 30, 35)
+    draw.ellipse((x - radius, y - radius, x + radius, y + radius), outline=color, width=5)
+    draw.ellipse((x - radius + 18, y - radius + 18, x + radius - 18, y + radius - 18), outline=color, width=2)
+    draw.line((x - 52, y, x + 52, y), fill=color, width=3)
+    draw.text((x - 47, y - 34), "MINH PHÚ", fill=color, font=load_font(size=22, bold=True))
+
+
 def draw_column(
     draw: ImageDraw.ImageDraw,
     lines: list[str],
@@ -202,6 +289,8 @@ def degrade_image(image: Image.Image, kind: str, seed: int) -> Image.Image:
         return noisy.rotate(1.2, resample=Image.Resampling.BICUBIC, expand=False, fillcolor="white")
     if kind == "two_column":
         return add_noise(image.filter(ImageFilter.GaussianBlur(radius=0.35)), seed=seed, amount=450)
+    if kind == "official_dispatch":
+        return add_noise(image.filter(ImageFilter.GaussianBlur(radius=0.05)), seed=seed, amount=160)
     return image
 
 

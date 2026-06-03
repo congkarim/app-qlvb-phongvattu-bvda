@@ -11,7 +11,17 @@ _ENGINES: dict[str, OcrEngine] = {}
 
 def get_ocr_engine(settings: Settings, engine_name: str | None = None) -> OcrEngine:
     engine_name = (engine_name or settings.ocr_engine).lower()
-    cache_key = f"{engine_name}:{settings.ocr_lang}:{settings.ocr_preprocess_mode}"
+    cache_key = ":".join(
+        [
+            engine_name,
+            settings.ocr_lang,
+            settings.ocr_device,
+            str(settings.ocr_model_dir),
+            settings.vietocr_config,
+            str(settings.vietocr_weight_path),
+            settings.vietocr_device,
+        ]
+    )
     if cache_key not in _ENGINES:
         if engine_name == "paddleocr":
             _ENGINES[cache_key] = PaddleOcrEngine(settings)

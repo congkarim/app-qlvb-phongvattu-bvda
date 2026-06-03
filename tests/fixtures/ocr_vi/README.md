@@ -10,6 +10,7 @@ Thư mục này chứa fixtures OCR tiếng Việt không nhạy cảm.
 - `sample_004.png`: bố cục hai cột và ghi chú.
 - `sample_005.png`: ảnh nghiêng nhẹ, có nhiễu.
 - `sample_006.pdf`: PDF scan 2 trang.
+- `sample_007.png`: công văn xã/phòng ban giả lập, header hai bên, dấu mộc và nhiễu nhẹ.
 
 Mỗi fixture có ground truth `.txt` cùng tên.
 
@@ -32,6 +33,18 @@ docker compose run --rm --no-deps -e OCR_PREPROCESS_MODE=raw worker \
   python -m app.scripts.benchmark_ocr_vi \
   --fixtures /app/tests/fixtures/ocr_vi \
   --engine all
+```
+
+So sánh runtime theo preprocess mode mà không đổi env ngoài:
+
+```bash
+docker compose run --rm --no-deps worker \
+  python -m app.scripts.benchmark_ocr_vi \
+  --fixtures /app/tests/fixtures/ocr_vi \
+  --files sample_001.png sample_004.png sample_006.pdf sample_007.png \
+  --engine paddle_vietocr \
+  --preprocess-mode raw clahe threshold \
+  --format json
 ```
 
 ## Kết quả gần nhất
