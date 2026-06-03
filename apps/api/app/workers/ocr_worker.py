@@ -42,39 +42,66 @@ class OCRWorker:
         self.db.commit()
 
         document: Document | None = None
+        previous_document_status: str | None = None
         try:
             document = self.documents.get_document(job.document_id)
             if not document:
                 raise ValueError(f"Document not found: {job.document_id}")
 
-            self.documents.update_status(document, "ocr_running")
+            previous_document_status = document.status
+            self.documents.update_status(document, "reprocess_running" if job.job_type == "reprocess" else "ocr_running")
+            self.db.commit()
             page_contents = self.document_content.extract_pages(
                 Path(document.file_path),
                 document.original_filename,
             )
-            for page_content in page_contents:
-                self.documents.create_page(
+            if job.job_type == "reprocess":
+                self.documents.replace_pages_for_document(
                     document_id=document.id,
-                    page_number=page_content.page_number,
-                    text=page_content.text,
-                    confidence=page_content.confidence,
+                    pages=[
+                        {
+                            "page_number": page_content.page_number,
+                            "text": page_content.text,
+                            "confidence": page_content.confidence,
+                        }
+                        for page_content in page_contents
+                    ],
                 )
+            else:
+                for page_content in page_contents:
+                    self.documents.create_page(
+                        document_id=document.id,
+                        page_number=page_content.page_number,
+                        text=page_content.text,
+                        confidence=page_content.confidence,
+                    )
 
             self.documents.update_status(document, "chunking")
             chunk_payloads = self._create_page_chunks(page_contents)
             if not chunk_payloads:
                 raise ValueError("No chunks created because extracted document content was empty")
 
-            for chunk_index, chunk_payload in enumerate(chunk_payloads):
-                chunk = self.documents.create_chunk(
+            deleted_chunks = []
+            if job.job_type == "reprocess":
+                chunks, deleted_chunks = self.documents.replace_chunks_for_document(
                     document_id=document.id,
-                    chunk_index=chunk_index,
-                    text=str(chunk_payload["text"]),
-                    content_hash=str(chunk_payload["content_hash"]),
-                    page_from=int(chunk_payload["page_from"]),
-                    page_to=int(chunk_payload["page_to"]),
-                    section_title=chunk_payload["section_title"],
+                    chunks=chunk_payloads,
                 )
+            else:
+                chunks = [
+                    self.documents.create_chunk(
+                        document_id=document.id,
+                        chunk_index=chunk_index,
+                        text=str(chunk_payload["text"]),
+                        content_hash=str(chunk_payload["content_hash"]),
+                        page_from=int(chunk_payload["page_from"]),
+                        page_to=int(chunk_payload["page_to"]),
+                        section_title=chunk_payload["section_title"],
+                    )
+                    for chunk_index, chunk_payload in enumerate(chunk_payloads)
+                ]
+
+            for chunk in chunks:
                 point_id = chunk.id
                 vector = self.embeddings.embed(chunk.text)
                 self.qdrant.upsert_chunk(
@@ -94,6 +121,7 @@ class OCRWorker:
                 )
                 self.documents.update_chunk_qdrant_point_id(chunk, point_id)
 
+            self.qdrant.delete_points([chunk.qdrant_point_id or chunk.id for chunk in deleted_chunks])
             self.documents.update_status(document, "searchable")
             job.status = "completed"
             job.completed_at = datetime.now(timezone.utc)
@@ -102,7 +130,8 @@ class OCRWorker:
         except Exception as exc:
             self.db.rollback()
             if document:
-                self.documents.update_status(document, "failed")
+                fallback_status = previous_document_status if job.job_type == "reprocess" else "failed"
+                self.documents.update_status(document, fallback_status or "failed")
             job.status = "failed"
             job.error_message = str(exc)
             self.db.add(job)

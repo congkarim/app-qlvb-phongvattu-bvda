@@ -6,8 +6,10 @@ from pydantic import BaseModel
 class OCRJobRead(BaseModel):
     id: str
     document_id: str
+    job_type: str = "ocr"
     status: str
     attempts: int
+    reason: str | None = None
     error_message: str | None = None
     created_at: datetime
     updated_at: datetime
@@ -57,5 +59,14 @@ class DocumentDetailRead(DocumentRead):
 
 
 class UploadResponse(BaseModel):
+    document: DocumentRead
+    ocr_job: OCRJobRead
+
+
+class ReprocessDocumentRequest(BaseModel):
+    reason: str | None = None
+
+
+class ReprocessDocumentResponse(BaseModel):
     document: DocumentRead
     ocr_job: OCRJobRead

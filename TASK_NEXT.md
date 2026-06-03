@@ -1,4 +1,4 @@
-# Task Tiếp Theo: API Reprocess Document Có Audit
+# Task Tiếp Theo: UI Reprocess Và Job Audit
 
 Trạng thái: đề xuất.
 
@@ -6,60 +6,61 @@ Ngày cập nhật: 2026-06-03
 
 ## Task Vừa Hoàn Thành
 
-Đã reprocess công văn cũ bằng OCR cleanup mới và thêm index hỗ trợ keyword search.
+Đã thêm API reprocess document có audit và worker xử lý async.
 
 Kết quả chính:
-- Thêm script:
+- Thêm endpoint:
 
-```bash
-python -m app.scripts.reprocess_document --document-id <document_id>
+```text
+POST /api/v1/documents/{document_id}/reprocess
 ```
 
-- Script hỗ trợ:
-  - `--document-id` lặp lại được.
-  - `--dry-run`.
-  - `--batch-size`.
-- Reprocess dùng lại file gốc đã upload, OCR lại bằng code hiện tại, replace page/chunk theo document, upsert lại Qdrant và xóa point dư nếu số chunk giảm.
-- Repository có method replace page/chunk theo `page_number` và `chunk_index`, không tạo duplicate với unique index hiện tại.
-- Qdrant service có `delete_points()` để loại bỏ vector không còn tương ứng với chunk active.
-- Thêm Alembic migration `0002_chunk_text_trgm`:
-  - `CREATE EXTENSION IF NOT EXISTS pg_trgm`.
-  - GIN trigram index `ix_document_chunks_text_trgm` trên `document_chunks.text` với điều kiện `deleted_at IS NULL`.
+- Request body hỗ trợ:
 
-Đã reprocess document:
-- Document ID: `718b0db1-6c8c-4da4-b6aa-5689173d219a`.
-- File: `0f53863c-d731-4b39-b0ff-d883ab039a88.jpeg`.
-- Dry-run: `old_pages=1`, `new_pages=1`, `old_chunks=1`, `new_chunks=1`, average confidence `0.9043`.
-- Reprocess thật: document `searchable`, `1/1` chunk có `content_hash` và `qdrant_point_id`, `deleted_chunks=0`.
+```json
+{"reason":"verify reprocess API workflow"}
+```
 
-Kết quả OCR cải thiện:
-- `Số: 72]/UBND-KT` -> `Số: 72/UBND-KT`.
-- `27IS/2026` -> `27/5/2026`.
-- Bỏ nhiễu đầu dòng như `Thuật`, `Nhất`, `Thành`, `Nhà Tháng`, `Các thuận`, `Anh thuận`.
-- `Thông bảo` -> `Thông báo`.
+- API chỉ tạo job, không OCR inline:
+  - Tạo `ocr_jobs` mới với `job_type='reprocess'`.
+  - Lưu `reason`.
+  - Job `status='pending'`.
+  - Document chuyển `reprocess_pending`.
+  - Worker xử lý async.
+- Thêm migration `0003_ocr_job_type`:
+  - `ocr_jobs.job_type`.
+  - `ocr_jobs.reason`.
+- Worker phân biệt:
+  - `job_type='ocr'`: OCR lần đầu, create page/chunk mới.
+  - `job_type='reprocess'`: replace page/chunk hiện có, upsert lại Qdrant, xóa point dư nếu số chunk giảm.
+- Worker commit trạng thái `ocr_running` hoặc `reprocess_running` ngay khi bắt đầu để UI/API thấy trạng thái đang xử lý.
+- Nếu reprocess lỗi, document quay về trạng thái trước đó thay vì mất trạng thái `searchable`.
+- Document detail API trả `job_type` và `reason` trong `ocr_jobs`.
 
 Đã kiểm tra:
 
 ```bash
-docker compose run --rm --no-deps worker python -m py_compile /app/app/scripts/reprocess_document.py /app/app/repositories/document_repository.py /app/app/services/qdrant_service.py /app/alembic/versions/0002_document_chunk_text_trgm_index.py
-docker compose exec -T api alembic upgrade head
-docker compose exec -T api python -m app.scripts.reprocess_document --document-id 718b0db1-6c8c-4da4-b6aa-5689173d219a --dry-run
-docker compose exec -T api python -m app.scripts.reprocess_document --document-id 718b0db1-6c8c-4da4-b6aa-5689173d219a
-curl -fsS -X POST http://localhost:8000/api/v1/search/semantic -H 'Content-Type: application/json' -d '{"query":"Lê Thế Anh hồ sơ xin thôi việc Xuân Lâm","limit":3}'
+docker compose run --rm --no-deps worker python -m py_compile /app/app/models/document.py /app/app/repositories/document_repository.py /app/app/services/document_service.py /app/app/routers/documents.py /app/app/schemas/document.py /app/app/workers/ocr_worker.py /app/alembic/versions/0003_ocr_job_type.py
+docker compose up -d --build api worker
+curl -fsS http://localhost:8000/health
+docker compose exec -T api alembic current
+curl -fsS -X POST http://localhost:8000/api/v1/documents/718b0db1-6c8c-4da4-b6aa-5689173d219a/reprocess -H 'Content-Type: application/json' -d '{"reason":"verify reprocess API workflow"}'
+curl -fsS http://localhost:8000/api/v1/documents/718b0db1-6c8c-4da4-b6aa-5689173d219a
 curl -fsS -X POST http://localhost:8000/api/v1/search/semantic -H 'Content-Type: application/json' -d '{"query":"Số 72 UBND KT Kính gửi Ban chỉ huy 32 xóm","limit":3}'
 ```
 
-Kết quả search:
-- Query `Lê Thế Anh hồ sơ xin thôi việc Xuân Lâm` trả công văn JPEG đã cleanup ở top 1.
-- Query `Số 72 UBND KT Kính gửi Ban chỉ huy 32 xóm` trả công văn JPEG đã cleanup ở top 1.
-
-Kết quả keyword index:
-- Trước index, query keyword đại diện dùng seq scan khoảng `23ms` với 478 chunks.
-- Sau migration, planner vẫn chọn seq scan vì bảng nhỏ; khi `enable_seqscan=off`, index trigram dùng `Bitmap Index Scan` và chạy khoảng `4.8ms`.
+Kết quả verify:
+- API trả `202 Accepted`.
+- Job ID: `6a154fc5-e3f6-4f45-b929-d59db6566163`.
+- Job `job_type='reprocess'`, `reason='verify reprocess API workflow'`.
+- Worker xử lý xong: job `completed`, attempts `1`, document `searchable`.
+- Detail API trả cả job OCR ban đầu `job_type='ocr'` và job reprocess `job_type='reprocess'`.
+- Document vẫn có `1/1` chunk active, có `content_hash` và `qdrant_point_id`.
+- Search `Số 72 UBND KT Kính gửi Ban chỉ huy 32 xóm` vẫn trả công văn JPEG top 1.
 
 ## Mục Tiêu Task Tiếp Theo
 
-Đưa reprocess document từ script CLI thành API/backend workflow có audit, để thao tác được có kiểm soát từ admin hoặc tool nội bộ.
+Thêm UI hoặc frontend workflow để người dùng/admin kích hoạt reprocess và xem audit job ngay trong màn hình chi tiết document.
 
 ## Ràng Buộc Không Đổi
 
@@ -68,36 +69,38 @@ Kết quả keyword index:
 - Docker Compose first.
 - MVP first.
 - Backend giữ `router -> service -> repository`.
+- Frontend giữ `page -> composable -> service -> API`.
 - OCR pipeline local/on-prem.
 - Không commit model files hoặc runtime artifacts.
 
 ## Phạm Vi Đề Xuất
 
-### 1. Reprocess API
+### 1. Frontend Reprocess Action
 
 Vấn đề:
-- Script CLI đã chạy được nhưng chưa có API để thao tác qua backend.
-- Chưa có audit rõ ràng cho các lần reprocess.
+- API reprocess đã có nhưng người dùng vẫn phải gọi bằng curl.
 
 Hướng xử lý:
-- Thêm endpoint backend dạng `POST /documents/{id}/reprocess`.
-- Tạo OCR job hoặc reprocess job mới thay vì xử lý inline nếu runtime lâu.
-- Response trả job/document status.
-- Giữ router mỏng, logic nằm ở service.
+- Thêm method `reprocessDocument(id, reason)` trong frontend document service.
+- Thêm composable action trong `useDocuments`.
+- Trên page document detail, thêm nút reprocess khi document không ở trạng thái đang xử lý.
+- Sau khi gọi reprocess, refresh/poll detail như upload OCR flow hiện tại.
 
-### 2. Audit Và An Toàn Dữ Liệu
+### 2. Job Audit Display
 
 Vấn đề:
-- Reprocess thay thế page/chunk hiện tại, cần truy vết khi chạy từ UI/API.
+- Detail API đã trả `ocr_jobs`, nhưng UI chưa hiển thị rõ `job_type`, `reason`, attempts, error.
 
 Hướng xử lý:
-- Ghi `ocr_jobs` mới cho mỗi lần reprocess hoặc thêm trường lý do vào job nếu cần.
-- Lưu error message khi reprocess lỗi.
-- Đảm bảo document đang reprocess không bị reprocess song song.
+- Hiển thị danh sách OCR/reprocess jobs trong document detail.
+- Badge theo status.
+- Hiển thị reason nếu có.
+- Hiển thị error message khi job failed.
 
 ## Tiêu Chí Hoàn Thành
 
-- Có API reprocess document hoặc job tương đương, không xử lý business logic trong router.
-- Reprocess qua API tạo/trả trạng thái job rõ ràng.
+- Người dùng có thể bấm reprocess từ document detail.
+- UI không cho bấm reprocess khi document đang `ocr_pending`, `ocr_running`, `reprocess_pending`, `reprocess_running` hoặc `chunking`.
+- Job audit hiển thị được OCR job và reprocess job.
 - Search sau reprocess vẫn trả document nguồn đúng.
-- Không phát sinh model/runtime artifact trong git.
+- Không phát sinh runtime artifact trong git.

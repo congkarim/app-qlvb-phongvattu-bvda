@@ -61,8 +61,10 @@ class OCRJob(UUIDTimestampMixin, Base):
     __tablename__ = "ocr_jobs"
 
     document_id: Mapped[str] = mapped_column(ForeignKey("documents.id"), nullable=False, index=True)
+    job_type: Mapped[str] = mapped_column(String(64), nullable=False, default="ocr")
     status: Mapped[str] = mapped_column(String(64), nullable=False, default="pending", index=True)
     attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     started_at: Mapped[datetime | None] = mapped_column(nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(nullable=True)

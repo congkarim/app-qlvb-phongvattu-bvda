@@ -9,6 +9,14 @@ from app.core.config import get_settings
 from app.repositories.document_repository import DocumentRepository, OCRJobRepository
 
 
+class DocumentNotFoundError(ValueError):
+    pass
+
+
+class DocumentBusyError(RuntimeError):
+    pass
+
+
 class DocumentService:
     def __init__(self, db: Session):
         self.db = db
@@ -44,3 +52,17 @@ class DocumentService:
 
     def get_document(self, document_id: str):
         return self.documents.get_document(document_id)
+
+    def request_reprocess(self, document_id: str, *, reason: str | None = None):
+        document = self.documents.get_document(document_id)
+        if document is None:
+            raise DocumentNotFoundError(f"Document not found: {document_id}")
+        if self.ocr_jobs.has_active_job(document_id):
+            raise DocumentBusyError(f"Document already has an active OCR job: {document_id}")
+
+        ocr_job = self.ocr_jobs.create_job(document.id, job_type="reprocess", reason=reason)
+        self.documents.update_status(document, "reprocess_pending")
+        self.db.commit()
+        self.db.refresh(document)
+        self.db.refresh(ocr_job)
+        return document, ocr_job

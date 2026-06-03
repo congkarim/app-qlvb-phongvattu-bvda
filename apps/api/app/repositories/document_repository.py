@@ -2,7 +2,7 @@ import re
 from datetime import datetime, timezone
 
 from sqlalchemy import or_, select
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.orm import Session, selectinload, with_loader_criteria
 
 from app.models.document import Document, DocumentChunk, DocumentPage, OCRJob
 
@@ -49,6 +49,9 @@ class DocumentRepository:
                 selectinload(Document.pages),
                 selectinload(Document.chunks),
                 selectinload(Document.ocr_jobs),
+                with_loader_criteria(DocumentPage, DocumentPage.deleted_at.is_(None)),
+                with_loader_criteria(DocumentChunk, DocumentChunk.deleted_at.is_(None)),
+                with_loader_criteria(OCRJob, OCRJob.deleted_at.is_(None)),
             )
         )
         return self.db.scalar(stmt)
@@ -239,8 +242,10 @@ class OCRJobRepository:
     def __init__(self, db: Session):
         self.db = db
 
-    def create_job(self, document_id: str) -> OCRJob:
-        job = OCRJob(document_id=document_id, status="pending")
+    ACTIVE_STATUSES = {"pending", "ocr_running"}
+
+    def create_job(self, document_id: str, *, job_type: str = "ocr", reason: str | None = None) -> OCRJob:
+        job = OCRJob(document_id=document_id, job_type=job_type, reason=reason, status="pending")
         self.db.add(job)
         self.db.flush()
         return job
@@ -256,3 +261,15 @@ class OCRJobRepository:
 
     def get_job(self, job_id: str) -> OCRJob | None:
         return self.db.get(OCRJob, job_id)
+
+    def has_active_job(self, document_id: str) -> bool:
+        stmt = (
+            select(OCRJob.id)
+            .where(
+                OCRJob.document_id == document_id,
+                OCRJob.deleted_at.is_(None),
+                OCRJob.status.in_(self.ACTIVE_STATUSES),
+            )
+            .limit(1)
+        )
+        return self.db.scalar(stmt) is not None

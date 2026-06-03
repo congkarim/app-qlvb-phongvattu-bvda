@@ -2,8 +2,14 @@ from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, 
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
-from app.schemas.document import DocumentDetailRead, DocumentRead, UploadResponse
-from app.services.document_service import DocumentService
+from app.schemas.document import (
+    DocumentDetailRead,
+    DocumentRead,
+    ReprocessDocumentRequest,
+    ReprocessDocumentResponse,
+    UploadResponse,
+)
+from app.services.document_service import DocumentBusyError, DocumentNotFoundError, DocumentService
 
 
 router = APIRouter(prefix="/documents", tags=["documents"])
@@ -34,3 +40,21 @@ def get_document(document_id: str, db: Session = Depends(get_db)) -> DocumentDet
     if not document:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
     return document
+
+
+@router.post("/{document_id}/reprocess", response_model=ReprocessDocumentResponse, status_code=status.HTTP_202_ACCEPTED)
+def reprocess_document(
+    document_id: str,
+    payload: ReprocessDocumentRequest | None = None,
+    db: Session = Depends(get_db),
+) -> ReprocessDocumentResponse:
+    try:
+        document, ocr_job = DocumentService(db).request_reprocess(
+            document_id,
+            reason=payload.reason if payload else None,
+        )
+    except DocumentNotFoundError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+    except DocumentBusyError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc))
+    return ReprocessDocumentResponse(document=document, ocr_job=ocr_job)

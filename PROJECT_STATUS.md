@@ -375,6 +375,35 @@ Kết quả:
 - `EXPLAIN ANALYZE` trước index dùng seq scan trên `document_chunks.text`, khoảng `23ms` với 478 chunks.
 - Sau migration, planner vẫn chọn seq scan do bảng nhỏ, nhưng khi `enable_seqscan=off` xác nhận index trigram usable bằng `Bitmap Index Scan`, khoảng `4.8ms` cho query keyword đại diện.
 
+API reprocess document có audit kiểm tra ngày 2026-06-03:
+
+```bash
+docker compose run --rm --no-deps worker python -m py_compile /app/app/models/document.py /app/app/repositories/document_repository.py /app/app/services/document_service.py /app/app/routers/documents.py /app/app/schemas/document.py /app/app/workers/ocr_worker.py /app/alembic/versions/0003_ocr_job_type.py
+docker compose up -d --build api worker
+curl -fsS http://localhost:8000/health
+docker compose exec -T api alembic current
+curl -fsS -X POST http://localhost:8000/api/v1/documents/718b0db1-6c8c-4da4-b6aa-5689173d219a/reprocess -H 'Content-Type: application/json' -d '{"reason":"verify reprocess API workflow"}'
+curl -fsS http://localhost:8000/api/v1/documents/718b0db1-6c8c-4da4-b6aa-5689173d219a
+curl -fsS -X POST http://localhost:8000/api/v1/search/semantic -H 'Content-Type: application/json' -d '{"query":"Số 72 UBND KT Kính gửi Ban chỉ huy 32 xóm","limit":3}'
+```
+
+Kết quả:
+- Thêm API `POST /api/v1/documents/{document_id}/reprocess`.
+- Request body hỗ trợ `reason` để audit lý do reprocess.
+- API không OCR inline; chỉ tạo `ocr_jobs` mới với `job_type='reprocess'`, `status='pending'`, document chuyển `reprocess_pending`, worker xử lý async.
+- Thêm migration `0003_ocr_job_type` cho `ocr_jobs.job_type` và `ocr_jobs.reason`.
+- Worker phân biệt `job_type='ocr'` và `job_type='reprocess'`:
+  - OCR lần đầu vẫn create page/chunk mới.
+  - Reprocess replace page/chunk hiện có, upsert lại Qdrant, xóa point dư nếu số chunk giảm.
+- Worker commit trạng thái `ocr_running` hoặc `reprocess_running` ngay khi bắt đầu để API/UI thấy trạng thái đang xử lý.
+- Nếu reprocess lỗi, document quay về trạng thái trước đó thay vì mất trạng thái `searchable`.
+- Kiểm tra API trên document `718b0db1-6c8c-4da4-b6aa-5689173d219a`:
+  - API trả `202 Accepted`, job `6a154fc5-e3f6-4f45-b929-d59db6566163`, `job_type='reprocess'`, `reason='verify reprocess API workflow'`.
+  - Worker xử lý xong: job `completed`, attempts `1`, document `searchable`.
+  - Detail API trả cả job OCR ban đầu `job_type='ocr'` và job reprocess `job_type='reprocess'`.
+  - Document vẫn có `1/1` chunk active, có `content_hash` và `qdrant_point_id`.
+  - Search `Số 72 UBND KT Kính gửi Ban chỉ huy 32 xóm` vẫn trả công văn JPEG top 1.
+
 Auth:
 - Đã có JWT login skeleton.
 - Đã có seed admin local.
