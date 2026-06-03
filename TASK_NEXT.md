@@ -1,4 +1,4 @@
-# Task Tiếp Theo: Reprocess Công Văn Cũ Và Tối Ưu Keyword Index
+# Task Tiếp Theo: API Reprocess Document Có Audit
 
 Trạng thái: đề xuất.
 
@@ -6,60 +6,60 @@ Ngày cập nhật: 2026-06-03
 
 ## Task Vừa Hoàn Thành
 
-Đã cải thiện OCR công văn có header hai bên/dấu mộc và bổ sung hybrid search PostgreSQL keyword + Qdrant vector.
+Đã reprocess công văn cũ bằng OCR cleanup mới và thêm index hỗ trợ keyword search.
 
 Kết quả chính:
-- VietOCR line ordering xử lý layout công văn có header hai bên nhưng thân văn bản một cột:
-  - Header trái được gom theo cột trước.
-  - Header phải được gom theo cột sau.
-  - Thân văn bản tiếp tục đọc theo thứ tự trên xuống, trái sang phải.
-- OCR postprocess nối lại các dòng công văn bị tách:
-  - Tiêu ngữ `CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM`.
-  - Header `ỦY BAN NHÂN DÂN XÃ MINH PHÚ`.
-  - Ngày tháng `Minh Phú, ngày 27 tháng 5 năm 2026`.
-  - Các câu nội dung bị tách dòng.
-- Thêm cleanup cho nhiễu công văn:
-  - `000001`, `CHUNICH`.
-  - `số điện thoai` -> `số điện thoại`.
-  - `MINH PHỦ` -> `MINH PHÚ`.
-- OCR auto scoring ưu tiên marker quan trọng:
-  - `Số:`
-  - `Kính gửi`
-  - `Người liên hệ`
-  - `Điều`
-  - `Khoản`
-  - Tiêu ngữ quốc hiệu.
-- Search API chuyển sang hybrid retrieval:
-  - Qdrant vector candidates.
-  - PostgreSQL keyword candidates trên `document_chunks.text`.
-  - Rerank/dedup chung trong service.
-- Search router truyền DB session vào service, giữ kiến trúc `router -> service -> repository`.
-- Search response `score` hiển thị hybrid rerank score nên thứ tự và điểm nhất quán hơn.
+- Thêm script:
+
+```bash
+python -m app.scripts.reprocess_document --document-id <document_id>
+```
+
+- Script hỗ trợ:
+  - `--document-id` lặp lại được.
+  - `--dry-run`.
+  - `--batch-size`.
+- Reprocess dùng lại file gốc đã upload, OCR lại bằng code hiện tại, replace page/chunk theo document, upsert lại Qdrant và xóa point dư nếu số chunk giảm.
+- Repository có method replace page/chunk theo `page_number` và `chunk_index`, không tạo duplicate với unique index hiện tại.
+- Qdrant service có `delete_points()` để loại bỏ vector không còn tương ứng với chunk active.
+- Thêm Alembic migration `0002_chunk_text_trgm`:
+  - `CREATE EXTENSION IF NOT EXISTS pg_trgm`.
+  - GIN trigram index `ix_document_chunks_text_trgm` trên `document_chunks.text` với điều kiện `deleted_at IS NULL`.
+
+Đã reprocess document:
+- Document ID: `718b0db1-6c8c-4da4-b6aa-5689173d219a`.
+- File: `0f53863c-d731-4b39-b0ff-d883ab039a88.jpeg`.
+- Dry-run: `old_pages=1`, `new_pages=1`, `old_chunks=1`, `new_chunks=1`, average confidence `0.9043`.
+- Reprocess thật: document `searchable`, `1/1` chunk có `content_hash` và `qdrant_point_id`, `deleted_chunks=0`.
+
+Kết quả OCR cải thiện:
+- `Số: 72]/UBND-KT` -> `Số: 72/UBND-KT`.
+- `27IS/2026` -> `27/5/2026`.
+- Bỏ nhiễu đầu dòng như `Thuật`, `Nhất`, `Thành`, `Nhà Tháng`, `Các thuận`, `Anh thuận`.
+- `Thông bảo` -> `Thông báo`.
 
 Đã kiểm tra:
 
 ```bash
-docker compose run --rm --no-deps worker python -m py_compile /app/app/services/document_content_service.py /app/app/services/ocr/paddle_vietocr_engine.py /app/app/services/search_service.py /app/app/repositories/document_repository.py /app/app/routers/search.py
-docker compose run --rm --no-deps worker python -m app.scripts.benchmark_ocr_vi --fixtures /app/tests/fixtures/ocr_vi --files sample_007.png --engine paddle_vietocr --preprocess-mode raw clahe threshold --format json
-docker compose run --rm --no-deps worker python -m app.scripts.benchmark_ocr_vi --fixtures /app/tests/fixtures/ocr_vi --files sample_007.png --engine paddle_vietocr --preprocess-mode auto --format json
-docker compose up -d --build api
-curl -fsS http://localhost:8000/health
-curl -fsS -X POST http://localhost:8000/api/v1/search/semantic -H 'Content-Type: application/json' -d '{"query":"Luật Đấu thầu phạm vi điều chỉnh","limit":3}'
-curl -fsS -X POST http://localhost:8000/api/v1/search/semantic -H 'Content-Type: application/json' -d '{"query":"Nghị định 192 2026 chế độ phụ cấp đặc thù lĩnh vực y tế","limit":3}'
+docker compose run --rm --no-deps worker python -m py_compile /app/app/scripts/reprocess_document.py /app/app/repositories/document_repository.py /app/app/services/qdrant_service.py /app/alembic/versions/0002_document_chunk_text_trgm_index.py
+docker compose exec -T api alembic upgrade head
+docker compose exec -T api python -m app.scripts.reprocess_document --document-id 718b0db1-6c8c-4da4-b6aa-5689173d219a --dry-run
+docker compose exec -T api python -m app.scripts.reprocess_document --document-id 718b0db1-6c8c-4da4-b6aa-5689173d219a
+curl -fsS -X POST http://localhost:8000/api/v1/search/semantic -H 'Content-Type: application/json' -d '{"query":"Lê Thế Anh hồ sơ xin thôi việc Xuân Lâm","limit":3}'
+curl -fsS -X POST http://localhost:8000/api/v1/search/semantic -H 'Content-Type: application/json' -d '{"query":"Số 72 UBND KT Kính gửi Ban chỉ huy 32 xóm","limit":3}'
 ```
 
-Kết quả benchmark `sample_007.png`:
-- Trước tối ưu `raw`: CER `0.4241`, WER `0.4907`, accent loss `0.0`, confidence `0.9228`.
-- Sau tối ưu `raw`: CER `0.2342`, WER `0.2963`, accent loss `0.0`, confidence `0.9266`.
-- Sau tối ưu `auto`: CER `0.2658`, WER `0.2963`, accent loss `0.0`, confidence `0.9252`; giữ được `Người liên hệ: Nguyễn Văn An, số điện thoại 0900`.
-
 Kết quả search:
-- Query `Luật Đấu thầu phạm vi điều chỉnh` vẫn trả chunk `Điều 1. Phạm vi điều chính` top 1.
-- Query `Nghị định 192 2026 chế độ phụ cấp đặc thù lĩnh vực y tế` vẫn trả đúng `Điều 1` của nghị định 192 top 1.
+- Query `Lê Thế Anh hồ sơ xin thôi việc Xuân Lâm` trả công văn JPEG đã cleanup ở top 1.
+- Query `Số 72 UBND KT Kính gửi Ban chỉ huy 32 xóm` trả công văn JPEG đã cleanup ở top 1.
+
+Kết quả keyword index:
+- Trước index, query keyword đại diện dùng seq scan khoảng `23ms` với 478 chunks.
+- Sau migration, planner vẫn chọn seq scan vì bảng nhỏ; khi `enable_seqscan=off`, index trigram dùng `Bitmap Index Scan` và chạy khoảng `4.8ms`.
 
 ## Mục Tiêu Task Tiếp Theo
 
-Reprocess các tài liệu công văn đã OCR bằng code cũ để tận dụng cleanup mới, sau đó tối ưu keyword search bằng index phù hợp nếu dữ liệu lớn hơn.
+Đưa reprocess document từ script CLI thành API/backend workflow có audit, để thao tác được có kiểm soát từ admin hoặc tool nội bộ.
 
 ## Ràng Buộc Không Đổi
 
@@ -73,32 +73,31 @@ Reprocess các tài liệu công văn đã OCR bằng code cũ để tận dụn
 
 ## Phạm Vi Đề Xuất
 
-### 1. Reprocess Công Văn Đã Upload
+### 1. Reprocess API
 
 Vấn đề:
-- Các document đã OCR trước task này vẫn giữ text/chunk cũ trong PostgreSQL và Qdrant.
-- Search hành chính có thể vẫn trả nội dung cũ nếu chưa reprocess/reindex document.
+- Script CLI đã chạy được nhưng chưa có API để thao tác qua backend.
+- Chưa có audit rõ ràng cho các lần reprocess.
 
 Hướng xử lý:
-- Thêm hoặc dùng script reprocess theo `document_id`.
-- Xóa mềm hoặc thay thế page/chunk cũ của document mục tiêu theo transaction.
-- OCR lại bằng code mới.
-- Upsert lại Qdrant payload/vector cho chunks mới.
-- Kiểm tra công văn JPEG cũ có cải thiện `Số:`, ngày tháng, `Kính gửi`, nhiễu đầu dòng.
+- Thêm endpoint backend dạng `POST /documents/{id}/reprocess`.
+- Tạo OCR job hoặc reprocess job mới thay vì xử lý inline nếu runtime lâu.
+- Response trả job/document status.
+- Giữ router mỏng, logic nằm ở service.
 
-### 2. Tối Ưu Keyword Search
+### 2. Audit Và An Toàn Dữ Liệu
 
 Vấn đề:
-- Hybrid keyword hiện dùng `ILIKE` theo term, phù hợp MVP nhưng chưa tối ưu cho tập dữ liệu lớn.
+- Reprocess thay thế page/chunk hiện tại, cần truy vết khi chạy từ UI/API.
 
 Hướng xử lý:
-- Đánh giá `EXPLAIN ANALYZE` cho truy vấn keyword trên `document_chunks.text`.
-- Nếu cần, thêm PostgreSQL `pg_trgm` hoặc full-text search tiếng Việt không dấu ở migration mới.
-- Giữ API response hiện tại.
+- Ghi `ocr_jobs` mới cho mỗi lần reprocess hoặc thêm trường lý do vào job nếu cần.
+- Lưu error message khi reprocess lỗi.
+- Đảm bảo document đang reprocess không bị reprocess song song.
 
 ## Tiêu Chí Hoàn Thành
 
-- Reprocess được ít nhất một công văn cũ và search trả text đã cleanup mới.
-- Qdrant payload/chunks của document reprocess có `content_hash` mới và search vẫn mở đúng source.
-- Keyword search có kế hoạch index rõ ràng hoặc migration nếu đã đủ cần thiết.
+- Có API reprocess document hoặc job tương đương, không xử lý business logic trong router.
+- Reprocess qua API tạo/trả trạng thái job rõ ràng.
+- Search sau reprocess vẫn trả document nguồn đúng.
 - Không phát sinh model/runtime artifact trong git.

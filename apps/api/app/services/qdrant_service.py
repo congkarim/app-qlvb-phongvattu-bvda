@@ -1,5 +1,5 @@
 from qdrant_client import QdrantClient
-from qdrant_client.http.models import Distance, FieldCondition, Filter, MatchValue, PointStruct, VectorParams
+from qdrant_client.http.models import Distance, FieldCondition, Filter, MatchValue, PointIdsList, PointStruct, VectorParams
 
 from app.core.config import get_settings
 
@@ -28,6 +28,15 @@ class QdrantService:
         self.client.upsert(
             collection_name=self.settings.qdrant_collection,
             points=[PointStruct(id=point_id, vector=vector, payload=payload)],
+        )
+
+    def delete_points(self, point_ids: list[str]) -> None:
+        if not point_ids:
+            return
+        self.ensure_collection()
+        self.client.delete(
+            collection_name=self.settings.qdrant_collection,
+            points_selector=PointIdsList(points=point_ids),
         )
 
     def search(self, *, vector: list[float], limit: int, filters: dict[str, str | None]) -> list:

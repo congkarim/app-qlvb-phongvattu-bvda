@@ -344,8 +344,36 @@ Search:
 - Benchmark 5 query tiếng Việt cho kết quả đúng ngữ cảnh hơn fake embedding, đặc biệt với `hiệu lực thi hành luật đấu thầu`, `trách nhiệm của chủ đầu tư`, `lựa chọn nhà thầu`.
 - Semantic search đã có reranking/dedup nhẹ: lấy nhiều hit hơn từ Qdrant, boost exact legal markers và giảm kết quả yếu trùng theo document/title/text.
 - Semantic search đã có hybrid retrieval MVP: lấy candidate từ Qdrant vector và PostgreSQL keyword, cộng tín hiệu exact phrase/term coverage trước khi dedup.
+- Keyword search có migration `0002_chunk_text_trgm` tạo extension `pg_trgm` và GIN trigram index `ix_document_chunks_text_trgm` trên `document_chunks.text` cho các chunk chưa soft delete.
 - Query `Luật Đấu thầu phạm vi điều chỉnh` đã đưa chunk Điều 1 lên top 1 và giảm bản upload cũ trong top 5.
 - Metadata filters hiện còn tối thiểu.
+
+Reprocess công văn cũ và tối ưu keyword index kiểm tra ngày 2026-06-03:
+
+```bash
+docker compose run --rm --no-deps worker python -m py_compile /app/app/scripts/reprocess_document.py /app/app/repositories/document_repository.py /app/app/services/qdrant_service.py /app/alembic/versions/0002_document_chunk_text_trgm_index.py
+docker compose exec -T api alembic upgrade head
+docker compose exec -T postgres psql -U legal -d legal_doc_ai -c "EXPLAIN ANALYZE ..."
+docker compose exec -T api python -m app.scripts.reprocess_document --document-id 718b0db1-6c8c-4da4-b6aa-5689173d219a --dry-run
+docker compose exec -T api python -m app.scripts.reprocess_document --document-id 718b0db1-6c8c-4da4-b6aa-5689173d219a
+curl -fsS -X POST http://localhost:8000/api/v1/search/semantic -H 'Content-Type: application/json' -d '{"query":"Lê Thế Anh hồ sơ xin thôi việc Xuân Lâm","limit":3}'
+curl -fsS -X POST http://localhost:8000/api/v1/search/semantic -H 'Content-Type: application/json' -d '{"query":"Số 72 UBND KT Kính gửi Ban chỉ huy 32 xóm","limit":3}'
+```
+
+Kết quả:
+- Thêm script `python -m app.scripts.reprocess_document --document-id <id>` để OCR lại file đã upload, replace page/chunk theo document, upsert lại Qdrant và xóa point dư nếu số chunk giảm.
+- Reprocess công văn JPEG `0f53863c-d731-4b39-b0ff-d883ab039a88.jpeg`:
+  - Dry-run: `old_pages=1`, `new_pages=1`, `old_chunks=1`, `new_chunks=1`, average confidence `0.9043`.
+  - Reprocess thật: document vẫn `searchable`, `1/1` chunk có `content_hash` và `qdrant_point_id`, không có chunk dư.
+- Text sau reprocess đã cải thiện các lỗi cũ:
+  - `Số: 72]/UBND-KT` -> `Số: 72/UBND-KT`.
+  - `27IS/2026` -> `27/5/2026`.
+  - Bỏ nhiễu đầu dòng như `Thuật`, `Nhất`, `Thành`, `Nhà Tháng`, `Các thuận`, `Anh thuận`.
+  - `Thông bảo` -> `Thông báo`.
+- Search `Lê Thế Anh hồ sơ xin thôi việc Xuân Lâm` trả công văn JPEG đã cleanup ở top 1.
+- Search `Số 72 UBND KT Kính gửi Ban chỉ huy 32 xóm` trả công văn JPEG đã cleanup ở top 1.
+- `EXPLAIN ANALYZE` trước index dùng seq scan trên `document_chunks.text`, khoảng `23ms` với 478 chunks.
+- Sau migration, planner vẫn chọn seq scan do bảng nhỏ, nhưng khi `enable_seqscan=off` xác nhận index trigram usable bằng `Bitmap Index Scan`, khoảng `4.8ms` cho query keyword đại diện.
 
 Auth:
 - Đã có JWT login skeleton.
@@ -366,7 +394,7 @@ Generated files:
 
 OCR thật và trích xuất Office text mức MVP đã được triển khai. OCR scan tiếng Việt hiện ưu tiên VietOCR local.
 
-Task tiếp theo nên ưu tiên reprocess các tài liệu công văn đã OCR bằng code cũ để tận dụng cleanup mới, sau đó bổ sung PostgreSQL full-text/trigram index nếu dữ liệu lớn làm keyword search `ILIKE` chậm.
+Task tiếp theo nên ưu tiên thêm API hoặc admin action để reprocess document từ UI/backend thay vì chỉ chạy script CLI, kèm audit rõ ràng cho các lần reprocess.
 
 Workflow MVP hiện có:
 
