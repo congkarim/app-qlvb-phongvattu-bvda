@@ -11,4 +11,8 @@ export default defineNuxtRouteMiddleware((to) => {
   if (authStore.token && isLoginRoute) {
     return navigateTo('/dashboard')
   }
+
+  if (to.path.startsWith('/users') && !authStore.isAdmin) {
+    return navigateTo('/dashboard')
+  }
 })

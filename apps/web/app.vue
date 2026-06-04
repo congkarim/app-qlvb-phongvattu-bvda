@@ -1,3 +1,7 @@
+<script setup lang="ts">
+const authStore = useAuthStore()
+</script>
+
 <template>
   <div>
     <nav class="border-b border-slate-200 bg-white">
@@ -7,6 +11,7 @@
           <NuxtLink to="/dashboard">Dashboard</NuxtLink>
           <NuxtLink to="/documents">Documents</NuxtLink>
           <NuxtLink to="/upload">Upload</NuxtLink>
+          <NuxtLink v-if="authStore.isAdmin" to="/users">Users</NuxtLink>
         </div>
       </div>
     </nav>

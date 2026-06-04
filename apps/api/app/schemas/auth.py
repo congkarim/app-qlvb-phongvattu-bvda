@@ -1,14 +1,14 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, Field
 
 
 class LoginRequest(BaseModel):
-    email: EmailStr
+    email: str = Field(min_length=3, max_length=255)
     password: str
 
 
 class AuthenticatedUser(BaseModel):
     id: str
-    email: EmailStr
+    email: str
     full_name: str
     role: str
 

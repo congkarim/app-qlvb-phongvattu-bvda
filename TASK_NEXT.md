@@ -1,4 +1,4 @@
-# Task Vừa Hoàn Thành: Chunk Metadata Backfill
+# Task Vừa Hoàn Thành: User Management MVP
 
 Trạng thái: hoàn thành.
 
@@ -6,76 +6,72 @@ Ngày cập nhật: 2026-06-04
 
 ## Phạm Vi Đã Thực Hiện
 
-Đã thêm script backfill nhẹ để populate metadata chunk cho document cũ từ OCR pages đã lưu.
+Đã thêm quản trị user local mức MVP cho role `admin`.
 
-Nguyên tắc vận hành:
-- Không thay `document_chunks.text`.
-- Không thay `content_hash`.
-- Không thay `qdrant_point_id`.
-- Không re-embedding.
-- Map metadata theo `chunk_index` hiện có và báo mismatch nếu số chunk tái tạo khác số chunk đang lưu.
+Quy tắc quyền:
+- `admin`: xem danh sách user, tạo user, đổi role `admin/user`, kích hoạt/vô hiệu hóa và xóa mềm user.
+- `user`: không truy cập được API/UI quản trị user.
+- API chặn admin tự hạ role, tự vô hiệu hóa hoặc tự xóa tài khoản đang dùng.
 
 ## Kết Quả Chính
 
 Backend:
-- Thêm repository method list document cần backfill metadata chunk.
-- Thêm repository method cập nhật metadata chunk theo payload từ module `ocr_chunking`.
-- Tái sử dụng `create_chunk_payloads` để metadata backfill nhất quán với worker OCR hiện tại.
+- Thêm schemas `UserRead`, `UserCreateRequest`, `UserUpdateRequest`.
+- Mở rộng `UserRepository` để list/filter/sort, update profile, set active và soft delete.
+- Thêm `UserService` xử lý validate role/email, hash password, audit log và transaction.
+- Thêm router `/api/v1/users` admin-only:
+  - `GET /users`
+  - `POST /users`
+  - `PATCH /users/{user_id}`
+  - `POST /users/{user_id}/activate`
+  - `POST /users/{user_id}/deactivate`
+  - `DELETE /users/{user_id}`
+- Email response dùng string để hỗ trợ domain local/on-prem như `example.local`.
 
-Script:
-- Thêm `python -m app.scripts.backfill_chunk_metadata`.
-- Hỗ trợ `--dry-run`.
-- Hỗ trợ `--document-id` repeatable.
-- Hỗ trợ `--batch-size`, `--limit`, `--include-complete`.
-- In log từng document và summary cuối.
+Frontend:
+- Thêm typed user service và composable `useUsers`.
+- Thêm page `/users` với:
+  - Form tạo user.
+  - Filter theo email/họ tên, role, trạng thái.
+  - Sort cơ bản.
+  - Inline edit họ tên, role, trạng thái.
+  - Action kích hoạt/vô hiệu hóa và xóa mềm.
+- Route guard chuyển user thường khỏi `/users`.
+- Nav chỉ hiện link `Users` với admin.
 
 Docs:
-- Cập nhật README cách chạy backfill.
+- Cập nhật `README.md`.
 - Cập nhật `PROJECT_STATUS.md`.
-
-## Cách Chạy
-
-Dry-run trước:
-
-```bash
-docker compose exec -T api python -m app.scripts.backfill_chunk_metadata --dry-run --limit 20
-```
-
-Chạy thật theo batch:
-
-```bash
-docker compose exec -T api python -m app.scripts.backfill_chunk_metadata --batch-size 20
-```
-
-Một document cụ thể:
-
-```bash
-docker compose exec -T api python -m app.scripts.backfill_chunk_metadata --document-id <document_id>
-```
 
 ## Đã Kiểm Tra
 
 ```bash
-PYTHONPYCACHEPREFIX=/tmp/qlvb-pycache PYTHONPATH=apps/api python3 -m py_compile apps/api/app/repositories/document_repository.py apps/api/app/scripts/backfill_chunk_metadata.py
-PYTHONPATH=apps/api python3 -m unittest app.services.ocr_chunking.tests.test_pipeline
-docker compose exec -T api python -m app.scripts.backfill_chunk_metadata --dry-run --limit 2
+PYTHONPYCACHEPREFIX=/tmp/qlvb-pycache PYTHONPATH=apps/api python3 -m py_compile apps/api/app/repositories/user_repository.py apps/api/app/schemas/auth.py apps/api/app/schemas/user.py apps/api/app/services/auth_service.py apps/api/app/services/user_service.py apps/api/app/routers/users.py apps/api/app/main.py
+docker compose run --rm --no-deps web npm run build
+python3 <users smoke script>
 docker compose config --quiet
 git diff --check
 ```
 
 Kết quả:
 - Backend compile pass.
-- Unit test chunking pass 6 mẫu.
-- Backfill dry-run chạy được trên DB local.
+- Frontend build pass; vẫn có warning chunk PrimeVue lớn như trước, không fail.
+- Smoke API pass:
+  - Admin login thành công.
+  - `GET /users` trả danh sách.
+  - Admin tạo user tạm.
+  - User thường gọi `/users` trả `403`.
+  - Admin deactivate/activate/update/delete mềm user tạm thành công.
+  - User đã delete mềm login lại trả `401`.
 - Docker Compose config pass.
 - Diff check pass.
 
 ## Task Tiếp Theo Đề Xuất
 
-1. User management MVP:
-   - API/list UI tạo user thường.
-   - Admin đổi role `admin/user`.
-   - Admin soft-delete hoặc deactivate user.
+1. User management polish:
+   - Thêm reset password cho admin.
+   - Thêm phân trang server-side cho bảng users khi dữ liệu lớn.
+   - Hiển thị audit user trong UI admin nếu cần truy vết.
 
 2. Chunk metadata rollout:
    - Chạy backfill thật trên DB local/dev sau khi review dry-run.

@@ -11,7 +11,7 @@ class AuthService:
         self.users = UserRepository(db)
 
     def login(self, email: str, password: str) -> tuple[str, User] | None:
-        user = self.users.get_by_email(email)
+        user = self.users.get_by_email(email.strip().lower())
         if not user or not user.is_active:
             return None
         if not verify_password(password, user.password_hash):
@@ -21,14 +21,15 @@ class AuthService:
 
     def seed_admin_user(self) -> None:
         settings = get_settings()
-        existing_user = self.users.get_by_email(settings.admin_email)
+        admin_email = settings.admin_email.strip().lower()
+        existing_user = self.users.get_by_email(admin_email)
         if existing_user:
             if existing_user.role != "admin":
                 self.users.update_role(existing_user, "admin")
             return
 
         self.users.create(
-            email=settings.admin_email,
+            email=admin_email,
             full_name=settings.admin_full_name,
             password_hash=hash_password(settings.admin_password),
             role="admin",

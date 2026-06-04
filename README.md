@@ -61,8 +61,9 @@ curl -X POST http://localhost:8000/api/v1/auth/login \
 Auth/RBAC MVP:
 - Admin local mặc định: `admin@example.com` / `admin123`.
 - Login response trả `user.role`.
-- Role `admin` được reprocess và quản lý source files.
+- Role `admin` được reprocess, quản lý source files và quản lý user tại `/users`.
 - Role `user` được upload, search, xem tài liệu/source file và sửa metadata.
+- Admin có thể tạo user local, đổi role `admin/user`, kích hoạt/vô hiệu hóa và xóa mềm user. API chặn admin tự hạ quyền hoặc tự vô hiệu hóa/xóa tài khoản đang dùng.
 
 Web:
 
@@ -112,6 +113,8 @@ Trong card `Metadata`, có thể bấm `Sửa metadata` để chỉnh tên văn 
 Trong card `Tệp nguồn`, bấm `Xem trước` để preview inline PDF, ảnh hoặc text cạnh metadata/OCR text. Bấm `Mở` để mở tab mới với định dạng browser hỗ trợ; DOCX/XLSX hoặc định dạng không preview được sẽ download.
 
 Các thao tác reprocess, thêm source file, đổi thứ tự source file và xóa source file chỉ dành cho admin.
+
+Admin có thể vào `Users` để tạo tài khoản thường, đổi role và vô hiệu hóa hoặc xóa mềm user.
 
 6. Vào `Dashboard`, search:
 
