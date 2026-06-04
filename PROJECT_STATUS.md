@@ -65,7 +65,8 @@ Worker:
   - Detect `doc_type` theo thể thức văn bản, map vào nhóm A/B/C/D/E và chọn strategy riêng cho từng nhóm.
   - Output trả dataclass `Chunk` có `to_dict()` đúng JSON schema retrieval/RAG, gồm path, role, page/bbox, confidence, flags review/table/signature/appendix, entities và fallback info.
   - Worker mặc định dùng module mới qua `CHUNKING_BACKEND=ocr_chunking`; có thể rollback tạm thời bằng `CHUNKING_BACKEND=legacy`.
-  - Bảng `document_chunks` vẫn giữ schema hiện có; metadata chi tiết được đưa vào Qdrant payload.
+  - Migration `0008_document_chunk_metadata` bổ sung `doc_group`, `chunk_level`, `section_role`, `section_path`, `chunk_confidence`, `requires_review` vào `document_chunks`.
+  - Metadata chi tiết hơn như fallback/entities vẫn được đưa vào Qdrant payload.
 - Tạo embedding qua backend cấu hình được: fake deterministic cho dev hoặc local `sentence-transformers`.
 - Upsert vector vào Qdrant.
 - Chuyển document sang trạng thái `searchable`.
@@ -679,7 +680,7 @@ Frontend:
 - Upload UI đã hỗ trợ một văn bản có nhiều tệp nguồn.
 - Upload UI đã hỗ trợ zip là một văn bản gồm nhiều tệp nguồn.
 - Document list đã có filter/sort cơ bản.
-- Document detail đã có quản lý source files sau upload và preview inline PDF/image/text.
+- Document detail đã có quản lý source files sau upload, preview inline PDF/image/text và hiển thị role/path/confidence của chunks.
 - Chưa có layout/form polish ở mức production.
 
 Generated files:
@@ -689,22 +690,26 @@ Generated files:
 Chunking OCR text hành chính kiểm tra ngày 2026-06-04:
 
 ```bash
-PYTHONPYCACHEPREFIX=/tmp/qlvb-pycache PYTHONPATH=apps/api python3 -m py_compile apps/api/app/core/config.py apps/api/app/repositories/document_repository.py apps/api/app/workers/ocr_worker.py apps/api/app/services/ocr_chunking/*.py apps/api/app/services/ocr_chunking/tests/test_pipeline.py
+PYTHONPYCACHEPREFIX=/tmp/qlvb-pycache PYTHONPATH=apps/api python3 -m py_compile apps/api/app/models/document.py apps/api/app/schemas/document.py apps/api/app/repositories/document_repository.py apps/api/app/workers/ocr_worker.py apps/api/alembic/versions/0008_document_chunk_metadata.py
 PYTHONPATH=apps/api python3 -m unittest app.services.ocr_chunking.tests.test_pipeline
+docker compose run --rm --no-deps web npm run build
 docker compose config --quiet
+docker compose run --rm api alembic upgrade head
 ```
 
 Kết quả:
-- Compile pass cho module `ocr_chunking`, config, repository và worker.
+- Compile pass cho model/schema/repository/worker và migration chunk metadata.
 - Unit test pass 6 mẫu, gồm 5 mẫu bắt buộc và test adapter payload metadata Qdrant.
+- Frontend build pass; vẫn có warning chunk PrimeVue lớn như trước, không fail.
 - Docker Compose config pass với `CHUNKING_BACKEND`.
+- Alembic nâng DB local từ `0007_document_ocr_metadata` lên `0008_document_chunk_metadata`.
 
 ## Quyết Định Hiện Tại
 
-OCR thật, trích xuất Office text, tự động lưu metadata hành chính sau OCR và tích hợp module chunking OCR text theo nhóm văn bản vào worker mức MVP đã được triển khai.
+OCR thật, trích xuất Office text, tự động lưu metadata hành chính sau OCR và tích hợp module chunking OCR text theo nhóm văn bản vào worker/UI mức MVP đã được triển khai.
 OCR scan tiếng Việt hiện ưu tiên VietOCR local.
 
-Task tiếp theo nên ưu tiên bổ sung migration metadata chunk nếu cần hiển thị chunk role/path trực tiếp từ PostgreSQL, hoặc RBAC nhẹ nếu cần phân quyền admin/user thật sự.
+Task tiếp theo nên ưu tiên RBAC nhẹ nếu cần phân quyền admin/user thật sự.
 
 Workflow MVP hiện có:
 

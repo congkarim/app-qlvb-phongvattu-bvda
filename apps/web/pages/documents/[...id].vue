@@ -219,6 +219,27 @@ function formatMetadataSource(value?: string | null): string {
   return value || '-'
 }
 
+function formatChunkRole(value?: string | null): string {
+  const labels: Record<string, string> = {
+    header: 'Phần đầu',
+    legal_basis: 'Căn cứ',
+    promulgation: 'Ban hành',
+    chapter: 'Chương',
+    article: 'Điều',
+    clause: 'Khoản',
+    point: 'Điểm',
+    task: 'Nhiệm vụ',
+    table: 'Bảng',
+    signature: 'Chữ ký',
+    unknown: 'Không xác định'
+  }
+  return value ? labels[value] || value : '-'
+}
+
+function formatChunkPath(path?: string[] | null): string {
+  return path?.length ? path.join(' > ') : '-'
+}
+
 function formatAuditMetadataValue(value: unknown): string {
   if (value === null || value === undefined || value === '') return '-'
   if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') return String(value)
@@ -910,7 +931,19 @@ onBeforeUnmount(() => {
         <template #content>
           <div v-if="document.chunks.length" class="space-y-3">
             <article v-for="chunk in document.chunks" :key="chunk.id" class="border-b border-slate-200 pb-3">
-              <p class="break-words text-xs text-slate-500">#{{ chunk.chunk_index }} {{ chunk.section_title }}</p>
+              <div class="flex flex-wrap items-center gap-2 text-xs">
+                <span class="text-slate-500">#{{ chunk.chunk_index }}</span>
+                <Tag v-if="chunk.doc_group" :value="`Nhóm ${chunk.doc_group}`" severity="info" />
+                <Tag v-if="chunk.section_role" :value="formatChunkRole(chunk.section_role)" severity="secondary" />
+                <Tag v-if="chunk.requires_review" value="Cần review" severity="warn" />
+                <span v-if="chunk.chunk_confidence !== null && chunk.chunk_confidence !== undefined" class="text-slate-500">
+                  {{ formatConfidence(chunk.chunk_confidence) }}
+                </span>
+              </div>
+              <p class="mt-1 break-words text-xs text-slate-500">
+                {{ formatChunkPath(chunk.section_path) }}
+              </p>
+              <p class="mt-1 break-words text-xs text-slate-500">{{ chunk.section_title }}</p>
               <p class="mt-1 text-sm text-slate-700">{{ chunk.text }}</p>
             </article>
           </div>

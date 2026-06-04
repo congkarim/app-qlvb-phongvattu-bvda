@@ -1,6 +1,6 @@
 from datetime import date, datetime
 
-from sqlalchemy import Boolean, Date, DateTime, Float, ForeignKey, Index, Integer, String, Text
+from sqlalchemy import JSON, Boolean, Date, DateTime, Float, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, UUIDTimestampMixin
@@ -81,6 +81,12 @@ class DocumentChunk(UUIDTimestampMixin, Base):
     page_from: Mapped[int | None] = mapped_column(Integer, nullable=True)
     page_to: Mapped[int | None] = mapped_column(Integer, nullable=True)
     section_title: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    doc_group: Mapped[str | None] = mapped_column(String(8), nullable=True)
+    chunk_level: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    section_role: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    section_path: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
+    chunk_confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
+    requires_review: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     content_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     qdrant_point_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
 
@@ -89,6 +95,9 @@ class DocumentChunk(UUIDTimestampMixin, Base):
     __table_args__ = (
         Index("ix_document_chunks_document_index", "document_id", "chunk_index", unique=True),
         Index("ix_document_chunks_hash", "content_hash"),
+        Index("ix_document_chunks_doc_group", "doc_group"),
+        Index("ix_document_chunks_section_role", "section_role"),
+        Index("ix_document_chunks_requires_review", "requires_review"),
     )
 
 

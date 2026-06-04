@@ -112,6 +112,12 @@ export interface DocumentChunk {
   page_from?: number | null
   page_to?: number | null
   section_title?: string | null
+  doc_group?: string | null
+  chunk_level?: string | null
+  section_role?: string | null
+  section_path?: string[] | null
+  chunk_confidence?: number | null
+  requires_review: boolean
   qdrant_point_id?: string | null
 }
 

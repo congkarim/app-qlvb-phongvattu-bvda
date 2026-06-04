@@ -103,6 +103,9 @@ class OCRWorker:
                         page_from=int(chunk_payload["page_from"]),
                         page_to=int(chunk_payload["page_to"]),
                         section_title=chunk_payload["section_title"],
+                        chunk_metadata=chunk_payload.get("chunk_metadata")
+                        if isinstance(chunk_payload.get("chunk_metadata"), dict)
+                        else None,
                     )
                     for chunk_index, chunk_payload in enumerate(chunk_payloads)
                 ]

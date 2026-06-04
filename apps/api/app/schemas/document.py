@@ -98,6 +98,12 @@ class DocumentChunkRead(BaseModel):
     page_from: int | None = None
     page_to: int | None = None
     section_title: str | None = None
+    doc_group: str | None = None
+    chunk_level: str | None = None
+    section_role: str | None = None
+    section_path: list[str] | None = None
+    chunk_confidence: float | None = None
+    requires_review: bool = False
     qdrant_point_id: str | None = None
 
     model_config = {"from_attributes": True}

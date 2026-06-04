@@ -327,7 +327,7 @@ Worker mặc định dùng module `ocr_chunking` để chunk OCR text theo thể
 CHUNKING_BACKEND=ocr_chunking
 ```
 
-Module này detect `doc_type`, map sang nhóm A/B/C/D/E, giữ cấu trúc như `Điều`, `Khoản`, mục La Mã, bảng và chữ ký khi tạo chunk. Bảng `document_chunks` vẫn lưu các trường hiện có (`text`, `section_title`, `page_from`, `page_to`, `content_hash`); metadata chi tiết như `doc_group`, `section_role`, `section_path`, confidence, `fallback_info` và entities được đưa vào Qdrant payload.
+Module này detect `doc_type`, map sang nhóm A/B/C/D/E, giữ cấu trúc như `Điều`, `Khoản`, mục La Mã, bảng và chữ ký khi tạo chunk. Bảng `document_chunks` lưu `doc_group`, `chunk_level`, `section_role`, `section_path`, `chunk_confidence` và `requires_review` để UI hiển thị được cấu trúc chunk. Metadata chi tiết hơn như `fallback_info` và entities tiếp tục nằm trong Qdrant payload.
 
 Rollback tạm thời về chunking cũ:
 

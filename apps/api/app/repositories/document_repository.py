@@ -304,6 +304,13 @@ class DocumentRepository:
         page_from: int | None = None,
         page_to: int | None = None,
         section_title: str | None = None,
+        doc_group: str | None = None,
+        chunk_level: str | None = None,
+        section_role: str | None = None,
+        section_path: list[str] | None = None,
+        chunk_confidence: float | None = None,
+        requires_review: bool = False,
+        chunk_metadata: dict[str, Any] | None = None,
         qdrant_point_id: str | None = None,
     ) -> DocumentChunk:
         chunk = DocumentChunk(
@@ -313,9 +320,17 @@ class DocumentRepository:
             page_from=page_from,
             page_to=page_to,
             section_title=section_title,
+            doc_group=doc_group,
+            chunk_level=chunk_level,
+            section_role=section_role,
+            section_path=section_path,
+            chunk_confidence=chunk_confidence,
+            requires_review=requires_review,
             content_hash=content_hash,
             qdrant_point_id=qdrant_point_id,
         )
+        if chunk_metadata is not None:
+            self._apply_chunk_metadata(chunk, {"chunk_metadata": chunk_metadata})
         self.db.add(chunk)
         self.db.flush()
         return chunk
@@ -349,6 +364,7 @@ class DocumentRepository:
             chunk.page_from = int(chunk_payload["page_from"]) if chunk_payload["page_from"] is not None else None
             chunk.page_to = int(chunk_payload["page_to"]) if chunk_payload["page_to"] is not None else None
             chunk.section_title = str(chunk_payload["section_title"]) if chunk_payload["section_title"] else None
+            self._apply_chunk_metadata(chunk, chunk_payload)
             chunk.deleted_at = None
             self.db.add(chunk)
             replaced.append(chunk)
@@ -416,6 +432,34 @@ class DocumentRepository:
         self.db.add(chunk)
         self.db.flush()
         return chunk
+
+    def _apply_chunk_metadata(self, chunk: DocumentChunk, chunk_payload: dict[str, Any]) -> None:
+        metadata = chunk_payload.get("chunk_metadata")
+        if not isinstance(metadata, dict):
+            metadata = {}
+        section_path = metadata.get("section_path")
+        chunk.doc_group = _clean_optional_string(metadata.get("doc_group"), 8)
+        chunk.chunk_level = _clean_optional_string(metadata.get("chunk_level"), 32)
+        chunk.section_role = _clean_optional_string(metadata.get("section_role"), 64)
+        chunk.section_path = [str(item) for item in section_path] if isinstance(section_path, list) else None
+        chunk.chunk_confidence = _optional_float(metadata.get("confidence"))
+        chunk.requires_review = bool(metadata.get("requires_review", False))
+
+
+def _clean_optional_string(value: Any, max_length: int) -> str | None:
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text[:max_length] if text else None
+
+
+def _optional_float(value: Any) -> float | None:
+    if value is None:
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
 
 
 class OCRJobRepository:
