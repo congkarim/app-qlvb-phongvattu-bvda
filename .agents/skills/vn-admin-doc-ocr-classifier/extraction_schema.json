@@ -1,0 +1,130 @@
+{
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "document_type": {
+        "type": "string",
+        "enum": [
+          "NQ",
+          "QĐ",
+          "CT",
+          "QC",
+          "QYĐ",
+          "TC",
+          "TB",
+          "HD",
+          "CTr",
+          "KH",
+          "PA",
+          "ĐA",
+          "DA",
+          "BC",
+          "BB",
+          "TTr",
+          "HĐ",
+          "CV",
+          "CĐ",
+          "BGN",
+          "BTT",
+          "GUQ",
+          "GM",
+          "GGT",
+          "GNP",
+          "PG",
+          "PC",
+          "PB",
+          "TCg",
+          "UNKNOWN"
+        ]
+      },
+      "confidence": {
+        "type": "number",
+        "minimum": 0.0,
+        "maximum": 1.0
+      },
+      "agency_name": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "document_number": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "symbol": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "date": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "description": "Prefer ISO-8601 YYYY-MM-DD if possible"
+      },
+      "place": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "title": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "excerpt": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "recipient": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "signer_name": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "signer_title": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "seals_present": {
+        "type": [
+          "boolean",
+          "null"
+        ]
+      },
+      "attachment_present": {
+        "type": [
+          "boolean",
+          "null"
+        ]
+      },
+      "page_count": {
+        "type": [
+          "integer",
+          "null"
+        ],
+        "minimum": 1
+      }
+    },
+    "required": [
+      "document_type",
+      "confidence"
+    ]
+  }
