@@ -10,12 +10,16 @@ const {
   reprocessLoading,
   sourceFileLoading,
   sourceFileViewLoading,
+  sourceFilePreviewLoading,
+  sourceFilePreview,
   error,
   fetchDocument,
   updateDocumentMetadata,
   reprocessDocument,
   addSourceFiles,
   openSourceFile,
+  previewSourceFile,
+  clearSourceFilePreview,
   reorderSourceFiles,
   deleteSourceFile
 } = useDocuments()
@@ -309,7 +313,15 @@ async function submitOpenSourceFile(fileId: string) {
   await openSourceFile(document.value.id, file)
 }
 
+async function submitPreviewSourceFile(fileId: string) {
+  if (!document.value) return
+  const file = sourceFiles.value.find((sourceFile) => sourceFile.id === fileId)
+  if (!file) return
+  await previewSourceFile(document.value.id, file)
+}
+
 async function refreshAfterSourceFileMutation() {
+  clearSourceFilePreview()
   await fetchDocument(documentId.value, { silent: true })
   markDetailRefreshed()
   if (shouldPoll.value) startPolling()
@@ -327,7 +339,10 @@ watch(shouldPoll, (value) => {
   else stopPolling()
 })
 
-onBeforeUnmount(stopPolling)
+onBeforeUnmount(() => {
+  stopPolling()
+  clearSourceFilePreview()
+})
 </script>
 
 <template>
@@ -684,8 +699,16 @@ onBeforeUnmount(stopPolling)
                 <div class="flex flex-wrap items-center gap-2">
                   <BaseStatusBadge :status="file.status" />
                   <Button
-                    label="Xem"
+                    label="Xem trước"
                     icon="pi pi-eye"
+                    severity="secondary"
+                    size="small"
+                    :loading="sourceFilePreviewLoading === file.id"
+                    @click="submitPreviewSourceFile(file.id)"
+                  />
+                  <Button
+                    label="Mở"
+                    icon="pi pi-external-link"
                     severity="secondary"
                     size="small"
                     :loading="sourceFileViewLoading === file.id"
@@ -719,7 +742,43 @@ onBeforeUnmount(stopPolling)
               </div>
             </article>
           </div>
-          <p v-else class="break-words text-sm text-slate-600">
+          <div v-if="sourceFilePreview" class="mt-4 rounded border border-slate-200 bg-white">
+            <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 p-3">
+              <div>
+                <p class="break-words text-sm font-medium">{{ sourceFilePreview.file.original_filename }}</p>
+                <p class="text-xs text-slate-500">
+                  Xem trước inline · {{ sourceFilePreview.file.content_type || 'Không xác định' }}
+                </p>
+              </div>
+              <Button
+                label="Đóng preview"
+                icon="pi pi-times"
+                severity="secondary"
+                size="small"
+                @click="clearSourceFilePreview"
+              />
+            </div>
+            <div class="min-h-64 overflow-hidden bg-slate-50">
+              <iframe
+                v-if="sourceFilePreview.mode === 'pdf'"
+                :src="sourceFilePreview.object_url"
+                title="Preview PDF"
+                class="h-[70vh] w-full border-0"
+              />
+              <div v-else-if="sourceFilePreview.mode === 'image'" class="flex max-h-[70vh] items-start justify-center overflow-auto p-3">
+                <img
+                  :src="sourceFilePreview.object_url"
+                  :alt="sourceFilePreview.file.original_filename"
+                  class="max-h-[68vh] max-w-full object-contain"
+                />
+              </div>
+              <pre
+                v-else
+                class="max-h-[70vh] overflow-auto whitespace-pre-wrap break-words p-4 text-sm leading-6 text-slate-800"
+              >{{ sourceFilePreview.text }}</pre>
+            </div>
+          </div>
+          <p v-if="!sourceFiles.length" class="break-words text-sm text-slate-600">
             Tệp nguồn cũ: {{ document.original_filename }}
           </p>
         </template>

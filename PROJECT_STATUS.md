@@ -105,7 +105,7 @@ Workflow web đã hoàn thiện:
 - `/documents/[id]` cho phép sửa thủ công các metadata OCR; khi lưu sẽ đánh dấu `metadata_source=manual` và `metadata_reviewed_at`.
 - Reprocess không ghi đè metadata đã được sửa/review thủ công; kết quả auto extraction mới chỉ ghi audit log `document.metadata_auto_extracted` với `applied=false`.
 - `/documents/[id]` hiển thị card `Tệp nguồn` để xem một hoặc nhiều file nguồn thuộc cùng document.
-- `/documents/[id]` có nút `Xem` cạnh từng tệp nguồn; PDF/image/text mở tab mới, DOCX/XLSX hoặc định dạng không preview được sẽ download.
+- `/documents/[id]` có nút `Xem trước` để preview inline PDF/image/text cạnh metadata/OCR text; nút `Mở` vẫn mở tab mới hoặc download fallback cho DOCX/XLSX.
 - `/documents/[id]` cho phép thêm source files, đổi thứ tự file và soft-delete source file; mỗi thay đổi tạo reprocess job async.
 - `/documents/[id]` có action reprocess, khóa nút khi document đang `ocr_pending`, `ocr_running`, `reprocess_pending`, `reprocess_running` hoặc `chunking`.
 - `/documents/[id]` hiển thị audit OCR/reprocess job gồm `job_type`, `status`, `reason`, attempts, error message và thời gian tạo/cập nhật.
@@ -679,7 +679,7 @@ Frontend:
 - Upload UI đã hỗ trợ một văn bản có nhiều tệp nguồn.
 - Upload UI đã hỗ trợ zip là một văn bản gồm nhiều tệp nguồn.
 - Document list đã có filter/sort cơ bản.
-- Document detail đã có quản lý source files sau upload.
+- Document detail đã có quản lý source files sau upload và preview inline PDF/image/text.
 - Chưa có layout/form polish ở mức production.
 
 Generated files:
@@ -704,7 +704,7 @@ Kết quả:
 OCR thật, trích xuất Office text, tự động lưu metadata hành chính sau OCR và tích hợp module chunking OCR text theo nhóm văn bản vào worker mức MVP đã được triển khai.
 OCR scan tiếng Việt hiện ưu tiên VietOCR local.
 
-Task tiếp theo nên ưu tiên preview file inline trong detail hoặc bổ sung migration metadata chunk nếu cần hiển thị chunk role/path trực tiếp từ PostgreSQL.
+Task tiếp theo nên ưu tiên bổ sung migration metadata chunk nếu cần hiển thị chunk role/path trực tiếp từ PostgreSQL, hoặc RBAC nhẹ nếu cần phân quyền admin/user thật sự.
 
 Workflow MVP hiện có:
 

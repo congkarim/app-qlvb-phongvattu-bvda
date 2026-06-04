@@ -96,6 +96,15 @@ export interface DocumentFile {
   updated_at: string
 }
 
+export type SourceFilePreviewMode = 'pdf' | 'image' | 'text'
+
+export interface SourceFilePreview {
+  file: DocumentFile
+  mode: SourceFilePreviewMode
+  object_url: string
+  text?: string
+}
+
 export interface DocumentChunk {
   id: string
   chunk_index: number

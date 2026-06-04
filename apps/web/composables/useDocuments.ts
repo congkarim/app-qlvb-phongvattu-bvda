@@ -7,6 +7,7 @@ import type {
   DocumentMetadataUpdateInput,
   MultiFileUploadResponse,
   ReprocessDocumentResponse,
+  SourceFilePreview,
   SourceFileMutationResponse,
   UploadResponse
 } from '~/types/document'
@@ -22,6 +23,8 @@ export function useDocuments() {
   const reprocessLoading = ref(false)
   const sourceFileLoading = ref(false)
   const sourceFileViewLoading = ref('')
+  const sourceFilePreviewLoading = ref('')
+  const sourceFilePreview = ref<SourceFilePreview | null>(null)
   const error = ref('')
   const service = createDocumentService()
 
@@ -189,6 +192,43 @@ export function useDocuments() {
     }
   }
 
+  async function previewSourceFile(id: string, file: DocumentFile): Promise<boolean> {
+    sourceFilePreviewLoading.value = file.id
+    error.value = ''
+    try {
+      const blob = await service.downloadSourceFile(id, file)
+      const previewMode = sourceFilePreviewMode(file, blob)
+      const objectUrl = URL.createObjectURL(blob)
+      if (!previewMode) {
+        clearSourceFilePreview()
+        downloadBlob(objectUrl, file.original_filename)
+        setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000)
+        return true
+      }
+
+      clearSourceFilePreview()
+      sourceFilePreview.value = {
+        file,
+        mode: previewMode,
+        object_url: objectUrl,
+        text: previewMode === 'text' ? await blob.text() : undefined
+      }
+      return true
+    } catch {
+      error.value = 'Không preview được tệp nguồn'
+      return false
+    } finally {
+      sourceFilePreviewLoading.value = ''
+    }
+  }
+
+  function clearSourceFilePreview() {
+    if (sourceFilePreview.value?.object_url) {
+      URL.revokeObjectURL(sourceFilePreview.value.object_url)
+    }
+    sourceFilePreview.value = null
+  }
+
   async function reprocessDocument(id: string, reason: string): Promise<ReprocessDocumentResponse | null> {
     reprocessLoading.value = true
     error.value = ''
@@ -234,6 +274,19 @@ export function useDocuments() {
     return ['.pdf', '.png', '.jpg', '.jpeg', '.gif', '.webp', '.txt', '.md', '.csv'].some((ext) => filename.endsWith(ext))
   }
 
+  function sourceFilePreviewMode(file: DocumentFile, blob?: Blob): SourceFilePreview['mode'] | null {
+    const contentType = (blob?.type || file.content_type || '').toLowerCase()
+    const filename = file.original_filename.toLowerCase()
+    if (contentType === 'application/pdf' || filename.endsWith('.pdf')) return 'pdf'
+    if (contentType.startsWith('image/') || ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp'].some((ext) => filename.endsWith(ext))) {
+      return 'image'
+    }
+    if (contentType.startsWith('text/') || ['.txt', '.md', '.csv', '.json', '.xml'].some((ext) => filename.endsWith(ext))) {
+      return 'text'
+    }
+    return null
+  }
+
   function downloadBlob(objectUrl: string, filename: string) {
     const link = window.document.createElement('a')
     link.href = objectUrl
@@ -254,6 +307,8 @@ export function useDocuments() {
     reprocessLoading,
     sourceFileLoading,
     sourceFileViewLoading,
+    sourceFilePreviewLoading,
+    sourceFilePreview,
     error,
     fetchDocuments,
     fetchDocument,
@@ -263,6 +318,8 @@ export function useDocuments() {
     updateDocumentMetadata,
     addSourceFiles,
     openSourceFile,
+    previewSourceFile,
+    clearSourceFilePreview,
     reorderSourceFiles,
     deleteSourceFile,
     reprocessDocument,
