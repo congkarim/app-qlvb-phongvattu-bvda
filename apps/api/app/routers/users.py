@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.dependencies import require_admin
 from app.models.user import User
-from app.schemas.user import UserCreateRequest, UserRead, UserUpdateRequest
+from app.schemas.user import UserCreateRequest, UserListResponse, UserRead, UserResetPasswordRequest, UserUpdateRequest
 from app.services.user_service import (
     UserAlreadyExistsError,
     UserNotFoundError,
@@ -16,7 +16,7 @@ from app.services.user_service import (
 router = APIRouter(prefix="/users", tags=["users"], dependencies=[Depends(require_admin)])
 
 
-@router.get("", response_model=list[UserRead])
+@router.get("", response_model=UserListResponse)
 def list_users(
     limit: int = Query(default=50, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
@@ -26,8 +26,8 @@ def list_users(
     sort_by: str = Query(default="created_at", pattern="^(created_at|updated_at|email|full_name|role|is_active)$"),
     sort_dir: str = Query(default="desc", pattern="^(asc|desc)$"),
     db: Session = Depends(get_db),
-) -> list[UserRead]:
-    return UserService(db).list_users(
+) -> UserListResponse:
+    items, total = UserService(db).list_users(
         limit=limit,
         offset=offset,
         query=q,
@@ -36,6 +36,7 @@ def list_users(
         sort_by=sort_by,
         sort_dir=sort_dir,
     )
+    return UserListResponse(items=items, total=total, limit=limit, offset=offset)
 
 
 @router.post("", response_model=UserRead, status_code=status.HTTP_201_CREATED)
@@ -100,6 +101,21 @@ def deactivate_user(
 ) -> UserRead:
     try:
         return UserService(db).set_user_active(user_id=user_id, is_active=False, actor=current_user)
+    except UserNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
+    except UserOperationError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
+
+
+@router.post("/{user_id}/reset-password", response_model=UserRead)
+def reset_user_password(
+    user_id: str,
+    payload: UserResetPasswordRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+) -> UserRead:
+    try:
+        return UserService(db).reset_password(user_id=user_id, password=payload.password, actor=current_user)
     except UserNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
     except UserOperationError as exc:

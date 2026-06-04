@@ -677,12 +677,12 @@ Auth:
 - Frontend đã có route guard cơ bản.
 - API tài liệu/search đã enforce backend Bearer JWT dependency.
 - Auth scope MVP: active authenticated user với role `admin` hoặc `user`.
-- Admin đã có user management MVP để tạo user, đổi role, kích hoạt/vô hiệu hóa và xóa mềm user.
+- Admin đã có user management MVP để tạo user, đổi role, reset password, kích hoạt/vô hiệu hóa và xóa mềm user.
 
 Frontend:
 - UI hiện đã đủ cho MVP workflow cơ bản.
 - Đã có auth route guard cơ bản.
-- Đã có page `/users` dành cho admin để quản lý tài khoản local.
+- Đã có page `/users` dành cho admin để quản lý tài khoản local, gồm filter/sort, phân trang và reset password.
 - Upload UI đã hỗ trợ một văn bản có nhiều tệp nguồn.
 - Upload UI đã hỗ trợ zip là một văn bản gồm nhiều tệp nguồn.
 - Document list đã có filter/sort cơ bản.
@@ -766,6 +766,23 @@ Kết quả:
 - Email response đổi sang string để hỗ trợ domain local/on-prem như `example.local`.
 - Thêm frontend `/users`, typed user service/composable, route guard admin và nav link chỉ hiện với admin.
 - Smoke API pass: admin tạo user tạm, user thường bị `403` ở `/users`, admin deactivate/activate/update/delete mềm user tạm, user đã delete mềm login lại trả `401`.
+- Frontend build pass; vẫn có warning chunk PrimeVue lớn như trước, không fail.
+
+User management polish kiểm tra ngày 2026-06-04:
+
+```bash
+PYTHONPYCACHEPREFIX=/tmp/qlvb-pycache PYTHONPATH=apps/api python3 -m py_compile apps/api/app/repositories/user_repository.py apps/api/app/schemas/user.py apps/api/app/services/user_service.py apps/api/app/routers/users.py
+docker compose run --rm --no-deps web npm run build
+python3 <users polish smoke script>
+docker compose config --quiet
+git diff --check
+```
+
+Kết quả:
+- `GET /api/v1/users` trả response phân trang `items/total/limit/offset`.
+- Thêm endpoint admin-only `POST /api/v1/users/{user_id}/reset-password`, hash password mới và ghi audit `user.password_reset`.
+- Page `/users` có page size `10/20/50/100`, nút `Trước/Sau`, tổng số user và reset password trên từng dòng.
+- Smoke API pass: admin reset password user tạm, mật khẩu cũ trả `401`, mật khẩu mới login thành công, user thường vẫn bị `403` ở `/users`, user xóa mềm login lại trả `401`.
 - Frontend build pass; vẫn có warning chunk PrimeVue lớn như trước, không fail.
 
 Workflow MVP hiện có:

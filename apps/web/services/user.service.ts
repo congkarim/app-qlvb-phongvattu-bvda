@@ -1,4 +1,4 @@
-import type { UserCreateInput, UserItem, UserListFilters, UserUpdateInput } from '~/types/user'
+import type { UserCreateInput, UserItem, UserListFilters, UserListResponse, UserResetPasswordInput, UserUpdateInput } from '~/types/user'
 import { useApiClient } from './api'
 
 export function createUserService() {
@@ -13,7 +13,7 @@ export function createUserService() {
         }
       }
       const query = params.toString()
-      return api<UserItem[]>(`/users${query ? `?${query}` : ''}`)
+      return api<UserListResponse>(`/users${query ? `?${query}` : ''}`)
     },
     create(input: UserCreateInput) {
       return api<UserItem>('/users', {
@@ -35,6 +35,14 @@ export function createUserService() {
     deactivate(id: string) {
       return api<UserItem>(`/users/${id}/deactivate`, {
         method: 'POST'
+      })
+    },
+    resetPassword(id: string, input: UserResetPasswordInput) {
+      return api<UserItem>(`/users/${id}/reset-password`, {
+        method: 'POST',
+        body: {
+          password: input.password
+        }
       })
     },
     delete(id: string) {

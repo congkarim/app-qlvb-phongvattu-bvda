@@ -63,7 +63,7 @@ Auth/RBAC MVP:
 - Login response trả `user.role`.
 - Role `admin` được reprocess, quản lý source files và quản lý user tại `/users`.
 - Role `user` được upload, search, xem tài liệu/source file và sửa metadata.
-- Admin có thể tạo user local, đổi role `admin/user`, kích hoạt/vô hiệu hóa và xóa mềm user. API chặn admin tự hạ quyền hoặc tự vô hiệu hóa/xóa tài khoản đang dùng.
+- Admin có thể tạo user local, đổi role `admin/user`, reset password, kích hoạt/vô hiệu hóa và xóa mềm user. API chặn admin tự hạ quyền hoặc tự vô hiệu hóa/xóa tài khoản đang dùng.
 
 Web:
 
@@ -114,7 +114,7 @@ Trong card `Tệp nguồn`, bấm `Xem trước` để preview inline PDF, ảnh
 
 Các thao tác reprocess, thêm source file, đổi thứ tự source file và xóa source file chỉ dành cho admin.
 
-Admin có thể vào `Users` để tạo tài khoản thường, đổi role và vô hiệu hóa hoặc xóa mềm user.
+Admin có thể vào `Users` để tạo tài khoản thường, đổi role, reset password, phân trang danh sách và vô hiệu hóa hoặc xóa mềm user.
 
 6. Vào `Dashboard`, search:
 

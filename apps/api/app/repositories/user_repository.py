@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import asc, desc, or_, select
+from sqlalchemy import asc, desc, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.models.user import User
@@ -51,6 +51,23 @@ class UserRepository:
         stmt = stmt.order_by(direction(sort_column), User.created_at.desc()).limit(limit).offset(offset)
         return list(self.db.scalars(stmt))
 
+    def count_users(
+        self,
+        *,
+        query: str | None = None,
+        role: str | None = None,
+        is_active: bool | None = None,
+    ) -> int:
+        stmt = select(func.count()).select_from(User).where(User.deleted_at.is_(None))
+        if query:
+            pattern = f"%{query}%"
+            stmt = stmt.where(or_(User.email.ilike(pattern), User.full_name.ilike(pattern)))
+        if role:
+            stmt = stmt.where(User.role == role)
+        if is_active is not None:
+            stmt = stmt.where(User.is_active == is_active)
+        return int(self.db.scalar(stmt) or 0)
+
     def create(
         self,
         *,
@@ -80,6 +97,12 @@ class UserRepository:
 
     def update_role(self, user: User, role: str) -> User:
         user.role = role
+        self.db.add(user)
+        self.db.flush()
+        return user
+
+    def update_password(self, user: User, password_hash: str) -> User:
+        user.password_hash = password_hash
         self.db.add(user)
         self.db.flush()
         return user

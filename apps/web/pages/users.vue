@@ -3,7 +3,21 @@ import type { UserCreateInput, UserItem, UserListFilters, UserRole, UserUpdateIn
 import { formatDateTime } from '~/utils/format'
 
 const authStore = useAuthStore()
-const { users, loading, mutationLoading, error, fetchUsers, createUser, updateUser, setUserActive, deleteUser } = useUsers()
+const {
+  users,
+  total,
+  limit,
+  offset,
+  loading,
+  mutationLoading,
+  error,
+  fetchUsers,
+  createUser,
+  updateUser,
+  setUserActive,
+  resetPassword,
+  deleteUser
+} = useUsers()
 
 const filters = reactive<Required<Pick<UserListFilters, 'q' | 'role' | 'is_active' | 'sort_by' | 'sort_dir'>>>({
   q: '',
@@ -22,7 +36,10 @@ const createForm = reactive<UserCreateInput>({
 })
 
 const editForms = reactive<Record<string, UserUpdateInput>>({})
+const resetPasswordForms = reactive<Record<string, string>>({})
 const editingUserId = ref('')
+const pageSize = ref(20)
+const currentOffset = ref(0)
 
 const roleOptions: Array<{ label: string; value: '' | UserRole }> = [
   { label: 'Tất cả role', value: '' },
@@ -54,6 +71,11 @@ const canSubmitCreate = computed(() => {
   )
 })
 
+const currentPage = computed(() => Math.floor(offset.value / Math.max(limit.value, 1)) + 1)
+const totalPages = computed(() => Math.max(Math.ceil(total.value / Math.max(limit.value, 1)), 1))
+const canGoPrevious = computed(() => offset.value > 0)
+const canGoNext = computed(() => offset.value + limit.value < total.value)
+
 function currentFilters(): UserListFilters {
   return {
     q: filters.q,
@@ -61,11 +83,13 @@ function currentFilters(): UserListFilters {
     is_active: filters.is_active,
     sort_by: filters.sort_by,
     sort_dir: filters.sort_dir,
-    limit: 100
+    limit: pageSize.value,
+    offset: currentOffset.value
   }
 }
 
-async function loadUsers() {
+async function loadUsers(nextOffset = currentOffset.value) {
+  currentOffset.value = Math.max(nextOffset, 0)
   await fetchUsers(currentFilters())
 }
 
@@ -75,7 +99,8 @@ function resetFilters() {
   filters.is_active = ''
   filters.sort_by = 'created_at'
   filters.sort_dir = 'desc'
-  void loadUsers()
+  pageSize.value = 20
+  void loadUsers(0)
 }
 
 async function submitCreate() {
@@ -87,7 +112,7 @@ async function submitCreate() {
   createForm.password = ''
   createForm.role = 'user'
   createForm.is_active = true
-  await loadUsers()
+  await loadUsers(0)
 }
 
 function startEdit(user: UserItem) {
@@ -114,9 +139,28 @@ async function toggleActive(user: UserItem) {
   await setUserActive(user.id, !user.is_active)
 }
 
+async function submitResetPassword(user: UserItem) {
+  const password = resetPasswordForms[user.id] || ''
+  if (password.length < 8) return
+  const updated = await resetPassword(user.id, { password })
+  if (updated) resetPasswordForms[user.id] = ''
+}
+
 async function confirmDelete(user: UserItem) {
   if (!window.confirm(`Xóa người dùng ${user.email}?`)) return
-  await deleteUser(user.id)
+  const deleted = await deleteUser(user.id)
+  if (deleted && users.value.length === 0 && currentOffset.value > 0) {
+    await loadUsers(Math.max(currentOffset.value - pageSize.value, 0))
+  }
+}
+
+async function goPreviousPage() {
+  await loadUsers(Math.max(offset.value - limit.value, 0))
+}
+
+async function goNextPage() {
+  if (!canGoNext.value) return
+  await loadUsers(offset.value + limit.value)
 }
 
 function roleSeverity(role: string) {
@@ -133,7 +177,7 @@ onMounted(loadUsers)
         <h1 class="text-2xl font-semibold">Users</h1>
         <p class="mt-1 text-sm text-slate-600">Quản lý tài khoản local cho hệ thống OCR và semantic search.</p>
       </div>
-      <Button label="Refresh" icon="pi pi-refresh" severity="secondary" :loading="loading" @click="loadUsers" />
+      <Button label="Refresh" icon="pi pi-refresh" severity="secondary" :loading="loading" @click="loadUsers()" />
     </div>
 
     <Message v-if="!authStore.isAdmin" severity="warn">Chỉ admin được quản lý người dùng.</Message>
@@ -168,7 +212,7 @@ onMounted(loadUsers)
             v-model="filters.q"
             class="md:col-span-2"
             placeholder="Tìm theo email hoặc họ tên"
-            @keyup.enter="loadUsers"
+            @keyup.enter="loadUsers(0)"
           />
           <select v-model="filters.role" class="rounded border border-slate-300 px-3 py-2 text-sm">
             <option v-for="option in roleOptions" :key="option.value" :value="option.value">
@@ -189,13 +233,27 @@ onMounted(loadUsers)
             <option value="desc">Giảm dần</option>
             <option value="asc">Tăng dần</option>
           </select>
+          <select v-model.number="pageSize" class="rounded border border-slate-300 px-3 py-2 text-sm">
+            <option :value="10">10 dòng</option>
+            <option :value="20">20 dòng</option>
+            <option :value="50">50 dòng</option>
+            <option :value="100">100 dòng</option>
+          </select>
         </div>
         <div class="mt-3 flex flex-wrap gap-2">
-          <Button label="Lọc" icon="pi pi-filter" :loading="loading" @click="loadUsers" />
+          <Button label="Lọc" icon="pi pi-filter" :loading="loading" @click="loadUsers(0)" />
           <Button label="Xóa lọc" icon="pi pi-times" severity="secondary" :disabled="loading" @click="resetFilters" />
         </div>
       </template>
     </Card>
+
+    <div class="flex flex-wrap items-center justify-between gap-3 text-sm text-slate-600">
+      <span>Hiển thị {{ users.length }} / {{ total }} user · Trang {{ currentPage }} / {{ totalPages }}</span>
+      <div class="flex gap-2">
+        <Button label="Trước" size="small" severity="secondary" :disabled="loading || !canGoPrevious" @click="goPreviousPage" />
+        <Button label="Sau" size="small" severity="secondary" :disabled="loading || !canGoNext" @click="goNextPage" />
+      </div>
+    </div>
 
     <DataTable :value="users" :loading="loading" data-key="id" table-style="min-width: 72rem">
       <Column field="email" header="Email">
@@ -268,6 +326,22 @@ onMounted(loadUsers)
               :disabled="mutationLoading || data.id === authStore.user?.id"
               @click="confirmDelete(data)"
             />
+            <div class="flex min-w-60 gap-2">
+              <InputText
+                v-model="resetPasswordForms[data.id]"
+                type="password"
+                size="small"
+                class="w-36"
+                placeholder="Mật khẩu mới"
+              />
+              <Button
+                label="Reset"
+                size="small"
+                severity="secondary"
+                :disabled="mutationLoading || !resetPasswordForms[data.id] || resetPasswordForms[data.id].length < 8"
+                @click="submitResetPassword(data)"
+              />
+            </div>
           </div>
         </template>
       </Column>

@@ -19,6 +19,13 @@ class UserRead(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class UserListResponse(BaseModel):
+    items: list[UserRead]
+    total: int
+    limit: int
+    offset: int
+
+
 class UserCreateRequest(BaseModel):
     email: str = Field(min_length=3, max_length=255)
     full_name: str = Field(min_length=1, max_length=255)
@@ -31,3 +38,7 @@ class UserUpdateRequest(BaseModel):
     full_name: str = Field(min_length=1, max_length=255)
     role: UserRole
     is_active: bool
+
+
+class UserResetPasswordRequest(BaseModel):
+    password: str = Field(min_length=8, max_length=128)

@@ -1,8 +1,11 @@
-import type { UserCreateInput, UserItem, UserListFilters, UserUpdateInput } from '~/types/user'
+import type { UserCreateInput, UserItem, UserListFilters, UserResetPasswordInput, UserUpdateInput } from '~/types/user'
 import { createUserService } from '~/services/user.service'
 
 export function useUsers() {
   const users = ref<UserItem[]>([])
+  const total = ref(0)
+  const limit = ref(20)
+  const offset = ref(0)
   const loading = ref(false)
   const mutationLoading = ref(false)
   const error = ref('')
@@ -12,7 +15,11 @@ export function useUsers() {
     loading.value = true
     error.value = ''
     try {
-      users.value = await service.list(filters)
+      const response = await service.list(filters)
+      users.value = response.items
+      total.value = response.total
+      limit.value = response.limit
+      offset.value = response.offset
     } catch {
       error.value = 'Không tải được danh sách người dùng'
     } finally {
@@ -65,6 +72,21 @@ export function useUsers() {
     }
   }
 
+  async function resetPassword(id: string, input: UserResetPasswordInput): Promise<UserItem | null> {
+    mutationLoading.value = true
+    error.value = ''
+    try {
+      const user = await service.resetPassword(id, input)
+      users.value = users.value.map((item) => (item.id === user.id ? user : item))
+      return user
+    } catch {
+      error.value = 'Không reset được mật khẩu'
+      return null
+    } finally {
+      mutationLoading.value = false
+    }
+  }
+
   async function deleteUser(id: string): Promise<UserItem | null> {
     mutationLoading.value = true
     error.value = ''
@@ -82,6 +104,9 @@ export function useUsers() {
 
   return {
     users,
+    total,
+    limit,
+    offset,
     loading,
     mutationLoading,
     error,
@@ -89,6 +114,7 @@ export function useUsers() {
     createUser,
     updateUser,
     setUserActive,
+    resetPassword,
     deleteUser
   }
 }

@@ -37,8 +37,8 @@ class UserService:
         is_active: bool | None,
         sort_by: str,
         sort_dir: str,
-    ) -> list[User]:
-        return self.users.list_users(
+    ) -> tuple[list[User], int]:
+        users = self.users.list_users(
             limit=limit,
             offset=offset,
             query=query,
@@ -47,6 +47,8 @@ class UserService:
             sort_by=sort_by,
             sort_dir=sort_dir,
         )
+        total = self.users.count_users(query=query, role=role, is_active=is_active)
+        return users, total
 
     def create_user(
         self,
@@ -131,6 +133,20 @@ class UserService:
             entity_id=user.id,
             actor_user_id=actor.id,
             metadata={"email": user.email, "old_is_active": old_is_active, "new_is_active": user.is_active},
+        )
+        self.db.commit()
+        self.db.refresh(user)
+        return user
+
+    def reset_password(self, *, user_id: str, password: str, actor: User) -> User:
+        user = self._get_user(user_id)
+        user = self.users.update_password(user, hash_password(password))
+        self.audit_logs.create(
+            action="user.password_reset",
+            entity_type="user",
+            entity_id=user.id,
+            actor_user_id=actor.id,
+            metadata={"email": user.email},
         )
         self.db.commit()
         self.db.refresh(user)
