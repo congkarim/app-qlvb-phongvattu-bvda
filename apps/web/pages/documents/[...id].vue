@@ -9,11 +9,13 @@ const {
   metadataLoading,
   reprocessLoading,
   sourceFileLoading,
+  sourceFileViewLoading,
   error,
   fetchDocument,
   updateDocumentMetadata,
   reprocessDocument,
   addSourceFiles,
+  openSourceFile,
   reorderSourceFiles,
   deleteSourceFile
 } = useDocuments()
@@ -215,6 +217,13 @@ async function submitDeleteSourceFile(fileId: string, filename: string) {
   const result = await deleteSourceFile(document.value.id, fileId)
   if (!result) return
   await refreshAfterSourceFileMutation()
+}
+
+async function submitOpenSourceFile(fileId: string) {
+  if (!document.value) return
+  const file = sourceFiles.value.find((sourceFile) => sourceFile.id === fileId)
+  if (!file) return
+  await openSourceFile(document.value.id, file)
 }
 
 async function refreshAfterSourceFileMutation() {
@@ -424,6 +433,14 @@ onBeforeUnmount(stopPolling)
                 </div>
                 <div class="flex flex-wrap items-center gap-2">
                   <BaseStatusBadge :status="file.status" />
+                  <Button
+                    label="Xem"
+                    icon="pi pi-eye"
+                    severity="secondary"
+                    size="small"
+                    :loading="sourceFileViewLoading === file.id"
+                    @click="submitOpenSourceFile(file.id)"
+                  />
                   <Button
                     icon="pi pi-arrow-up"
                     severity="secondary"

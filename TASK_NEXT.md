@@ -1,52 +1,55 @@
-# Task Tiếp Theo: Xem/Download Source File Khi Sửa Metadata
+# Task Vừa Hoàn Thành: Xem/Download Source File Khi Sửa Metadata
 
-Trạng thái: kế hoạch.
+Trạng thái: hoàn thành.
 
 Ngày cập nhật: 2026-06-04
 
-## Mục Tiêu
+## Phạm Vi Đã Thực Hiện
 
-Khi người dùng đang sửa metadata trong `/documents/[id]`, họ vẫn xem được tệp nguồn để đối chiếu số văn bản, ngày ban hành, đơn vị ban hành và loại nghiệp vụ trước khi lưu.
+Đã hỗ trợ xem hoặc download tệp nguồn khi người dùng sửa metadata trong `/documents/[id]`, giúp đối chiếu số văn bản, ngày ban hành, đơn vị ban hành và loại nghiệp vụ trước khi lưu.
 
-## Phạm Vi MVP
+## Kết Quả Chính
 
 Backend:
-- Thêm API xem/download source file:
-  - `GET /api/v1/documents/{document_id}/files/{file_id}/download`
-- Chỉ trả file còn active và thuộc đúng document.
+- Thêm API:
+  - `GET /api/v1/documents/{document_id}/files/{document_file_id}/download`
+- Chỉ trả source file còn active và thuộc đúng document.
 - Không expose path thật trên server.
-- Giữ auth bắt buộc như các document API khác.
+- Trả file bằng `FileResponse` với `content-disposition: inline`.
+- File id sai hoặc file không tồn tại trả 404.
 
-Frontend service:
-- Thêm method tạo URL xem/download file hoặc gọi API blob.
-- Ưu tiên mở file trong tab mới nếu browser hỗ trợ.
-- Với file không preview được, fallback download.
+Frontend:
+- `document.service.ts` có `downloadSourceFile` dùng auth header để fetch blob.
+- `useDocuments.ts` có `openSourceFile` và `sourceFileViewLoading`.
+- Trang `/documents/[id]` có nút `Xem` cạnh từng tệp nguồn.
+- PDF/image/text mở tab mới; DOCX/XLSX hoặc định dạng browser không preview được fallback download.
 
-UI trang `/documents/[id]`:
-- Trong card `Tệp nguồn`, thêm nút `Xem` cạnh từng file.
-- Khi đang sửa metadata, vẫn giữ card `Tệp nguồn` dễ truy cập.
-- Có thể thêm layout 2 cột trên desktop:
-  - Trái: form metadata.
-  - Phải: danh sách tệp nguồn hoặc preview link.
-- Mobile giữ layout dọc để tránh chật.
+## Đã Kiểm Tra
 
-Preview MVP:
-- PDF/image/text: mở trực tiếp tab mới qua endpoint file.
-- DOCX/XLSX: download hoặc mở tab mới tùy browser, chưa cần render nội dung Office.
-- ZIP: vẫn tạm không tập trung theo scope trước đó.
+```bash
+docker compose config --quiet
+docker compose run --rm --no-deps api python -m py_compile app/repositories/document_repository.py app/services/document_service.py app/routers/documents.py
+docker compose run --rm --no-deps web npm run build
+curl -fsS -I http://localhost:3000/login
+curl -fsS -I http://localhost:3000/documents/{document_id}
+```
 
-## Kiểm Tra Dự Kiến
+Kết quả:
+- Backend compile pass.
+- Frontend build pass qua Docker.
+- Download source file hợp lệ trả 200 với `content-disposition: inline`.
+- File id sai trả 404.
+- `/login` trả 200.
+- Detail route redirect `302 /login` khi chưa đăng nhập.
 
-- Upload hoặc dùng document có nhiều source files.
-- Vào detail, bấm `Sửa metadata`.
-- Bấm `Xem` một file nguồn:
-  - PDF/image/text mở được.
-  - DOCX/XLSX download được.
-- Lưu metadata sau khi đối chiếu file.
-- Audit log vẫn có `document.metadata_updated`.
+## Task Tiếp Theo Đề Xuất
 
-## Sau Khi Triển Khai
+1. RBAC nhẹ:
+   - Role `admin` và `user`.
+   - Chỉ admin được reprocess, xóa source file, đổi source file.
+   - User thường chỉ upload/search/xem.
 
-Cập nhật `TASK_NEXT.md` thành:
-- Hoàn thành: xem/download source file khi sửa metadata.
-- Tiếp theo đề xuất: RBAC nhẹ hoặc preview file nâng cao.
+2. Preview file nâng cao:
+   - Preview inline PDF/image/text trong trang detail.
+   - Fallback download cho DOCX/XLSX hoặc định dạng browser không preview được.
+   - Cân nhắc drawer/panel preview cạnh form metadata trên desktop.

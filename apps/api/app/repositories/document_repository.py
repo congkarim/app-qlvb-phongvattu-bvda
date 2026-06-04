@@ -172,6 +172,19 @@ class DocumentRepository:
         )
         return self.db.scalar(stmt)
 
+    def get_active_file_for_document(self, *, document_id: str, document_file_id: str) -> DocumentFile | None:
+        stmt = (
+            select(DocumentFile)
+            .join(Document, Document.id == DocumentFile.document_id)
+            .where(
+                Document.id == document_id,
+                Document.deleted_at.is_(None),
+                DocumentFile.id == document_file_id,
+                DocumentFile.deleted_at.is_(None),
+            )
+        )
+        return self.db.scalar(stmt)
+
     def update_file_status(self, document_file: DocumentFile, status: str) -> DocumentFile:
         document_file.status = status
         self.db.add(document_file)

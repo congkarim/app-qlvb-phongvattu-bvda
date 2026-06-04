@@ -1,5 +1,6 @@
 import type {
   DocumentDetail,
+  DocumentFile,
   DocumentItem,
   DocumentListFilters,
   DocumentMetadataInput,
@@ -9,6 +10,7 @@ import type {
   SourceFileMutationResponse,
   UploadResponse
 } from '~/types/document'
+import { useAuthStore } from '~/stores/auth'
 import { useApiClient } from './api'
 
 export function createDocumentService() {
@@ -27,6 +29,17 @@ export function createDocumentService() {
     },
     get(id: string) {
       return api<DocumentDetail>(`/documents/${id}`)
+    },
+    async downloadSourceFile(id: string, file: DocumentFile) {
+      const config = useRuntimeConfig()
+      const authStore = useAuthStore()
+      const response = await fetch(`${config.public.apiBase}/documents/${id}/files/${file.id}/download`, {
+        headers: authStore.token ? { Authorization: `Bearer ${authStore.token}` } : {}
+      })
+      if (!response.ok) {
+        throw new Error(`Cannot download source file: ${response.status}`)
+      }
+      return response.blob()
     },
     updateMetadata(id: string, metadata: DocumentMetadataUpdateInput) {
       return api<DocumentItem>(`/documents/${id}/metadata`, {

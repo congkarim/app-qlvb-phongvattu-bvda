@@ -96,6 +96,7 @@ Workflow web đã hoàn thiện:
 - `/documents/[id]` hiển thị metadata nghiệp vụ gồm số văn bản, ngày ban hành, đơn vị ban hành và loại nghiệp vụ.
 - `/documents/[id]` cho phép sửa tên văn bản và metadata nghiệp vụ sau upload; mỗi lần lưu ghi audit log `document.metadata_updated`.
 - `/documents/[id]` hiển thị card `Tệp nguồn` để xem một hoặc nhiều file nguồn thuộc cùng document.
+- `/documents/[id]` có nút `Xem` cạnh từng tệp nguồn; PDF/image/text mở tab mới, DOCX/XLSX hoặc định dạng không preview được sẽ download.
 - `/documents/[id]` cho phép thêm source files, đổi thứ tự file và soft-delete source file; mỗi thay đổi tạo reprocess job async.
 - `/documents/[id]` có action reprocess, khóa nút khi document đang `ocr_pending`, `ocr_running`, `reprocess_pending`, `reprocess_running` hoặc `chunking`.
 - `/documents/[id]` hiển thị audit OCR/reprocess job gồm `job_type`, `status`, `reason`, attempts, error message và thời gian tạo/cập nhật.
@@ -153,6 +154,23 @@ curl -fsS -I http://localhost:3000/documents/{document_id}
 Kết quả:
 - `PATCH /api/v1/documents/{id}/metadata` cập nhật được title, số văn bản, ngày ban hành, đơn vị ban hành và loại nghiệp vụ.
 - Detail response có audit event `document.metadata_updated`.
+- Frontend build pass qua Docker; build có warning chunk PrimeVue lớn như trước, không fail.
+- `/login` trả 200, detail route redirect `302 /login` khi chưa đăng nhập.
+
+Xem/download source file khi sửa metadata kiểm tra ngày 2026-06-04:
+
+```bash
+docker compose config --quiet
+docker compose run --rm --no-deps api python -m py_compile app/repositories/document_repository.py app/services/document_service.py app/routers/documents.py
+docker compose run --rm --no-deps web npm run build
+curl -fsS -I http://localhost:3000/login
+curl -fsS -I http://localhost:3000/documents/{document_id}
+```
+
+Kết quả:
+- `GET /api/v1/documents/{document_id}/files/{file_id}/download` trả 200, `content-disposition: inline` và không expose file path server.
+- File id sai trả 404.
+- Nút `Xem` trong card `Tệp nguồn` dùng API blob có auth header; PDF/image/text mở tab mới, định dạng Office fallback download.
 - Frontend build pass qua Docker; build có warning chunk PrimeVue lớn như trước, không fail.
 - `/login` trả 200, detail route redirect `302 /login` khi chưa đăng nhập.
 

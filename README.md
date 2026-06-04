@@ -103,6 +103,8 @@ Trang detail tự refresh trạng thái cho tới khi document chuyển sang `se
 
 Trong card `Metadata`, có thể bấm `Sửa metadata` để chỉnh tên văn bản, số văn bản, ngày ban hành, đơn vị ban hành và loại nghiệp vụ. Mỗi lần lưu được ghi vào audit log của document.
 
+Trong card `Tệp nguồn`, bấm `Xem` để mở tệp nguồn phục vụ đối chiếu metadata. PDF, ảnh và text mở tab mới; định dạng Office sẽ download nếu browser không preview được.
+
 6. Vào `Dashboard`, search:
 
 ```text

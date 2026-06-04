@@ -1,6 +1,7 @@
 from datetime import date
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
@@ -23,6 +24,7 @@ from app.services.document_service import (
     DocumentFileOperationError,
     DocumentNotFoundError,
     DocumentService,
+    DocumentSourceFileMissingError,
 )
 
 
@@ -204,6 +206,30 @@ def delete_document_source_file(
     except DocumentFileOperationError as exc:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
     return SourceFileMutationResponse(document=document, files=document_files, ocr_job=ocr_job)
+
+
+@router.get("/{document_id}/files/{document_file_id}/download", response_class=FileResponse)
+def download_document_source_file(
+    document_id: str,
+    document_file_id: str,
+    db: Session = Depends(get_db),
+) -> FileResponse:
+    try:
+        document_file, file_path = DocumentService(db).get_source_file_for_download(
+            document_id=document_id,
+            document_file_id=document_file_id,
+        )
+    except DocumentFileNotFoundError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Source file not found")
+    except DocumentSourceFileMissingError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Source file missing")
+
+    return FileResponse(
+        path=file_path,
+        media_type=document_file.content_type or "application/octet-stream",
+        filename=document_file.original_filename,
+        content_disposition_type="inline",
+    )
 
 
 @router.get("/{document_id}", response_model=DocumentDetailRead)

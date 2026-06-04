@@ -3,7 +3,7 @@ import zipfile
 from datetime import date
 from mimetypes import guess_type
 from pathlib import Path
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from fastapi import UploadFile
 from sqlalchemy.orm import Session
@@ -27,6 +27,10 @@ class DocumentFileNotFoundError(ValueError):
 
 
 class DocumentFileOperationError(ValueError):
+    pass
+
+
+class DocumentSourceFileMissingError(FileNotFoundError):
     pass
 
 
@@ -289,6 +293,21 @@ class DocumentService:
 
     def get_document(self, document_id: str):
         return self.documents.get_document(document_id)
+
+    def get_source_file_for_download(self, document_id: str, document_file_id: str):
+        if not self._is_uuid(document_id) or not self._is_uuid(document_file_id):
+            raise DocumentFileNotFoundError(f"Document source file not found: {document_file_id}")
+        document_file = self.documents.get_active_file_for_document(
+            document_id=document_id,
+            document_file_id=document_file_id,
+        )
+        if document_file is None:
+            raise DocumentFileNotFoundError(f"Document source file not found: {document_file_id}")
+
+        file_path = Path(document_file.file_path)
+        if not file_path.is_file():
+            raise DocumentSourceFileMissingError(f"Document source file missing on disk: {document_file_id}")
+        return document_file, file_path
 
     def update_metadata(
         self,
@@ -615,6 +634,13 @@ class DocumentService:
         if isinstance(value, date):
             return value.isoformat()
         return value
+
+    def _is_uuid(self, value: str) -> bool:
+        try:
+            UUID(value)
+        except ValueError:
+            return False
+        return True
 
     def _normalize_title(self, title: str | None) -> str | None:
         if title is None:
