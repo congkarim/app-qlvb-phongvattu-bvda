@@ -319,6 +319,22 @@ curl -X POST http://localhost:8000/api/v1/search/semantic \
   -d '{"query":"phạm vi điều chỉnh đấu thầu","limit":5}'
 ```
 
+## Chunking OCR Text
+
+Worker mặc định dùng module `ocr_chunking` để chunk OCR text theo thể thức văn bản hành chính tiếng Việt:
+
+```env
+CHUNKING_BACKEND=ocr_chunking
+```
+
+Module này detect `doc_type`, map sang nhóm A/B/C/D/E, giữ cấu trúc như `Điều`, `Khoản`, mục La Mã, bảng và chữ ký khi tạo chunk. Bảng `document_chunks` vẫn lưu các trường hiện có (`text`, `section_title`, `page_from`, `page_to`, `content_hash`); metadata chi tiết như `doc_group`, `section_role`, `section_path`, confidence, `fallback_info` và entities được đưa vào Qdrant payload.
+
+Rollback tạm thời về chunking cũ:
+
+```env
+CHUNKING_BACKEND=legacy
+```
+
 Lưu ý:
 - Không dùng lại Qdrant collection cũ khi đổi model hoặc đổi `EMBEDDING_DIMENSIONS`.
 - Mỗi model/dimension nên dùng collection version riêng, ví dụ `document_chunks_bkai_768_v1`.

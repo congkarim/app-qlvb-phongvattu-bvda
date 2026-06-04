@@ -1,6 +1,7 @@
 import unittest
 
 from app.services.ocr_chunking import OCRDocument, OCRPage, chunk_document
+from app.services.ocr_chunking.adapter import create_chunk_payloads
 
 
 class OCRChunkingTests(unittest.TestCase):
@@ -128,6 +129,29 @@ class OCRChunkingTests(unittest.TestCase):
         self.assertTrue(all(chunk.fallback_info.used_fallback for chunk in chunks))
         self.assertTrue(any(chunk.requires_review for chunk in chunks))
         self.assertTrue(any(chunk.contains_table for chunk in chunks))
+
+    def test_adapter_returns_db_payload_with_qdrant_metadata(self) -> None:
+        page = OCRPage(
+            page_number=1,
+            confidence=0.9,
+            text=(
+                "QUYẾT ĐỊNH\n"
+                "Căn cứ quy chế quản lý vật tư;\n"
+                "Điều 1. Phạm vi áp dụng.\n"
+                "Điều 2. Tổ chức thực hiện.\n"
+            ),
+        )
+
+        payloads = create_chunk_payloads(doc_id="doc-adapter-1", document_type="QĐ", page_contents=[page])
+
+        self.assertTrue(payloads)
+        first = payloads[0]
+        self.assertIn("content_hash", first)
+        self.assertIn("chunk_metadata", first)
+        self.assertEqual(first["page_from"], 1)
+        self.assertEqual(first["page_to"], 1)
+        self.assertEqual(first["chunk_metadata"]["doc_group"], "A")
+        self.assertIn("section_role", first["chunk_metadata"])
 
     def assert_json_schema(self, payload: dict) -> None:
         expected_keys = {

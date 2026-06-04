@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     embedding_batch_size: int = 16
     embedding_local_files_only: bool = True
     allow_fake_embeddings: bool = True
+    chunking_backend: str = "ocr_chunking"
     ocr_engine: str = "paddle_vietocr"
     ocr_lang: str = "vi"
     ocr_use_gpu: bool = False

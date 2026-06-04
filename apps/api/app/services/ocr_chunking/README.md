@@ -40,8 +40,9 @@ payload = [chunk.to_dict() for chunk in chunks]
 - `anchors.py`: regex và anchor phrases cho từng nhóm.
 - `schemas.py`: interface input/output bằng dataclass có type hints.
 - `pipeline.py`: hàm chính `chunk_document(input: OCRDocument) -> list[Chunk]`.
+- `adapter.py`: map output `Chunk` sang payload lưu `document_chunks` và metadata Qdrant.
 
-Module hiện độc lập với worker cũ để không thay đổi workflow indexing hiện tại. Khi tích hợp persistence/Qdrant, nên map `Chunk.text`, `section_title`, `page_start/page_end` vào bảng `document_chunks` hiện có và đưa metadata chi tiết vào Qdrant payload.
+Worker hiện dùng module này mặc định qua `CHUNKING_BACKEND=ocr_chunking`. Có thể rollback tạm thời về chunking cũ bằng `CHUNKING_BACKEND=legacy`.
 
 ## Quy Tắc Chính
 

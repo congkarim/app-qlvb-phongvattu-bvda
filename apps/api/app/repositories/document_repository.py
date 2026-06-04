@@ -1,5 +1,6 @@
 import re
 from datetime import datetime, timezone
+from typing import Any
 
 from sqlalchemy import asc, desc, or_, select
 from sqlalchemy.orm import Session, selectinload, with_loader_criteria
@@ -332,7 +333,7 @@ class DocumentRepository:
         self,
         *,
         document_id: str,
-        chunks: list[dict[str, str | int | None]],
+        chunks: list[dict[str, Any]],
     ) -> tuple[list[DocumentChunk], list[DocumentChunk]]:
         existing_by_index = {chunk.chunk_index: chunk for chunk in self.list_chunks_for_document(document_id)}
         retained_indexes: set[int] = set()

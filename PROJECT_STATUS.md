@@ -64,7 +64,8 @@ Worker:
   - Input hỗ trợ OCR text theo document/page/block, bbox, confidence và layout confidence.
   - Detect `doc_type` theo thể thức văn bản, map vào nhóm A/B/C/D/E và chọn strategy riêng cho từng nhóm.
   - Output trả dataclass `Chunk` có `to_dict()` đúng JSON schema retrieval/RAG, gồm path, role, page/bbox, confidence, flags review/table/signature/appendix, entities và fallback info.
-  - Module mới chưa thay thế `ChunkingService` đang dùng trong worker để tránh thay đổi workflow indexing hiện tại khi chưa migrate schema/payload.
+  - Worker mặc định dùng module mới qua `CHUNKING_BACKEND=ocr_chunking`; có thể rollback tạm thời bằng `CHUNKING_BACKEND=legacy`.
+  - Bảng `document_chunks` vẫn giữ schema hiện có; metadata chi tiết được đưa vào Qdrant payload.
 - Tạo embedding qua backend cấu hình được: fake deterministic cho dev hoặc local `sentence-transformers`.
 - Upsert vector vào Qdrant.
 - Chuyển document sang trạng thái `searchable`.
@@ -688,20 +689,22 @@ Generated files:
 Chunking OCR text hành chính kiểm tra ngày 2026-06-04:
 
 ```bash
-PYTHONPATH=apps/api python3 -m py_compile apps/api/app/services/ocr_chunking/*.py apps/api/app/services/ocr_chunking/tests/test_pipeline.py
+PYTHONPYCACHEPREFIX=/tmp/qlvb-pycache PYTHONPATH=apps/api python3 -m py_compile apps/api/app/core/config.py apps/api/app/repositories/document_repository.py apps/api/app/workers/ocr_worker.py apps/api/app/services/ocr_chunking/*.py apps/api/app/services/ocr_chunking/tests/test_pipeline.py
 PYTHONPATH=apps/api python3 -m unittest app.services.ocr_chunking.tests.test_pipeline
+docker compose config --quiet
 ```
 
 Kết quả:
-- Compile pass cho module `ocr_chunking`.
-- Unit test pass 5 mẫu bắt buộc: `QĐ`, `KH`, `CV`, `HĐ`, `UNKNOWN OCR lỗi`.
+- Compile pass cho module `ocr_chunking`, config, repository và worker.
+- Unit test pass 6 mẫu, gồm 5 mẫu bắt buộc và test adapter payload metadata Qdrant.
+- Docker Compose config pass với `CHUNKING_BACKEND`.
 
 ## Quyết Định Hiện Tại
 
-OCR thật, trích xuất Office text, tự động lưu metadata hành chính sau OCR và module chunking OCR text theo nhóm văn bản mức MVP đã được triển khai.
+OCR thật, trích xuất Office text, tự động lưu metadata hành chính sau OCR và tích hợp module chunking OCR text theo nhóm văn bản vào worker mức MVP đã được triển khai.
 OCR scan tiếng Việt hiện ưu tiên VietOCR local.
 
-Task tiếp theo nên ưu tiên tích hợp module `ocr_chunking` vào worker/Qdrant payload, hoặc preview file inline trong detail nếu muốn cải thiện workflow đối chiếu trước.
+Task tiếp theo nên ưu tiên preview file inline trong detail hoặc bổ sung migration metadata chunk nếu cần hiển thị chunk role/path trực tiếp từ PostgreSQL.
 
 Workflow MVP hiện có:
 
