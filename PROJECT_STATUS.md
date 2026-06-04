@@ -60,6 +60,11 @@ Worker:
 - Preprocess ảnh bằng OpenCV trước OCR, hỗ trợ `OCR_PREPROCESS_MODE=auto/raw/clahe/threshold`.
 - Lưu OCR/extracted text theo page logic.
 - Tạo document chunks, giới hạn `section_title` ngắn hơn schema PostgreSQL để tránh lỗi insert.
+- Đã thêm module chunking OCR text mới tại `apps/api/app/services/ocr_chunking/` cho văn bản hành chính tiếng Việt:
+  - Input hỗ trợ OCR text theo document/page/block, bbox, confidence và layout confidence.
+  - Detect `doc_type` theo thể thức văn bản, map vào nhóm A/B/C/D/E và chọn strategy riêng cho từng nhóm.
+  - Output trả dataclass `Chunk` có `to_dict()` đúng JSON schema retrieval/RAG, gồm path, role, page/bbox, confidence, flags review/table/signature/appendix, entities và fallback info.
+  - Module mới chưa thay thế `ChunkingService` đang dùng trong worker để tránh thay đổi workflow indexing hiện tại khi chưa migrate schema/payload.
 - Tạo embedding qua backend cấu hình được: fake deterministic cho dev hoặc local `sentence-transformers`.
 - Upsert vector vào Qdrant.
 - Chuyển document sang trạng thái `searchable`.
@@ -680,12 +685,23 @@ Generated files:
 - Sau khi chạy dev server, Nuxt có thể sinh file trong `apps/web/.nuxt/`.
 - Các file này đã nằm trong `.gitignore` và không phải source chính.
 
+Chunking OCR text hành chính kiểm tra ngày 2026-06-04:
+
+```bash
+PYTHONPATH=apps/api python3 -m py_compile apps/api/app/services/ocr_chunking/*.py apps/api/app/services/ocr_chunking/tests/test_pipeline.py
+PYTHONPATH=apps/api python3 -m unittest app.services.ocr_chunking.tests.test_pipeline
+```
+
+Kết quả:
+- Compile pass cho module `ocr_chunking`.
+- Unit test pass 5 mẫu bắt buộc: `QĐ`, `KH`, `CV`, `HĐ`, `UNKNOWN OCR lỗi`.
+
 ## Quyết Định Hiện Tại
 
-OCR thật, trích xuất Office text và tự động lưu metadata hành chính sau OCR mức MVP đã được triển khai.
+OCR thật, trích xuất Office text, tự động lưu metadata hành chính sau OCR và module chunking OCR text theo nhóm văn bản mức MVP đã được triển khai.
 OCR scan tiếng Việt hiện ưu tiên VietOCR local.
 
-Task tiếp theo nên ưu tiên preview file inline trong detail hoặc RBAC nhẹ nếu cần phân quyền admin/user thật sự.
+Task tiếp theo nên ưu tiên tích hợp module `ocr_chunking` vào worker/Qdrant payload, hoặc preview file inline trong detail nếu muốn cải thiện workflow đối chiếu trước.
 
 Workflow MVP hiện có:
 
