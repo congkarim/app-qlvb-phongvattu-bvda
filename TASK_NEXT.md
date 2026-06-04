@@ -1,4 +1,4 @@
-# Task Tiếp Theo: Admin UX Polish Và Auth Scope MVP
+# Task Tiếp Theo: RBAC Hoặc Audit Log Admin
 
 Trạng thái: đề xuất.
 
@@ -6,43 +6,36 @@ Ngày cập nhật: 2026-06-04
 
 ## Task Vừa Hoàn Thành
 
-Đã kiểm tra browser workflow reprocess end-to-end và bổ sung auth guard backend cho API tài liệu/search.
+Đã hoàn thiện UX admin MVP quanh trạng thái reprocess và xác định auth scope tối thiểu.
 
 Kết quả chính:
-- Thêm dependency `get_current_user` để validate Bearer JWT và load user active từ DB.
-- Gắn auth dependency vào routers:
-  - `/api/v1/documents`
-  - `/api/v1/search`
-- Giữ `/health` public.
-- Frontend vẫn gọi API được nhờ cookie `auth_token` và API client tự gắn `Authorization`.
-- Headless Chrome đã mở document detail, nhập reason và click `Reprocess` từ UI.
-- Job reprocess tạo từ UI chạy xong và audit reason hiển thị trong detail API.
-- Search sau reprocess vẫn trả document nguồn đúng top 1.
+- Document detail hiển thị thời điểm refresh detail gần nhất.
+- Polling OCR/reprocess cập nhật timestamp refresh theo từng lần fetch.
+- Nút `Reprocess` có confirm trước khi tạo job.
+- Job audit làm nổi bật job `pending/running` và gắn badge `Đang xử lý`.
+- Header document, reason và chunk title wrap tốt hơn trên mobile.
+- Auth scope MVP được chốt: mọi user active đã đăng nhập được dùng documents/search/reprocess; chưa thêm role/RBAC ở bước này để tránh over-engineering.
 
 Đã kiểm tra:
 
 ```bash
-docker compose run --rm --no-deps api python -m py_compile /app/app/dependencies.py /app/app/repositories/user_repository.py /app/app/routers/documents.py /app/app/routers/search.py
-docker compose up -d --build api worker web
-curl -fsS http://localhost:8000/health
-curl -sS -o /tmp/documents_no_token.json -w '%{http_code}\n' http://localhost:8000/api/v1/documents
-curl -sS -o /tmp/search_no_token.json -w '%{http_code}\n' -X POST http://localhost:8000/api/v1/search/semantic -H 'Content-Type: application/json' -d '{"query":"Số 72 UBND KT","limit":3}'
 docker compose run --rm --no-deps web npm run build
-docker compose config --quiet
+docker compose up -d --build web
+curl -fsS -I http://localhost:3000/login
 git diff --check
 ```
 
 Kết quả verify:
-- `/api/v1/documents` và `/api/v1/search/semantic` trả `401` khi thiếu token.
-- Token admin local gọi documents/search thành công.
-- UI-created job `99dcdfd8-cbf1-4332-a8b8-298d1a30abcf` completed, attempts `1`, reason `headless browser UI reprocess 2026-06-04 retry`.
-- Search `Số 72 UBND KT Kính gửi Ban chỉ huy 32 xóm` trả document `718b0db1-6c8c-4da4-b6aa-5689173d219a` top 1 sau reprocess.
-- Nuxt production build và Docker Compose config thành công.
+- Nuxt production build thành công.
+- `/login` trả HTTP 200 sau khi recreate web.
+- Headless Chrome với cookie `auth_token` xác nhận UI có `Cập nhật detail lần cuối`, `Lần refresh gần nhất`, `Reprocess`, `Job audit`.
+- Confirm cancel smoke test gọi được `window.confirm` và không tạo job reprocess mới.
+- Mobile viewport `390px` không phát hiện overflow ngang (`scrollWidth=390`).
 - Không phát sinh runtime artifact trong git.
 
 ## Mục Tiêu Task Tiếp Theo
 
-Hoàn thiện UX admin MVP quanh trạng thái xử lý và xác định auth scope tối thiểu sau khi API đã có guard backend.
+Chọn giữa RBAC MVP hoặc audit log admin cho thao tác nghiệp vụ nhạy cảm.
 
 ## Ràng Buộc Không Đổi
 
@@ -57,29 +50,30 @@ Hoàn thiện UX admin MVP quanh trạng thái xử lý và xác định auth sc
 
 ## Phạm Vi Đề Xuất
 
-### 1. Admin UX Polish
+### 1. RBAC MVP
 
 Vấn đề:
-- Reprocess đã chạy được, nhưng UI admin vẫn còn ít feedback khi job chạy lâu.
+- Hiện mọi user active đã đăng nhập đều có thể upload/search/reprocess.
 
 Hướng xử lý:
-- Thêm hiển thị thời điểm polling/cập nhật gần nhất trên document detail.
-- Tách trạng thái job đang chạy nổi bật hơn trong audit list.
-- Thêm confirm nhẹ trước khi bấm reprocess để tránh click nhầm OCR lại tài liệu lớn.
-- Kiểm tra mobile layout cho job audit và chunks.
+- Nếu dự án cần tách admin/user, thêm field `role` vào `users` bằng migration.
+- Seed admin local có role `admin`.
+- Thêm dependency `require_admin`.
+- Giới hạn reprocess và upload cho admin nếu phù hợp nghiệp vụ.
 
-### 2. Auth Scope MVP
+### 2. Audit Log Admin
 
 Vấn đề:
-- Backend đã yêu cầu token nhưng chưa có phân quyền theo role/scope.
+- Reprocess job có reason nhưng chưa có bảng audit log nghiệp vụ riêng cho thao tác admin.
 
 Hướng xử lý:
-- Xác định role MVP: admin/user hoặc chỉ admin local.
-- Nếu cần, thêm field role đơn giản cho user và dependency admin-only cho reprocess.
-- Giữ upload/list/search trong scope đã thống nhất, không over-engineering RBAC.
+- Thêm bảng `audit_logs` MVP với actor, action, entity type/id, metadata, created_at.
+- Ghi log khi upload và request reprocess.
+- Hiển thị audit log đơn giản trong document detail nếu cần.
 
 ## Tiêu Chí Hoàn Thành
 
-- Reprocess UX giảm rủi ro click nhầm và hiển thị trạng thái đang xử lý rõ hơn.
-- Auth scope MVP được ghi rõ trong tài liệu và code nếu cần.
+- RBAC hoặc audit log được chọn rõ, không làm cả hai nếu chưa cần.
+- Nếu làm RBAC, curl xác nhận user thường không gọi được endpoint admin-only.
+- Nếu làm audit log, document detail hoặc API trả được audit event cơ bản.
 - Không làm chậm workflow upload -> OCR -> search hiện tại.

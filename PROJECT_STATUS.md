@@ -459,11 +459,31 @@ Kết quả:
 - Job UI-created `99dcdfd8-cbf1-4332-a8b8-298d1a30abcf` chạy `reprocess_pending` -> `reprocess_running` -> `searchable/completed`, attempts `1`, reason `headless browser UI reprocess 2026-06-04 retry`, không có error.
 - Search sau reprocess UI với query `Số 72 UBND KT Kính gửi Ban chỉ huy 32 xóm` vẫn trả document `718b0db1-6c8c-4da4-b6aa-5689173d219a` top 1.
 
+Admin UX polish và auth scope MVP ngày 2026-06-04:
+
+```bash
+docker compose run --rm --no-deps web npm run build
+docker compose up -d --build web
+curl -fsS -I http://localhost:3000/login
+```
+
+Kết quả:
+- Document detail hiển thị thời điểm detail được refresh gần nhất ở header và trong khu reprocess.
+- Khi polling OCR/reprocess, timestamp refresh được cập nhật theo từng lần fetch detail.
+- Nút `Reprocess` có confirm trước khi tạo job để giảm rủi ro click nhầm OCR lại tài liệu lớn.
+- Job audit làm nổi bật job `pending/running` bằng nền vàng nhạt và badge `Đang xử lý`.
+- Header document, reason job và chunk title đã wrap tốt hơn trên màn hình nhỏ.
+- Headless Chrome kiểm tra document detail bằng cookie `auth_token`, xác nhận có `Cập nhật detail lần cuối`, `Lần refresh gần nhất`, `Reprocess`, `Job audit`.
+- Smoke test override `window.confirm` trả `false`; confirm được gọi và không tạo thêm job với reason `confirm cancel smoke 2026-06-04`.
+- Mobile viewport `390px` có `scrollWidth=390`, không phát hiện overflow ngang rõ ràng.
+- Auth scope MVP hiện giữ đơn giản: mọi user active đã đăng nhập được dùng documents/search/reprocess. Chưa thêm role/RBAC để tránh migration và phân quyền sớm khi hệ thống mới có admin local.
+
 Auth:
 - Đã có JWT login skeleton.
 - Đã có seed admin local.
 - Frontend đã có route guard cơ bản.
 - API tài liệu/search đã enforce backend Bearer JWT dependency.
+- Auth scope MVP: active authenticated user; chưa có role/RBAC.
 
 Frontend:
 - UI hiện đã đủ cho MVP workflow cơ bản.

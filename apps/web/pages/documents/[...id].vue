@@ -5,6 +5,7 @@ const route = useRoute()
 const { document, loading, reprocessLoading, error, fetchDocument, reprocessDocument } = useDocuments()
 let pollTimer: ReturnType<typeof setInterval> | undefined
 const reprocessReason = ref('')
+const lastDetailRefreshedAt = ref<Date | null>(null)
 
 const processingStatuses = new Set([
   'ocr_pending',
@@ -39,6 +40,18 @@ const ocrText = computed(() => {
   return document.value?.pages.map((page) => page.text).join('\n\n') || ''
 })
 
+const lastDetailRefreshText = computed(() => {
+  return lastDetailRefreshedAt.value ? formatDateTime(lastDetailRefreshedAt.value.toISOString()) : ''
+})
+
+function isActiveJob(status: string): boolean {
+  return status.includes('pending') || status.includes('running')
+}
+
+function markDetailRefreshed() {
+  lastDetailRefreshedAt.value = new Date()
+}
+
 function stopPolling() {
   if (pollTimer) {
     clearInterval(pollTimer)
@@ -50,23 +63,28 @@ function startPolling() {
   stopPolling()
   pollTimer = setInterval(async () => {
     await fetchDocument(documentId.value, { silent: true })
+    markDetailRefreshed()
     if (!shouldPoll.value) stopPolling()
   }, 3000)
 }
 
 async function submitReprocess() {
   if (!document.value || !canReprocess.value) return
+  const confirmed = window.confirm('Reprocess sẽ OCR lại tài liệu này và thay thế page/chunk hiện có. Tiếp tục?')
+  if (!confirmed) return
 
   const result = await reprocessDocument(document.value.id, reprocessReason.value)
   if (!result) return
 
   reprocessReason.value = ''
   await fetchDocument(documentId.value, { silent: true })
+  markDetailRefreshed()
   if (shouldPoll.value) startPolling()
 }
 
 onMounted(async () => {
   await fetchDocument(documentId.value)
+  markDetailRefreshed()
   if (shouldPoll.value) startPolling()
 })
 
@@ -84,10 +102,13 @@ onBeforeUnmount(stopPolling)
     <p v-if="loading" class="text-sm text-slate-600">Đang tải...</p>
 
     <template v-if="document">
-      <div class="flex items-start justify-between gap-4">
+      <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 class="text-2xl font-semibold">{{ document.title }}</h1>
-          <p class="mt-1 text-sm text-slate-600">{{ document.original_filename }}</p>
+          <h1 class="break-words text-2xl font-semibold">{{ document.title }}</h1>
+          <p class="mt-1 break-words text-sm text-slate-600">{{ document.original_filename }}</p>
+          <p v-if="lastDetailRefreshText" class="mt-1 text-xs text-slate-500">
+            Cập nhật detail lần cuối: {{ lastDetailRefreshText }}
+          </p>
         </div>
         <BaseStatusBadge :status="document.status" />
       </div>
@@ -141,6 +162,9 @@ onBeforeUnmount(stopPolling)
               </p>
             </div>
             <p v-if="shouldPoll" class="text-sm text-slate-600">Đang tự cập nhật trạng thái OCR/reprocess...</p>
+            <p v-if="lastDetailRefreshText" class="text-xs text-slate-500">
+              Lần refresh gần nhất: {{ lastDetailRefreshText }}
+            </p>
           </div>
         </template>
       </Card>
@@ -152,12 +176,14 @@ onBeforeUnmount(stopPolling)
             <article
               v-for="job in sortedOcrJobs"
               :key="job.id"
-              class="rounded border border-slate-200 p-3"
+              class="rounded border p-3"
+              :class="isActiveJob(job.status) ? 'border-amber-300 bg-amber-50' : 'border-slate-200'"
             >
               <div class="flex flex-wrap items-center justify-between gap-2">
                 <div class="flex flex-wrap items-center gap-2">
                   <Tag :value="job.job_type" severity="info" />
                   <BaseStatusBadge :status="job.status" />
+                  <Tag v-if="isActiveJob(job.status)" value="Đang xử lý" severity="warn" />
                 </div>
                 <span class="text-xs text-slate-500">{{ formatDateTime(job.created_at) }}</span>
               </div>
@@ -176,7 +202,7 @@ onBeforeUnmount(stopPolling)
                 </div>
                 <div v-if="job.reason">
                   <dt class="text-slate-500">Lý do</dt>
-                  <dd class="font-medium">{{ job.reason }}</dd>
+                  <dd class="break-words font-medium">{{ job.reason }}</dd>
                 </div>
               </dl>
               <Message v-if="job.error_message" class="mt-3" severity="error">
@@ -207,7 +233,7 @@ onBeforeUnmount(stopPolling)
         <template #content>
           <div v-if="document.chunks.length" class="space-y-3">
             <article v-for="chunk in document.chunks" :key="chunk.id" class="border-b border-slate-200 pb-3">
-              <p class="text-xs text-slate-500">#{{ chunk.chunk_index }} {{ chunk.section_title }}</p>
+              <p class="break-words text-xs text-slate-500">#{{ chunk.chunk_index }} {{ chunk.section_title }}</p>
               <p class="mt-1 text-sm text-slate-700">{{ chunk.text }}</p>
             </article>
           </div>
