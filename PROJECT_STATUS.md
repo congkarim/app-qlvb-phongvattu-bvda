@@ -419,6 +419,20 @@ Kết quả:
 - Trang `/documents/[id]` đã hiển thị danh sách audit OCR/reprocess job thay vì chỉ job mới nhất.
 - Nuxt production build trong Docker Compose hoàn tất thành công.
 
+Sửa lỗi Nuxt dev app manifest ngày 2026-06-04:
+
+```bash
+docker compose run --rm --no-deps web npm run build
+docker compose up -d --build web
+curl -fsS -I http://localhost:3000/login
+docker compose logs --tail=160 web | rg -n "#app-manifest|Pre-transform|ERROR|Failed to resolve" || true
+```
+
+Kết quả:
+- Tắt `experimental.appManifest` trong Nuxt vì MVP hiện không dùng route rules/app manifest.
+- Dev server không còn lỗi Vite pre-transform `Failed to resolve import "#app-manifest"`.
+- `/login` trả HTTP 200 sau khi rebuild service `web`.
+
 Auth:
 - Đã có JWT login skeleton.
 - Đã có seed admin local.

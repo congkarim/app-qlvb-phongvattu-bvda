@@ -42,6 +42,8 @@ git diff --check
 Kết quả verify:
 - Nuxt production build trong Docker Compose thành công.
 - Không phát sinh runtime artifact trong git.
+- Đã xử lý lỗi Nuxt dev server `Failed to resolve import "#app-manifest"` bằng cách tắt `experimental.appManifest`, vì MVP hiện không dùng route rules/app manifest.
+- Sau khi rebuild `web`, `/login` trả HTTP 200 và logs không còn `#app-manifest`/`Pre-transform`.
 
 ## Mục Tiêu Task Tiếp Theo
 
