@@ -732,6 +732,22 @@ Kết quả:
 - Smoke user thường gọi `POST /documents/{id}/reprocess` trả `403` với detail `Admin role required`.
 - Frontend build pass; vẫn có warning chunk PrimeVue lớn như trước, không fail.
 
+Chunk metadata backfill kiểm tra ngày 2026-06-04:
+
+```bash
+PYTHONPYCACHEPREFIX=/tmp/qlvb-pycache PYTHONPATH=apps/api python3 -m py_compile apps/api/app/repositories/document_repository.py apps/api/app/scripts/backfill_chunk_metadata.py
+PYTHONPATH=apps/api python3 -m unittest app.services.ocr_chunking.tests.test_pipeline
+docker compose exec -T api python -m app.scripts.backfill_chunk_metadata --dry-run --limit 2
+docker compose config --quiet
+git diff --check
+```
+
+Kết quả:
+- Thêm script `python -m app.scripts.backfill_chunk_metadata` để populate `doc_group`, `chunk_level`, `section_role`, `section_path`, `chunk_confidence`, `requires_review` cho chunks cũ từ OCR pages đã lưu.
+- Backfill chỉ cập nhật metadata theo `chunk_index`, không thay text chunk, `content_hash`, `qdrant_point_id` và không re-embedding.
+- Script hỗ trợ dry-run, chạy theo batch, chạy theo document id và báo mismatch khi số chunk tái tạo khác số chunk hiện có.
+- Unit test chunking pass 6 mẫu.
+
 Workflow MVP hiện có:
 
 ```text

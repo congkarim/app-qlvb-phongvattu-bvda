@@ -344,6 +344,66 @@ class DocumentRepository:
         )
         return list(self.db.scalars(stmt))
 
+    def list_documents_for_chunk_metadata_backfill(
+        self,
+        *,
+        limit: int = 100,
+        offset: int = 0,
+        missing_only: bool = True,
+    ) -> list[Document]:
+        stmt = (
+            select(Document)
+            .join(DocumentChunk, DocumentChunk.document_id == Document.id)
+            .where(
+                Document.deleted_at.is_(None),
+                DocumentChunk.deleted_at.is_(None),
+            )
+            .options(
+                selectinload(Document.pages),
+                selectinload(Document.chunks),
+                with_loader_criteria(DocumentPage, DocumentPage.deleted_at.is_(None)),
+                with_loader_criteria(DocumentChunk, DocumentChunk.deleted_at.is_(None)),
+            )
+            .order_by(Document.created_at.asc())
+            .distinct()
+            .limit(limit)
+            .offset(offset)
+        )
+        if missing_only:
+            stmt = stmt.where(
+                or_(
+                    DocumentChunk.doc_group.is_(None),
+                    DocumentChunk.chunk_level.is_(None),
+                    DocumentChunk.section_role.is_(None),
+                    DocumentChunk.chunk_confidence.is_(None),
+                )
+            )
+        return list(self.db.scalars(stmt))
+
+    def update_chunk_metadata_for_document(
+        self,
+        *,
+        document_id: str,
+        chunk_payloads: list[dict[str, Any]],
+    ) -> tuple[int, int]:
+        payload_by_index = {index: payload for index, payload in enumerate(chunk_payloads)}
+        updated = 0
+        skipped = 0
+
+        for chunk in self.list_chunks_for_document(document_id):
+            chunk_payload = payload_by_index.get(chunk.chunk_index)
+            if chunk_payload is None:
+                skipped += 1
+                continue
+            self._apply_chunk_metadata(chunk, chunk_payload)
+            if not chunk.section_title:
+                chunk.section_title = _clean_optional_string(chunk_payload.get("section_title"), 512)
+            self.db.add(chunk)
+            updated += 1
+
+        self.db.flush()
+        return updated, skipped
+
     def replace_chunks_for_document(
         self,
         *,

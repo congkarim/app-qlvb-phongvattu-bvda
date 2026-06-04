@@ -337,6 +337,19 @@ CHUNKING_BACKEND=ocr_chunking
 
 Module này detect `doc_type`, map sang nhóm A/B/C/D/E, giữ cấu trúc như `Điều`, `Khoản`, mục La Mã, bảng và chữ ký khi tạo chunk. Bảng `document_chunks` lưu `doc_group`, `chunk_level`, `section_role`, `section_path`, `chunk_confidence` và `requires_review` để UI hiển thị được cấu trúc chunk. Metadata chi tiết hơn như `fallback_info` và entities tiếp tục nằm trong Qdrant payload.
 
+Backfill metadata chunk cho document cũ từ OCR pages đã lưu, không thay text chunk hay embedding hiện có:
+
+```bash
+docker compose exec -T api python -m app.scripts.backfill_chunk_metadata --dry-run --limit 20
+docker compose exec -T api python -m app.scripts.backfill_chunk_metadata --batch-size 20
+```
+
+Backfill một document cụ thể:
+
+```bash
+docker compose exec -T api python -m app.scripts.backfill_chunk_metadata --document-id <document_id>
+```
+
 Rollback tạm thời về chunking cũ:
 
 ```env
