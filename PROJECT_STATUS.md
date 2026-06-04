@@ -89,11 +89,13 @@ Auth MVP:
 Workflow web đã hoàn thiện:
 - `/upload` có hai mode: một tệp là một văn bản, hoặc nhiều tệp thuộc cùng một văn bản nghiệp vụ.
 - `/upload` có trường `Tên văn bản`; mode nhiều tệp bắt buộc nhập tên văn bản và hiển thị danh sách tệp nguồn đã chọn.
+- `/upload` có mode `Zip cùng văn bản` để upload một `.zip` thành một document gồm nhiều source files.
 - `/documents/[id]` hiển thị metadata, OCR job status, OCR text, chunks và tự polling tới khi document `searchable`.
 - `/documents/[id]` hiển thị card `Tệp nguồn` để xem một hoặc nhiều file nguồn thuộc cùng document.
+- `/documents/[id]` cho phép thêm source files, đổi thứ tự file và soft-delete source file; mỗi thay đổi tạo reprocess job async.
 - `/documents/[id]` có action reprocess, khóa nút khi document đang `ocr_pending`, `ocr_running`, `reprocess_pending`, `reprocess_running` hoặc `chunking`.
 - `/documents/[id]` hiển thị audit OCR/reprocess job gồm `job_type`, `status`, `reason`, attempts, error message và thời gian tạo/cập nhật.
-- `/documents` có refresh action, loading state, empty state và link sang detail.
+- `/documents` có refresh action, filter/search/sort, loading state, empty state và link sang detail.
 - `/dashboard` có validation search input, loading/empty/error state và result link sang document nguồn.
 
 ## Đã Kiểm Tra Thủ Công
@@ -537,6 +539,41 @@ Kết quả:
   - Có 1 source file `qlvb_single.txt`, OCR xong và document `searchable`.
 - `/upload` SSR có các nhãn `Một tệp`, `Nhiều tệp cùng văn bản`, `Tên văn bản`.
 
+Documents filters, source file management và zip upload ngày 2026-06-04:
+
+```bash
+docker compose run --rm --no-deps api python -m py_compile app/services/document_service.py app/routers/documents.py app/repositories/document_repository.py app/schemas/document.py
+docker compose run --rm --no-deps web npm run build
+docker compose up -d --build api worker web
+curl -fsS -I http://localhost:3000/login
+```
+
+Kết quả:
+- `GET /api/v1/documents` hỗ trợ `q`, `status`, `document_type`, `sort_by`, `sort_dir`, `limit`, `offset`.
+- Frontend `/documents` có filter theo title/filename, status, document type và sort theo ngày tạo/cập nhật/title/status/type.
+- Thêm endpoint `POST /api/v1/documents/upload/zip` cho mode zip là một văn bản gồm nhiều tệp nguồn.
+- Zip upload không tự đoán nhiều văn bản riêng; mỗi entry file trong zip map thành một `document_files` record.
+- Thêm endpoint `POST /api/v1/documents/{document_id}/files` để thêm source files vào document đã tồn tại.
+- Thêm endpoint `PATCH /api/v1/documents/{document_id}/files/order` để đổi thứ tự source files.
+- Thêm endpoint `DELETE /api/v1/documents/{document_id}/files/{document_file_id}` để soft-delete source file.
+- Các thao tác thêm/đổi thứ tự/xóa source file đều tạo OCR job `reprocess` async, audit event và không chạy OCR inline trong request.
+- Không cho đổi source files khi document đang có OCR/reprocess job active.
+- Không cho xóa source file cuối cùng của document.
+- Frontend document detail có UI thêm file nguồn, nút lên/xuống và xóa file nguồn.
+- Audit UI hiển thị label cho `document.upload_zip`, `document.source_files_added`, `document.source_files_reordered`, `document.source_file_deleted`.
+- Smoke filter list:
+  - Query `q=multi`, `status=searchable`, `sort_by=updated_at`, `sort_dir=desc` trả đúng document multi-file smoke.
+- Smoke zip upload:
+  - Document `53fc35a4-dfc6-43bd-9e8b-0c2baf94be2a` tạo từ zip, có 2 source files, OCR xong `searchable`.
+  - Page 1 lấy `zip_a.txt`, page 2 lấy `zip_b.txt`, audit `document.upload_zip` có `file_count=2`.
+- Smoke add source file:
+  - Thêm `qlvb_added_source.txt` vào document zip, tạo reprocess job và sau xử lý có 3 pages.
+- Smoke reorder:
+  - Đưa `qlvb_added_source.txt` lên đầu, reprocess xong page 1 đổi sang text của file này.
+- Smoke delete:
+  - Soft-delete `zip_b.txt`, reprocess xong còn 2 source files và 2 pages.
+- SSR `/documents` có nhãn filter/sort; SSR `/upload` có `Zip cùng văn bản`.
+
 Auth:
 - Đã có JWT login skeleton.
 - Đã có seed admin local.
@@ -548,6 +585,9 @@ Frontend:
 - UI hiện đã đủ cho MVP workflow cơ bản.
 - Đã có auth route guard cơ bản.
 - Upload UI đã hỗ trợ một văn bản có nhiều tệp nguồn.
+- Upload UI đã hỗ trợ zip là một văn bản gồm nhiều tệp nguồn.
+- Document list đã có filter/sort cơ bản.
+- Document detail đã có quản lý source files sau upload.
 - Chưa có layout/form polish ở mức production.
 
 Generated files:
@@ -558,7 +598,7 @@ Generated files:
 
 OCR thật và trích xuất Office text mức MVP đã được triển khai. OCR scan tiếng Việt hiện ưu tiên VietOCR local.
 
-Task tiếp theo nên ưu tiên lọc/tối ưu danh sách tài liệu, zip upload dựa trên `document_files`, hoặc RBAC nhẹ nếu cần phân quyền admin/user thật sự.
+Task tiếp theo nên ưu tiên metadata nghiệp vụ cho công văn/hợp đồng/quyết định, hoặc RBAC nhẹ nếu cần phân quyền admin/user thật sự.
 
 Workflow MVP hiện có:
 

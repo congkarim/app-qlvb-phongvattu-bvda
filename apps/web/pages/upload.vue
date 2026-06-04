@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { formatFileSize } from '~/utils/format'
 
-const uploadMode = ref<'single' | 'multi'>('single')
+const uploadMode = ref<'single' | 'multi' | 'zip'>('single')
 const selectedFiles = ref<File[]>([])
 const documentTitle = ref('')
 const {
@@ -11,13 +11,16 @@ const {
   error,
   uploadDocument,
   uploadMultiFileDocument,
+  uploadZipDocument,
   clearUploadResult
 } = useDocuments()
 
 const isMultiFileMode = computed(() => uploadMode.value === 'multi')
+const isZipMode = computed(() => uploadMode.value === 'zip')
+const requiresTitle = computed(() => uploadMode.value !== 'single')
 const canSubmit = computed(() => {
   if (!selectedFiles.value.length) return false
-  if (isMultiFileMode.value) return Boolean(documentTitle.value.trim())
+  if (requiresTitle.value) return Boolean(documentTitle.value.trim())
   return true
 })
 
@@ -33,6 +36,8 @@ async function submit() {
 
   const result = isMultiFileMode.value
     ? await uploadMultiFileDocument(selectedFiles.value, documentTitle.value)
+    : isZipMode.value
+      ? await uploadZipDocument(selectedFiles.value[0], documentTitle.value)
     : await uploadDocument(selectedFiles.value[0], documentTitle.value)
   if (result) {
     await navigateTo(`/documents/${result.document.id}`)
@@ -73,24 +78,34 @@ watch(uploadMode, () => {
             >
               Nhiều tệp cùng văn bản
             </button>
+            <button
+              type="button"
+              class="rounded px-3 py-2"
+              :class="uploadMode === 'zip' ? 'bg-white font-medium shadow-sm' : 'text-slate-600'"
+              @click="uploadMode = 'zip'"
+            >
+              Zip cùng văn bản
+            </button>
           </div>
 
           <div class="space-y-2">
             <label for="document-title" class="block text-sm font-medium text-slate-700">
-              Tên văn bản <span v-if="isMultiFileMode" class="text-red-600">*</span>
+              Tên văn bản <span v-if="requiresTitle" class="text-red-600">*</span>
             </label>
             <InputText
               id="document-title"
               v-model="documentTitle"
               class="w-full"
-              :placeholder="isMultiFileMode ? 'Ví dụ: Công văn số 123/CV-VT' : 'Để trống sẽ tự lấy theo tên file'"
+              :placeholder="requiresTitle ? 'Ví dụ: Công văn số 123/CV-VT' : 'Để trống sẽ tự lấy theo tên file'"
               maxlength="512"
             />
           </div>
 
           <BaseUploadDropzone :multiple="isMultiFileMode" @selected="handleSelected" />
           <div v-if="selectedFiles.length" class="rounded border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
-            <p class="font-medium">Tệp nguồn đã chọn: {{ selectedFiles.length }}</p>
+            <p class="font-medium">
+              {{ isZipMode ? 'Tệp zip đã chọn' : `Tệp nguồn đã chọn: ${selectedFiles.length}` }}
+            </p>
             <ul class="mt-2 space-y-2">
               <li v-for="(file, index) in selectedFiles" :key="`${file.name}-${index}`" class="rounded bg-white p-2">
                 <p class="break-words font-medium">{{ index + 1 }}. {{ file.name }}</p>

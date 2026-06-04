@@ -26,6 +26,11 @@ defineProps<{
         {{ formatDateTime(data.created_at) }}
       </template>
     </Column>
+    <Column field="updated_at" header="Cập nhật">
+      <template #body="{ data }">
+        {{ formatDateTime(data.updated_at) }}
+      </template>
+    </Column>
     <template #empty>
       <div class="py-6 text-center text-sm text-slate-600">Chưa có văn bản.</div>
     </template>

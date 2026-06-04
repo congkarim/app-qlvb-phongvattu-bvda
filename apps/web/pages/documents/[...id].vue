@@ -2,9 +2,21 @@
 import { formatDateTime, formatFileSize } from '~/utils/format'
 
 const route = useRoute()
-const { document, loading, reprocessLoading, error, fetchDocument, reprocessDocument } = useDocuments()
+const {
+  document,
+  loading,
+  reprocessLoading,
+  sourceFileLoading,
+  error,
+  fetchDocument,
+  reprocessDocument,
+  addSourceFiles,
+  reorderSourceFiles,
+  deleteSourceFile
+} = useDocuments()
 let pollTimer: ReturnType<typeof setInterval> | undefined
 const reprocessReason = ref('')
+const selectedSourceFiles = ref<File[]>([])
 const lastDetailRefreshedAt = ref<Date | null>(null)
 
 const processingStatuses = new Set([
@@ -54,6 +66,8 @@ const canReprocess = computed(() => {
   return Boolean(status && !processingStatuses.has(status))
 })
 
+const canManageSourceFiles = computed(() => canReprocess.value && !sourceFileLoading.value)
+
 const ocrText = computed(() => {
   return document.value?.pages.map((page) => page.text).join('\n\n') || ''
 })
@@ -72,7 +86,11 @@ function markDetailRefreshed() {
 
 function formatAuditAction(action: string): string {
   if (action === 'document.upload') return 'Upload văn bản'
+  if (action === 'document.upload_zip') return 'Upload zip'
   if (action === 'document.reprocess_requested') return 'Yêu cầu reprocess'
+  if (action === 'document.source_files_added') return 'Thêm tệp nguồn'
+  if (action === 'document.source_files_reordered') return 'Đổi thứ tự tệp nguồn'
+  if (action === 'document.source_file_deleted') return 'Xóa tệp nguồn'
   return action
 }
 
@@ -107,6 +125,46 @@ async function submitReprocess() {
   if (!result) return
 
   reprocessReason.value = ''
+  await fetchDocument(documentId.value, { silent: true })
+  markDetailRefreshed()
+  if (shouldPoll.value) startPolling()
+}
+
+function handleSourceFilesSelected(files: File[]) {
+  selectedSourceFiles.value = files
+}
+
+async function submitAddSourceFiles() {
+  if (!document.value || !selectedSourceFiles.value.length || !canManageSourceFiles.value) return
+  const result = await addSourceFiles(document.value.id, selectedSourceFiles.value)
+  if (!result) return
+  selectedSourceFiles.value = []
+  await refreshAfterSourceFileMutation()
+}
+
+async function moveSourceFile(fileId: string, direction: 'up' | 'down') {
+  if (!document.value || !canManageSourceFiles.value) return
+  const ids = sourceFiles.value.map((file) => file.id)
+  const index = ids.indexOf(fileId)
+  const targetIndex = direction === 'up' ? index - 1 : index + 1
+  if (index < 0 || targetIndex < 0 || targetIndex >= ids.length) return
+  const [file] = ids.splice(index, 1)
+  ids.splice(targetIndex, 0, file)
+  const result = await reorderSourceFiles(document.value.id, ids)
+  if (!result) return
+  await refreshAfterSourceFileMutation()
+}
+
+async function submitDeleteSourceFile(fileId: string, filename: string) {
+  if (!document.value || !canManageSourceFiles.value) return
+  const confirmed = window.confirm(`Xóa tệp nguồn "${filename}" và OCR lại văn bản này?`)
+  if (!confirmed) return
+  const result = await deleteSourceFile(document.value.id, fileId)
+  if (!result) return
+  await refreshAfterSourceFileMutation()
+}
+
+async function refreshAfterSourceFileMutation() {
   await fetchDocument(documentId.value, { silent: true })
   markDetailRefreshed()
   if (shouldPoll.value) startPolling()
@@ -170,9 +228,33 @@ onBeforeUnmount(stopPolling)
       <Card>
         <template #title>Tệp nguồn</template>
         <template #content>
+          <div class="mb-4 space-y-3 rounded border border-slate-200 bg-slate-50 p-3">
+            <BaseUploadDropzone :multiple="true" @selected="handleSourceFilesSelected" />
+            <div v-if="selectedSourceFiles.length" class="space-y-2 text-sm">
+              <p class="font-medium">Tệp sẽ thêm: {{ selectedSourceFiles.length }}</p>
+              <ul class="space-y-1 text-slate-700">
+                <li v-for="(file, index) in selectedSourceFiles" :key="`${file.name}-${index}`" class="break-words">
+                  {{ index + 1 }}. {{ file.name }} · {{ formatFileSize(file.size) }}
+                </li>
+              </ul>
+            </div>
+            <div class="flex flex-wrap items-center gap-3">
+              <Button
+                label="Thêm tệp nguồn"
+                icon="pi pi-plus"
+                :disabled="!selectedSourceFiles.length || !canManageSourceFiles"
+                :loading="sourceFileLoading"
+                @click="submitAddSourceFiles"
+              />
+              <p v-if="!canManageSourceFiles" class="text-sm text-slate-600">
+                Chỉ đổi tệp nguồn khi document không có job đang xử lý.
+              </p>
+            </div>
+          </div>
+
           <div v-if="sourceFiles.length" class="space-y-3 text-sm">
             <article
-              v-for="file in sourceFiles"
+              v-for="(file, index) in sourceFiles"
               :key="file.id"
               class="rounded border border-slate-200 p-3"
             >
@@ -183,7 +265,33 @@ onBeforeUnmount(stopPolling)
                     {{ formatFileSize(file.file_size) }} · {{ file.content_type || 'Không xác định' }}
                   </p>
                 </div>
-                <BaseStatusBadge :status="file.status" />
+                <div class="flex flex-wrap items-center gap-2">
+                  <BaseStatusBadge :status="file.status" />
+                  <Button
+                    icon="pi pi-arrow-up"
+                    severity="secondary"
+                    size="small"
+                    :disabled="index === 0 || !canManageSourceFiles"
+                    :loading="sourceFileLoading"
+                    @click="moveSourceFile(file.id, 'up')"
+                  />
+                  <Button
+                    icon="pi pi-arrow-down"
+                    severity="secondary"
+                    size="small"
+                    :disabled="index === sourceFiles.length - 1 || !canManageSourceFiles"
+                    :loading="sourceFileLoading"
+                    @click="moveSourceFile(file.id, 'down')"
+                  />
+                  <Button
+                    icon="pi pi-trash"
+                    severity="danger"
+                    size="small"
+                    :disabled="sourceFiles.length <= 1 || !canManageSourceFiles"
+                    :loading="sourceFileLoading"
+                    @click="submitDeleteSourceFile(file.id, file.original_filename)"
+                  />
+                </div>
               </div>
             </article>
           </div>

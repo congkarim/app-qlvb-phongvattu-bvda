@@ -106,6 +106,16 @@ class MultiFileUploadResponse(BaseModel):
     ocr_job: OCRJobRead
 
 
+class SourceFileMutationResponse(BaseModel):
+    document: DocumentRead
+    files: list[DocumentFileRead]
+    ocr_job: OCRJobRead
+
+
+class ReorderDocumentFilesRequest(BaseModel):
+    file_ids: list[str] = Field(min_length=1)
+
+
 class ReprocessDocumentRequest(BaseModel):
     reason: str | None = None
 

@@ -1,7 +1,7 @@
 import re
 from datetime import datetime, timezone
 
-from sqlalchemy import or_, select
+from sqlalchemy import asc, desc, or_, select
 from sqlalchemy.orm import Session, selectinload, with_loader_criteria
 
 from app.models.document import Document, DocumentChunk, DocumentFile, DocumentPage, OCRJob
@@ -32,14 +32,36 @@ class DocumentRepository:
         self.db.flush()
         return document
 
-    def list_documents(self, limit: int = 50, offset: int = 0) -> list[Document]:
-        stmt = (
-            select(Document)
-            .where(Document.deleted_at.is_(None))
-            .order_by(Document.created_at.desc())
-            .limit(limit)
-            .offset(offset)
-        )
+    def list_documents(
+        self,
+        limit: int = 50,
+        offset: int = 0,
+        *,
+        query: str | None = None,
+        status: str | None = None,
+        document_type: str | None = None,
+        sort_by: str = "created_at",
+        sort_dir: str = "desc",
+    ) -> list[Document]:
+        stmt = select(Document).where(Document.deleted_at.is_(None))
+        if query:
+            pattern = f"%{query}%"
+            stmt = stmt.where(or_(Document.title.ilike(pattern), Document.original_filename.ilike(pattern)))
+        if status:
+            stmt = stmt.where(Document.status == status)
+        if document_type:
+            stmt = stmt.where(Document.document_type == document_type)
+
+        sortable_columns = {
+            "created_at": Document.created_at,
+            "updated_at": Document.updated_at,
+            "title": Document.title,
+            "status": Document.status,
+            "document_type": Document.document_type,
+        }
+        sort_column = sortable_columns.get(sort_by, Document.created_at)
+        direction = asc if sort_dir == "asc" else desc
+        stmt = stmt.order_by(direction(sort_column), Document.created_at.desc()).limit(limit).offset(offset)
         return list(self.db.scalars(stmt))
 
     def get_document(self, document_id: str) -> Document | None:
@@ -103,11 +125,39 @@ class DocumentRepository:
         )
         return list(self.db.scalars(stmt))
 
+    def get_file_for_document(self, *, document_id: str, document_file_id: str) -> DocumentFile | None:
+        stmt = select(DocumentFile).where(
+            DocumentFile.id == document_file_id,
+            DocumentFile.document_id == document_id,
+            DocumentFile.deleted_at.is_(None),
+        )
+        return self.db.scalar(stmt)
+
     def update_file_status(self, document_file: DocumentFile, status: str) -> DocumentFile:
         document_file.status = status
         self.db.add(document_file)
         self.db.flush()
         return document_file
+
+    def update_file_order(self, document_file: DocumentFile, file_order: int) -> DocumentFile:
+        document_file.file_order = file_order
+        self.db.add(document_file)
+        self.db.flush()
+        return document_file
+
+    def soft_delete_file(self, document_file: DocumentFile) -> DocumentFile:
+        document_file.deleted_at = datetime.now(timezone.utc)
+        self.db.add(document_file)
+        self.db.flush()
+        return document_file
+
+    def update_legacy_file_fields(self, document: Document, document_file: DocumentFile) -> Document:
+        document.original_filename = document_file.original_filename
+        document.file_path = document_file.file_path
+        document.content_type = document_file.content_type
+        self.db.add(document)
+        self.db.flush()
+        return document
 
     def create_page(self, *, document_id: str, page_number: int, text: str, confidence: float) -> DocumentPage:
         page = DocumentPage(

@@ -87,6 +87,22 @@ export interface MultiFileUploadResponse {
   ocr_job: OCRJob
 }
 
+export interface SourceFileMutationResponse {
+  document: DocumentItem
+  files: DocumentFile[]
+  ocr_job: OCRJob
+}
+
+export interface DocumentListFilters {
+  q?: string
+  status?: string
+  document_type?: string
+  sort_by?: 'created_at' | 'updated_at' | 'title' | 'status' | 'document_type'
+  sort_dir?: 'asc' | 'desc'
+  limit?: number
+  offset?: number
+}
+
 export interface ReprocessDocumentResponse {
   document: DocumentItem
   ocr_job: OCRJob

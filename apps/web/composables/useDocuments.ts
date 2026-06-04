@@ -1,8 +1,10 @@
 import type {
   DocumentDetail,
   DocumentItem,
+  DocumentListFilters,
   MultiFileUploadResponse,
   ReprocessDocumentResponse,
+  SourceFileMutationResponse,
   UploadResponse
 } from '~/types/document'
 import { createDocumentService } from '~/services/document.service'
@@ -14,14 +16,15 @@ export function useDocuments() {
   const multiFileUploadResult = ref<MultiFileUploadResponse | null>(null)
   const loading = ref(false)
   const reprocessLoading = ref(false)
+  const sourceFileLoading = ref(false)
   const error = ref('')
   const service = createDocumentService()
 
-  async function fetchDocuments(options: { silent?: boolean } = {}) {
+  async function fetchDocuments(filters: DocumentListFilters = {}, options: { silent?: boolean } = {}) {
     if (!options.silent) loading.value = true
     error.value = ''
     try {
-      documents.value = await service.list()
+      documents.value = await service.list(filters)
     } catch {
       error.value = 'Không tải được danh sách văn bản'
     } finally {
@@ -69,6 +72,65 @@ export function useDocuments() {
     }
   }
 
+  async function uploadZipDocument(zipFile: File, title: string): Promise<MultiFileUploadResponse | null> {
+    loading.value = true
+    error.value = ''
+    try {
+      multiFileUploadResult.value = await service.uploadZip(zipFile, title)
+      return multiFileUploadResult.value
+    } catch {
+      error.value = 'Upload zip không thành công'
+      return null
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function addSourceFiles(id: string, files: File[]): Promise<SourceFileMutationResponse | null> {
+    sourceFileLoading.value = true
+    error.value = ''
+    try {
+      const result = await service.addSourceFiles(id, files)
+      await applySourceFileMutation(id, result)
+      return result
+    } catch {
+      error.value = 'Không thêm được tệp nguồn'
+      return null
+    } finally {
+      sourceFileLoading.value = false
+    }
+  }
+
+  async function reorderSourceFiles(id: string, fileIds: string[]): Promise<SourceFileMutationResponse | null> {
+    sourceFileLoading.value = true
+    error.value = ''
+    try {
+      const result = await service.reorderSourceFiles(id, fileIds)
+      await applySourceFileMutation(id, result)
+      return result
+    } catch {
+      error.value = 'Không đổi được thứ tự tệp nguồn'
+      return null
+    } finally {
+      sourceFileLoading.value = false
+    }
+  }
+
+  async function deleteSourceFile(id: string, fileId: string): Promise<SourceFileMutationResponse | null> {
+    sourceFileLoading.value = true
+    error.value = ''
+    try {
+      const result = await service.deleteSourceFile(id, fileId)
+      await applySourceFileMutation(id, result)
+      return result
+    } catch {
+      error.value = 'Không xóa được tệp nguồn'
+      return null
+    } finally {
+      sourceFileLoading.value = false
+    }
+  }
+
   async function reprocessDocument(id: string, reason: string): Promise<ReprocessDocumentResponse | null> {
     reprocessLoading.value = true
     error.value = ''
@@ -95,6 +157,16 @@ export function useDocuments() {
     multiFileUploadResult.value = null
   }
 
+  async function applySourceFileMutation(id: string, result: SourceFileMutationResponse) {
+    if (document.value?.id !== id) return
+    document.value = {
+      ...document.value,
+      ...result.document,
+      files: result.files,
+      ocr_jobs: [result.ocr_job, ...document.value.ocr_jobs]
+    }
+  }
+
   return {
     documents,
     document,
@@ -102,11 +174,16 @@ export function useDocuments() {
     multiFileUploadResult,
     loading,
     reprocessLoading,
+    sourceFileLoading,
     error,
     fetchDocuments,
     fetchDocument,
     uploadDocument,
     uploadMultiFileDocument,
+    uploadZipDocument,
+    addSourceFiles,
+    reorderSourceFiles,
+    deleteSourceFile,
     reprocessDocument,
     clearUploadResult
   }
