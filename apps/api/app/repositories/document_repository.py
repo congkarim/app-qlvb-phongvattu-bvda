@@ -60,7 +60,11 @@ class DocumentRepository:
                     Document.title.ilike(pattern),
                     Document.original_filename.ilike(pattern),
                     Document.document_number.ilike(pattern),
+                    Document.document_symbol.ilike(pattern),
                     Document.issuing_agency.ilike(pattern),
+                    Document.excerpt.ilike(pattern),
+                    Document.recipient.ilike(pattern),
+                    Document.signer_name.ilike(pattern),
                 )
             )
         if status:
@@ -118,15 +122,41 @@ class DocumentRepository:
         document: Document,
         *,
         title: str,
+        document_type: str,
+        classification_confidence: float | None,
         document_number: str | None,
+        document_symbol: str | None,
         issued_date,
+        issued_place: str | None,
         issuing_agency: str | None,
+        excerpt: str | None,
+        recipient: str | None,
+        signer_name: str | None,
+        signer_title: str | None,
+        seals_present: bool | None,
+        attachment_present: bool | None,
+        page_count: int | None,
+        metadata_source: str | None,
+        metadata_reviewed_at,
         business_type: str | None,
     ) -> Document:
         document.title = title
+        document.document_type = document_type
+        document.classification_confidence = classification_confidence
         document.document_number = document_number
+        document.document_symbol = document_symbol
         document.issued_date = issued_date
+        document.issued_place = issued_place
         document.issuing_agency = issuing_agency
+        document.excerpt = excerpt
+        document.recipient = recipient
+        document.signer_name = signer_name
+        document.signer_title = signer_title
+        document.seals_present = seals_present
+        document.attachment_present = attachment_present
+        document.page_count = page_count
+        document.metadata_source = metadata_source
+        document.metadata_reviewed_at = metadata_reviewed_at
         document.business_type = business_type
         self.db.add(document)
         self.db.flush()

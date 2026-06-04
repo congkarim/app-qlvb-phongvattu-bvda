@@ -95,6 +95,9 @@ Workflow web đã hoàn thiện:
 - `/documents/[id]` hiển thị metadata, OCR job status, OCR text, chunks và tự polling tới khi document `searchable`.
 - `/documents/[id]` hiển thị metadata nghiệp vụ gồm số văn bản, ngày ban hành, đơn vị ban hành và loại nghiệp vụ.
 - `/documents/[id]` cho phép sửa tên văn bản và metadata nghiệp vụ sau upload; mỗi lần lưu ghi audit log `document.metadata_updated`.
+- `/documents/[id]` hiển thị metadata OCR tự trích xuất theo thể thức văn bản hành chính: loại văn bản, confidence, số/ký hiệu, ngày/địa danh ban hành, đơn vị ban hành, trích yếu, nơi nhận, người ký, chức vụ, dấu, phụ lục và số trang.
+- `/documents/[id]` cho phép sửa thủ công các metadata OCR; khi lưu sẽ đánh dấu `metadata_source=manual` và `metadata_reviewed_at`.
+- Reprocess không ghi đè metadata đã được sửa/review thủ công; kết quả auto extraction mới chỉ ghi audit log `document.metadata_auto_extracted` với `applied=false`.
 - `/documents/[id]` hiển thị card `Tệp nguồn` để xem một hoặc nhiều file nguồn thuộc cùng document.
 - `/documents/[id]` có nút `Xem` cạnh từng tệp nguồn; PDF/image/text mở tab mới, DOCX/XLSX hoặc định dạng không preview được sẽ download.
 - `/documents/[id]` cho phép thêm source files, đổi thứ tự file và soft-delete source file; mỗi thay đổi tạo reprocess job async.
@@ -173,6 +176,25 @@ Kết quả:
 - Nút `Xem` trong card `Tệp nguồn` dùng API blob có auth header; PDF/image/text mở tab mới, định dạng Office fallback download.
 - Frontend build pass qua Docker; build có warning chunk PrimeVue lớn như trước, không fail.
 - `/login` trả 200, detail route redirect `302 /login` khi chưa đăng nhập.
+
+Tự động lưu metadata sau OCR kiểm tra ngày 2026-06-04:
+
+```bash
+docker compose config --quiet
+docker compose run --rm --no-deps api python -m py_compile app/models/document.py app/schemas/document.py app/repositories/document_repository.py app/services/document_classifier_service.py app/services/document_service.py app/workers/ocr_worker.py app/routers/documents.py app/scripts/check_document_classifier.py alembic/versions/0007_document_ocr_metadata.py
+docker compose run --rm --no-deps api python -m app.scripts.check_document_classifier
+docker compose run --rm api alembic upgrade head
+docker compose run --rm --no-deps web npm run build
+docker compose up -d api worker web
+```
+
+Kết quả:
+- Thêm migration `0007_document_ocr_metadata` và đã nâng DB local lên head.
+- Classifier local/rule-based pass cho các mẫu `CV`, `QĐ`, `TB`, `BB`, `GM`, `UNKNOWN`.
+- OCR worker tự lưu metadata sau OCR/reprocess khi document chưa được review thủ công.
+- Smoke công văn text lưu được `document_type=CV`, `document_number=789/CV-BV`, `document_symbol=CV-BV`, `issued_date=2026-06-04`, `issued_place=Hà Nội`, `metadata_source=auto`.
+- Sau khi sửa metadata thủ công, reprocess giữ nguyên metadata thủ công và chỉ audit auto extraction mới với `applied=false`.
+- Frontend build pass qua Docker; build có warning chunk PrimeVue lớn như trước, không fail.
 
 Test upload:
 
@@ -660,9 +682,10 @@ Generated files:
 
 ## Quyết Định Hiện Tại
 
-OCR thật và trích xuất Office text mức MVP đã được triển khai. OCR scan tiếng Việt hiện ưu tiên VietOCR local.
+OCR thật, trích xuất Office text và tự động lưu metadata hành chính sau OCR mức MVP đã được triển khai.
+OCR scan tiếng Việt hiện ưu tiên VietOCR local.
 
-Task tiếp theo nên ưu tiên metadata nghiệp vụ cho công văn/hợp đồng/quyết định, hoặc RBAC nhẹ nếu cần phân quyền admin/user thật sự.
+Task tiếp theo nên ưu tiên preview file inline trong detail hoặc RBAC nhẹ nếu cần phân quyền admin/user thật sự.
 
 Workflow MVP hiện có:
 

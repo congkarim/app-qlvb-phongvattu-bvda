@@ -6,8 +6,10 @@ from pathlib import Path
 from sqlalchemy.orm import Session
 
 from app.models.document import Document, DocumentFile, OCRJob
+from app.repositories.audit_log_repository import AuditLogRepository
 from app.repositories.document_repository import DocumentRepository, OCRJobRepository
 from app.services.chunking_service import ChunkingService
+from app.services.document_classifier_service import DocumentClassifierService
 from app.services.document_content_service import DocumentContentService, DocumentPageContent
 from app.services.embedding_service import EmbeddingService
 from app.services.qdrant_service import QdrantService
@@ -19,9 +21,11 @@ logger = logging.getLogger(__name__)
 class OCRWorker:
     def __init__(self, db: Session):
         self.db = db
+        self.audit_logs = AuditLogRepository(db)
         self.documents = DocumentRepository(db)
         self.ocr_jobs = OCRJobRepository(db)
         self.document_content = DocumentContentService()
+        self.classifier = DocumentClassifierService()
         self.chunking = ChunkingService()
         self.embeddings = EmbeddingService()
         self.qdrant = QdrantService()
@@ -73,6 +77,7 @@ class OCRWorker:
                         confidence=page_content.confidence,
                     )
 
+            self._extract_and_store_metadata(document, job, page_contents)
             self.documents.update_status(document, "chunking")
             chunk_payloads = self._create_page_chunks(page_contents)
             if not chunk_payloads:
@@ -110,6 +115,13 @@ class OCRWorker:
                         "text": chunk.text,
                         "title": document.title,
                         "document_type": document.document_type,
+                        "document_number": document.document_number,
+                        "issued_date": document.issued_date.isoformat() if document.issued_date else None,
+                        "issuing_agency": document.issuing_agency,
+                        "excerpt": document.excerpt,
+                        "recipient": document.recipient,
+                        "signer_name": document.signer_name,
+                        "business_type": document.business_type,
                         "department_id": document.department_id,
                         "page_from": chunk.page_from,
                         "page_to": chunk.page_to,
@@ -135,6 +147,64 @@ class OCRWorker:
             self.db.add(job)
             self.db.commit()
             logger.exception("OCR job failed: job_id=%s document_id=%s", job.id, job.document_id)
+
+    def _extract_and_store_metadata(
+        self,
+        document: Document,
+        job: OCRJob,
+        page_contents: list[DocumentPageContent],
+    ) -> None:
+        result = self.classifier.classify(page_contents)
+        result_metadata = result.to_audit_metadata()
+        has_manual_review = document.metadata_reviewed_at is not None or document.metadata_source in {"manual", "mixed"}
+
+        if has_manual_review:
+            self.audit_logs.create(
+                action="document.metadata_auto_extracted",
+                entity_type="document",
+                entity_id=document.id,
+                actor_user_id=None,
+                metadata={
+                    "ocr_job_id": job.id,
+                    "applied": False,
+                    "reason": "metadata already reviewed manually",
+                    "result": result_metadata,
+                },
+            )
+            return
+
+        self.documents.update_metadata(
+            document,
+            title=result.title or result.excerpt or document.title,
+            document_type=result.document_type,
+            classification_confidence=result.confidence,
+            document_number=result.document_number,
+            document_symbol=result.symbol,
+            issued_date=result.date,
+            issued_place=result.place,
+            issuing_agency=result.agency_name,
+            excerpt=result.excerpt,
+            recipient=result.recipient,
+            signer_name=result.signer_name,
+            signer_title=result.signer_title,
+            seals_present=result.seals_present,
+            attachment_present=result.attachment_present,
+            page_count=result.page_count,
+            metadata_source="auto",
+            metadata_reviewed_at=None,
+            business_type=document.business_type,
+        )
+        self.audit_logs.create(
+            action="document.metadata_auto_extracted",
+            entity_type="document",
+            entity_id=document.id,
+            actor_user_id=None,
+            metadata={
+                "ocr_job_id": job.id,
+                "applied": True,
+                "result": result_metadata,
+            },
+        )
 
     def _extract_document_pages(self, document: Document) -> list[DocumentPageContent]:
         document_files = self.documents.list_files_for_document(document.id)

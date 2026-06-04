@@ -33,9 +33,21 @@ export interface DocumentItem {
   original_filename: string
   content_type?: string | null
   document_type: string
+  classification_confidence?: number | null
   document_number?: string | null
+  document_symbol?: string | null
   issued_date?: string | null
+  issued_place?: string | null
   issuing_agency?: string | null
+  excerpt?: string | null
+  recipient?: string | null
+  signer_name?: string | null
+  signer_title?: string | null
+  seals_present?: boolean | null
+  attachment_present?: boolean | null
+  page_count?: number | null
+  metadata_source?: string | null
+  metadata_reviewed_at?: string | null
   business_type?: string | null
   status: string
   created_at: string
@@ -51,6 +63,17 @@ export interface DocumentMetadataInput {
 
 export interface DocumentMetadataUpdateInput extends DocumentMetadataInput {
   title: string
+  document_type: string
+  classification_confidence?: number | null
+  document_symbol?: string
+  issued_place?: string
+  excerpt?: string
+  recipient?: string
+  signer_name?: string
+  signer_title?: string
+  seals_present?: boolean | null
+  attachment_present?: boolean | null
+  page_count?: number | null
 }
 
 export interface DocumentPage {

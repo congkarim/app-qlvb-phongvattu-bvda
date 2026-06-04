@@ -25,10 +25,16 @@ const statusOptions = [
 
 const typeOptions = [
   { label: 'Tất cả loại', value: '' },
-  { label: 'Document', value: 'document' },
-  { label: 'Dispatch', value: 'dispatch' },
-  { label: 'Contract', value: 'contract' },
-  { label: 'Decision', value: 'decision' }
+  { label: 'Không đủ dữ liệu', value: 'UNKNOWN' },
+  { label: 'Công văn', value: 'CV' },
+  { label: 'Quyết định', value: 'QĐ' },
+  { label: 'Thông báo', value: 'TB' },
+  { label: 'Báo cáo', value: 'BC' },
+  { label: 'Biên bản', value: 'BB' },
+  { label: 'Tờ trình', value: 'TTr' },
+  { label: 'Kế hoạch', value: 'KH' },
+  { label: 'Hợp đồng', value: 'HĐ' },
+  { label: 'Giấy mời', value: 'GM' }
 ]
 
 const businessTypeOptions = [

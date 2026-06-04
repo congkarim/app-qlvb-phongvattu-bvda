@@ -1,6 +1,6 @@
 from datetime import date, datetime
 
-from sqlalchemy import Date, Float, ForeignKey, Index, Integer, String, Text
+from sqlalchemy import Boolean, Date, DateTime, Float, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, UUIDTimestampMixin
@@ -14,9 +14,21 @@ class Document(UUIDTimestampMixin, Base):
     file_path: Mapped[str] = mapped_column(String(1024), nullable=False)
     content_type: Mapped[str | None] = mapped_column(String(255), nullable=True)
     document_type: Mapped[str] = mapped_column(String(64), nullable=False, default="document")
+    classification_confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
     document_number: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    document_symbol: Mapped[str | None] = mapped_column(String(128), nullable=True)
     issued_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    issued_place: Mapped[str | None] = mapped_column(String(255), nullable=True)
     issuing_agency: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    excerpt: Mapped[str | None] = mapped_column(Text, nullable=True)
+    recipient: Mapped[str | None] = mapped_column(Text, nullable=True)
+    signer_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    signer_title: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    seals_present: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    attachment_present: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    page_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    metadata_source: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    metadata_reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     business_type: Mapped[str | None] = mapped_column(String(64), nullable=True)
     status: Mapped[str] = mapped_column(String(64), nullable=False, default="uploaded", index=True)
     department_id: Mapped[str | None] = mapped_column(ForeignKey("departments.id"), nullable=True)

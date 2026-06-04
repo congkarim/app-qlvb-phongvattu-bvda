@@ -1,6 +1,6 @@
 import shutil
 import zipfile
-from datetime import date
+from datetime import date, datetime, timezone
 from mimetypes import guess_type
 from pathlib import Path
 from uuid import UUID, uuid4
@@ -12,6 +12,7 @@ from app.core.config import get_settings
 from app.models.user import User
 from app.repositories.audit_log_repository import AuditLogRepository
 from app.repositories.document_repository import DocumentRepository, OCRJobRepository
+from app.services.document_classifier_service import DOCUMENT_TYPE_LABELS
 
 
 class DocumentNotFoundError(ValueError):
@@ -314,9 +315,20 @@ class DocumentService:
         document_id: str,
         *,
         title: str,
+        document_type: str | None = None,
+        classification_confidence: float | None = None,
         document_number: str | None = None,
+        document_symbol: str | None = None,
         issued_date: date | None = None,
+        issued_place: str | None = None,
         issuing_agency: str | None = None,
+        excerpt: str | None = None,
+        recipient: str | None = None,
+        signer_name: str | None = None,
+        signer_title: str | None = None,
+        seals_present: bool | None = None,
+        attachment_present: bool | None = None,
+        page_count: int | None = None,
         business_type: str | None = None,
         actor: User | None = None,
     ):
@@ -326,9 +338,22 @@ class DocumentService:
 
         next_metadata = {
             "title": self._normalize_title(title),
+            "document_type": self._normalize_document_type(document_type or document.document_type),
+            "classification_confidence": classification_confidence,
             "document_number": self._normalize_title(document_number),
+            "document_symbol": self._normalize_title(document_symbol),
             "issued_date": issued_date,
+            "issued_place": self._normalize_title(issued_place),
             "issuing_agency": self._normalize_title(issuing_agency),
+            "excerpt": self._normalize_long_text(excerpt),
+            "recipient": self._normalize_long_text(recipient),
+            "signer_name": self._normalize_title(signer_name),
+            "signer_title": self._normalize_title(signer_title),
+            "seals_present": seals_present,
+            "attachment_present": attachment_present,
+            "page_count": page_count,
+            "metadata_source": "manual",
+            "metadata_reviewed_at": datetime.now(timezone.utc),
             "business_type": self._normalize_title(business_type),
         }
         if not next_metadata["title"]:
@@ -621,16 +646,31 @@ class DocumentService:
             for document_file in document_files
         ]
 
-    def _document_metadata(self, document) -> dict[str, str | None]:
+    def _document_metadata(self, document) -> dict[str, object]:
         return {
             "title": document.title,
+            "document_type": document.document_type,
+            "classification_confidence": document.classification_confidence,
             "document_number": document.document_number,
+            "document_symbol": document.document_symbol,
             "issued_date": document.issued_date.isoformat() if document.issued_date else None,
+            "issued_place": document.issued_place,
             "issuing_agency": document.issuing_agency,
+            "excerpt": document.excerpt,
+            "recipient": document.recipient,
+            "signer_name": document.signer_name,
+            "signer_title": document.signer_title,
+            "seals_present": document.seals_present,
+            "attachment_present": document.attachment_present,
+            "page_count": document.page_count,
+            "metadata_source": document.metadata_source,
+            "metadata_reviewed_at": document.metadata_reviewed_at.isoformat() if document.metadata_reviewed_at else None,
             "business_type": document.business_type,
         }
 
     def _serialize_metadata_value(self, value) -> str | None:
+        if isinstance(value, datetime):
+            return value.isoformat()
         if isinstance(value, date):
             return value.isoformat()
         return value
@@ -647,6 +687,19 @@ class DocumentService:
             return None
         normalized = " ".join(title.strip().split())
         return normalized or None
+
+    def _normalize_long_text(self, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = "\n".join(" ".join(line.strip().split()) for line in value.splitlines())
+        normalized = "\n".join(line for line in normalized.splitlines() if line)
+        return normalized or None
+
+    def _normalize_document_type(self, value: str | None) -> str:
+        normalized = self._normalize_title(value) or "UNKNOWN"
+        if normalized not in DOCUMENT_TYPE_LABELS:
+            return "UNKNOWN"
+        return normalized
 
     def _title_from_filename(self, filename: str) -> str:
         stem = Path(filename).stem.strip()

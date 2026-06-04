@@ -44,9 +44,21 @@ class DocumentRead(BaseModel):
     original_filename: str
     content_type: str | None = None
     document_type: str
+    classification_confidence: float | None = None
     document_number: str | None = None
+    document_symbol: str | None = None
     issued_date: date | None = None
+    issued_place: str | None = None
     issuing_agency: str | None = None
+    excerpt: str | None = None
+    recipient: str | None = None
+    signer_name: str | None = None
+    signer_title: str | None = None
+    seals_present: bool | None = None
+    attachment_present: bool | None = None
+    page_count: int | None = None
+    metadata_source: str | None = None
+    metadata_reviewed_at: datetime | None = None
     business_type: str | None = None
     status: str
     created_at: datetime
@@ -101,9 +113,20 @@ class DocumentDetailRead(DocumentRead):
 
 class DocumentMetadataUpdateRequest(BaseModel):
     title: str = Field(min_length=1, max_length=512)
+    document_type: str = Field(default="UNKNOWN", max_length=64)
+    classification_confidence: float | None = Field(default=None, ge=0.0, le=1.0)
     document_number: str | None = Field(default=None, max_length=128)
+    document_symbol: str | None = Field(default=None, max_length=128)
     issued_date: date | None = None
+    issued_place: str | None = Field(default=None, max_length=255)
     issuing_agency: str | None = Field(default=None, max_length=255)
+    excerpt: str | None = None
+    recipient: str | None = None
+    signer_name: str | None = Field(default=None, max_length=255)
+    signer_title: str | None = Field(default=None, max_length=255)
+    seals_present: bool | None = None
+    attachment_present: bool | None = None
+    page_count: int | None = Field(default=None, ge=1)
     business_type: str | None = Field(default=None, max_length=64)
 
 

@@ -125,9 +125,20 @@ function appendMetadata(form: FormData, metadata: DocumentMetadataInput) {
 function normalizeMetadataUpdate(metadata: DocumentMetadataUpdateInput) {
   return {
     title: metadata.title.trim(),
+    document_type: metadata.document_type || 'UNKNOWN',
+    classification_confidence: metadata.classification_confidence ?? null,
     document_number: metadata.document_number?.trim() || null,
+    document_symbol: metadata.document_symbol?.trim() || null,
     issued_date: metadata.issued_date?.trim() || null,
+    issued_place: metadata.issued_place?.trim() || null,
     issuing_agency: metadata.issuing_agency?.trim() || null,
+    excerpt: metadata.excerpt?.trim() || null,
+    recipient: metadata.recipient?.trim() || null,
+    signer_name: metadata.signer_name?.trim() || null,
+    signer_title: metadata.signer_title?.trim() || null,
+    seals_present: metadata.seals_present ?? null,
+    attachment_present: metadata.attachment_present ?? null,
+    page_count: metadata.page_count || null,
     business_type: metadata.business_type?.trim() || null
   }
 }

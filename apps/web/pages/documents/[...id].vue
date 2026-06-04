@@ -26,9 +26,20 @@ const lastDetailRefreshedAt = ref<Date | null>(null)
 const isEditingMetadata = ref(false)
 const metadataForm = reactive<DocumentMetadataUpdateInput>({
   title: '',
+  document_type: 'UNKNOWN',
+  classification_confidence: null,
   document_number: '',
+  document_symbol: '',
   issued_date: '',
+  issued_place: '',
   issuing_agency: '',
+  excerpt: '',
+  recipient: '',
+  signer_name: '',
+  signer_title: '',
+  seals_present: null,
+  attachment_present: null,
+  page_count: null,
   business_type: ''
 })
 
@@ -98,6 +109,39 @@ const businessTypeOptions = [
   { label: 'Quyết định', value: 'decision' }
 ]
 
+const documentTypeOptions = [
+  { label: 'Không đủ dữ liệu', value: 'UNKNOWN' },
+  { label: 'Nghị quyết', value: 'NQ' },
+  { label: 'Quyết định', value: 'QĐ' },
+  { label: 'Chỉ thị', value: 'CT' },
+  { label: 'Quy chế', value: 'QC' },
+  { label: 'Quy định', value: 'QYĐ' },
+  { label: 'Thông cáo', value: 'TC' },
+  { label: 'Thông báo', value: 'TB' },
+  { label: 'Hướng dẫn', value: 'HD' },
+  { label: 'Chương trình', value: 'CTr' },
+  { label: 'Kế hoạch', value: 'KH' },
+  { label: 'Phương án', value: 'PA' },
+  { label: 'Đề án', value: 'ĐA' },
+  { label: 'Dự án', value: 'DA' },
+  { label: 'Báo cáo', value: 'BC' },
+  { label: 'Biên bản', value: 'BB' },
+  { label: 'Tờ trình', value: 'TTr' },
+  { label: 'Hợp đồng', value: 'HĐ' },
+  { label: 'Công văn', value: 'CV' },
+  { label: 'Công điện', value: 'CĐ' },
+  { label: 'Bản ghi nhớ', value: 'BGN' },
+  { label: 'Bản thỏa thuận', value: 'BTT' },
+  { label: 'Giấy ủy quyền', value: 'GUQ' },
+  { label: 'Giấy mời', value: 'GM' },
+  { label: 'Giấy giới thiệu', value: 'GGT' },
+  { label: 'Giấy nghỉ phép', value: 'GNP' },
+  { label: 'Phiếu gửi', value: 'PG' },
+  { label: 'Phiếu chuyển', value: 'PC' },
+  { label: 'Phiếu báo', value: 'PB' },
+  { label: 'Thư công', value: 'TCg' }
+]
+
 function isActiveJob(status: string): boolean {
   return status.includes('pending') || status.includes('running')
 }
@@ -109,9 +153,22 @@ function markDetailRefreshed() {
 function syncMetadataForm() {
   if (!document.value) return
   metadataForm.title = document.value.title || ''
+  metadataForm.document_type = documentTypeOptions.some((option) => option.value === document.value?.document_type)
+    ? document.value.document_type
+    : 'UNKNOWN'
+  metadataForm.classification_confidence = document.value.classification_confidence ?? null
   metadataForm.document_number = document.value.document_number || ''
+  metadataForm.document_symbol = document.value.document_symbol || ''
   metadataForm.issued_date = document.value.issued_date || ''
+  metadataForm.issued_place = document.value.issued_place || ''
   metadataForm.issuing_agency = document.value.issuing_agency || ''
+  metadataForm.excerpt = document.value.excerpt || ''
+  metadataForm.recipient = document.value.recipient || ''
+  metadataForm.signer_name = document.value.signer_name || ''
+  metadataForm.signer_title = document.value.signer_title || ''
+  metadataForm.seals_present = document.value.seals_present ?? null
+  metadataForm.attachment_present = document.value.attachment_present ?? null
+  metadataForm.page_count = document.value.page_count ?? null
   metadataForm.business_type = document.value.business_type || ''
 }
 
@@ -122,8 +179,14 @@ function formatAuditAction(action: string): string {
   if (action === 'document.source_files_added') return 'Thêm tệp nguồn'
   if (action === 'document.source_files_reordered') return 'Đổi thứ tự tệp nguồn'
   if (action === 'document.source_file_deleted') return 'Xóa tệp nguồn'
+  if (action === 'document.metadata_auto_extracted') return 'Tự trích xuất metadata'
   if (action === 'document.metadata_updated') return 'Cập nhật metadata'
   return action
+}
+
+function formatDocumentType(value?: string | null): string {
+  const option = documentTypeOptions.find((item) => item.value === value)
+  return option ? `${option.label} (${option.value})` : value || '-'
 }
 
 function formatBusinessType(value?: string | null): string {
@@ -131,6 +194,24 @@ function formatBusinessType(value?: string | null): string {
   if (value === 'outgoing_dispatch') return 'Công văn đi'
   if (value === 'contract') return 'Hợp đồng'
   if (value === 'decision') return 'Quyết định'
+  return value || '-'
+}
+
+function formatBoolean(value?: boolean | null): string {
+  if (value === true) return 'Có'
+  if (value === false) return 'Không'
+  return '-'
+}
+
+function formatConfidence(value?: number | null): string {
+  if (value === null || value === undefined) return '-'
+  return `${Math.round(value * 100)}%`
+}
+
+function formatMetadataSource(value?: string | null): string {
+  if (value === 'auto') return 'Tự động'
+  if (value === 'manual') return 'Thủ công'
+  if (value === 'mixed') return 'Kết hợp'
   return value || '-'
 }
 
@@ -158,7 +239,9 @@ function startPolling() {
 
 async function submitReprocess() {
   if (!document.value || !canReprocess.value) return
-  const confirmed = window.confirm('Reprocess sẽ OCR lại tài liệu này và thay thế page/chunk hiện có. Tiếp tục?')
+  const confirmed = window.confirm(
+    'Reprocess sẽ OCR lại tài liệu này và thay thế page/chunk hiện có. Metadata đã sửa thủ công sẽ không bị ghi đè. Tiếp tục?'
+  )
   if (!confirmed) return
 
   const result = await reprocessDocument(document.value.id, reprocessReason.value)
@@ -292,10 +375,42 @@ onBeforeUnmount(stopPolling)
                 />
               </div>
               <div class="space-y-2">
+                <label for="metadata-document-type" class="block text-sm font-medium text-slate-700">Loại văn bản hành chính</label>
+                <select
+                  id="metadata-document-type"
+                  v-model="metadataForm.document_type"
+                  class="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+                  :disabled="metadataLoading"
+                >
+                  <option v-for="option in documentTypeOptions" :key="option.value" :value="option.value">
+                    {{ option.label }} ({{ option.value }})
+                  </option>
+                </select>
+              </div>
+              <div class="space-y-2">
+                <label for="metadata-confidence" class="block text-sm font-medium text-slate-700">Độ tin cậy OCR metadata</label>
+                <InputText
+                  id="metadata-confidence"
+                  :model-value="formatConfidence(metadataForm.classification_confidence)"
+                  class="w-full"
+                  disabled
+                />
+              </div>
+              <div class="space-y-2">
                 <label for="metadata-number" class="block text-sm font-medium text-slate-700">Số văn bản</label>
                 <InputText
                   id="metadata-number"
                   v-model="metadataForm.document_number"
+                  class="w-full"
+                  maxlength="128"
+                  :disabled="metadataLoading"
+                />
+              </div>
+              <div class="space-y-2">
+                <label for="metadata-symbol" class="block text-sm font-medium text-slate-700">Ký hiệu văn bản</label>
+                <InputText
+                  id="metadata-symbol"
+                  v-model="metadataForm.document_symbol"
                   class="w-full"
                   maxlength="128"
                   :disabled="metadataLoading"
@@ -312,12 +427,99 @@ onBeforeUnmount(stopPolling)
                 />
               </div>
               <div class="space-y-2">
+                <label for="metadata-issued-place" class="block text-sm font-medium text-slate-700">Địa danh ban hành</label>
+                <InputText
+                  id="metadata-issued-place"
+                  v-model="metadataForm.issued_place"
+                  class="w-full"
+                  maxlength="255"
+                  :disabled="metadataLoading"
+                />
+              </div>
+              <div class="space-y-2">
                 <label for="metadata-agency" class="block text-sm font-medium text-slate-700">Đơn vị ban hành</label>
                 <InputText
                   id="metadata-agency"
                   v-model="metadataForm.issuing_agency"
                   class="w-full"
                   maxlength="255"
+                  :disabled="metadataLoading"
+                />
+              </div>
+              <div class="space-y-2 sm:col-span-2">
+                <label for="metadata-excerpt" class="block text-sm font-medium text-slate-700">Trích yếu</label>
+                <Textarea
+                  id="metadata-excerpt"
+                  v-model="metadataForm.excerpt"
+                  class="w-full"
+                  rows="3"
+                  :disabled="metadataLoading"
+                />
+              </div>
+              <div class="space-y-2 sm:col-span-2">
+                <label for="metadata-recipient" class="block text-sm font-medium text-slate-700">Nơi nhận / người nhận</label>
+                <Textarea
+                  id="metadata-recipient"
+                  v-model="metadataForm.recipient"
+                  class="w-full"
+                  rows="3"
+                  :disabled="metadataLoading"
+                />
+              </div>
+              <div class="space-y-2">
+                <label for="metadata-signer-name" class="block text-sm font-medium text-slate-700">Người ký</label>
+                <InputText
+                  id="metadata-signer-name"
+                  v-model="metadataForm.signer_name"
+                  class="w-full"
+                  maxlength="255"
+                  :disabled="metadataLoading"
+                />
+              </div>
+              <div class="space-y-2">
+                <label for="metadata-signer-title" class="block text-sm font-medium text-slate-700">Chức vụ người ký</label>
+                <InputText
+                  id="metadata-signer-title"
+                  v-model="metadataForm.signer_title"
+                  class="w-full"
+                  maxlength="255"
+                  :disabled="metadataLoading"
+                />
+              </div>
+              <div class="space-y-2">
+                <label for="metadata-seals" class="block text-sm font-medium text-slate-700">Dấu cơ quan</label>
+                <select
+                  id="metadata-seals"
+                  v-model="metadataForm.seals_present"
+                  class="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+                  :disabled="metadataLoading"
+                >
+                  <option :value="null">Chưa xác định</option>
+                  <option :value="true">Có</option>
+                  <option :value="false">Không</option>
+                </select>
+              </div>
+              <div class="space-y-2">
+                <label for="metadata-attachment" class="block text-sm font-medium text-slate-700">Phụ lục / tệp kèm</label>
+                <select
+                  id="metadata-attachment"
+                  v-model="metadataForm.attachment_present"
+                  class="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+                  :disabled="metadataLoading"
+                >
+                  <option :value="null">Chưa xác định</option>
+                  <option :value="true">Có</option>
+                  <option :value="false">Không</option>
+                </select>
+              </div>
+              <div class="space-y-2">
+                <label for="metadata-page-count" class="block text-sm font-medium text-slate-700">Số trang</label>
+                <InputNumber
+                  id="metadata-page-count"
+                  v-model="metadataForm.page_count"
+                  class="w-full"
+                  input-class="w-full"
+                  :min="1"
                   :disabled="metadataLoading"
                 />
               </div>
@@ -357,23 +559,71 @@ onBeforeUnmount(stopPolling)
           <dl v-else class="grid gap-3 text-sm sm:grid-cols-2">
             <div>
               <dt class="text-slate-500">Loại văn bản</dt>
-              <dd class="font-medium">{{ document.document_type }}</dd>
+              <dd class="font-medium">{{ formatDocumentType(document.document_type) }}</dd>
+            </div>
+            <div>
+              <dt class="text-slate-500">Độ tin cậy</dt>
+              <dd class="font-medium">{{ formatConfidence(document.classification_confidence) }}</dd>
             </div>
             <div>
               <dt class="text-slate-500">Loại nghiệp vụ</dt>
               <dd class="font-medium">{{ formatBusinessType(document.business_type) }}</dd>
             </div>
             <div>
+              <dt class="text-slate-500">Nguồn metadata</dt>
+              <dd class="font-medium">{{ formatMetadataSource(document.metadata_source) }}</dd>
+            </div>
+            <div>
               <dt class="text-slate-500">Số văn bản</dt>
               <dd class="break-words font-medium">{{ document.document_number || '-' }}</dd>
+            </div>
+            <div>
+              <dt class="text-slate-500">Ký hiệu</dt>
+              <dd class="break-words font-medium">{{ document.document_symbol || '-' }}</dd>
             </div>
             <div>
               <dt class="text-slate-500">Ngày ban hành</dt>
               <dd class="font-medium">{{ formatDate(document.issued_date) }}</dd>
             </div>
             <div>
+              <dt class="text-slate-500">Địa danh</dt>
+              <dd class="break-words font-medium">{{ document.issued_place || '-' }}</dd>
+            </div>
+            <div>
               <dt class="text-slate-500">Đơn vị ban hành</dt>
               <dd class="break-words font-medium">{{ document.issuing_agency || '-' }}</dd>
+            </div>
+            <div>
+              <dt class="text-slate-500">Số trang</dt>
+              <dd class="font-medium">{{ document.page_count || '-' }}</dd>
+            </div>
+            <div class="sm:col-span-2">
+              <dt class="text-slate-500">Trích yếu</dt>
+              <dd class="break-words font-medium">{{ document.excerpt || '-' }}</dd>
+            </div>
+            <div class="sm:col-span-2">
+              <dt class="text-slate-500">Nơi nhận / người nhận</dt>
+              <dd class="break-words font-medium">{{ document.recipient || '-' }}</dd>
+            </div>
+            <div>
+              <dt class="text-slate-500">Người ký</dt>
+              <dd class="break-words font-medium">{{ document.signer_name || '-' }}</dd>
+            </div>
+            <div>
+              <dt class="text-slate-500">Chức vụ người ký</dt>
+              <dd class="break-words font-medium">{{ document.signer_title || '-' }}</dd>
+            </div>
+            <div>
+              <dt class="text-slate-500">Dấu cơ quan</dt>
+              <dd class="font-medium">{{ formatBoolean(document.seals_present) }}</dd>
+            </div>
+            <div>
+              <dt class="text-slate-500">Phụ lục / tệp kèm</dt>
+              <dd class="font-medium">{{ formatBoolean(document.attachment_present) }}</dd>
+            </div>
+            <div>
+              <dt class="text-slate-500">Đã review metadata</dt>
+              <dd class="font-medium">{{ document.metadata_reviewed_at ? formatDateTime(document.metadata_reviewed_at) : '-' }}</dd>
             </div>
             <div>
               <dt class="text-slate-500">Trạng thái</dt>
