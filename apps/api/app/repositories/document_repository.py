@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session, selectinload, with_loader_criteria
 
-from app.models.document import Document, DocumentChunk, DocumentPage, OCRJob
+from app.models.document import Document, DocumentChunk, DocumentFile, DocumentPage, OCRJob
 from app.repositories.audit_log_repository import AuditLogRepository
 
 
@@ -48,8 +48,10 @@ class DocumentRepository:
             .where(Document.id == document_id, Document.deleted_at.is_(None))
             .options(
                 selectinload(Document.pages),
+                selectinload(Document.files),
                 selectinload(Document.chunks),
                 selectinload(Document.ocr_jobs),
+                with_loader_criteria(DocumentFile, DocumentFile.deleted_at.is_(None)),
                 with_loader_criteria(DocumentPage, DocumentPage.deleted_at.is_(None)),
                 with_loader_criteria(DocumentChunk, DocumentChunk.deleted_at.is_(None)),
                 with_loader_criteria(OCRJob, OCRJob.deleted_at.is_(None)),
@@ -68,6 +70,44 @@ class DocumentRepository:
         self.db.add(document)
         self.db.flush()
         return document
+
+    def create_file(
+        self,
+        *,
+        document_id: str,
+        original_filename: str,
+        file_path: str,
+        content_type: str | None,
+        file_size: int,
+        file_order: int,
+        status: str = "pending",
+    ) -> DocumentFile:
+        document_file = DocumentFile(
+            document_id=document_id,
+            original_filename=original_filename,
+            file_path=file_path,
+            content_type=content_type,
+            file_size=file_size,
+            file_order=file_order,
+            status=status,
+        )
+        self.db.add(document_file)
+        self.db.flush()
+        return document_file
+
+    def list_files_for_document(self, document_id: str) -> list[DocumentFile]:
+        stmt = (
+            select(DocumentFile)
+            .where(DocumentFile.document_id == document_id, DocumentFile.deleted_at.is_(None))
+            .order_by(DocumentFile.file_order.asc(), DocumentFile.created_at.asc())
+        )
+        return list(self.db.scalars(stmt))
+
+    def update_file_status(self, document_file: DocumentFile, status: str) -> DocumentFile:
+        document_file.status = status
+        self.db.add(document_file)
+        self.db.flush()
+        return document_file
 
     def create_page(self, *, document_id: str, page_number: int, text: str, confidence: float) -> DocumentPage:
         page = DocumentPage(

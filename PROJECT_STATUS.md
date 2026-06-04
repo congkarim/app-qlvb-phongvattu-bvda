@@ -87,8 +87,10 @@ Auth MVP:
 - Frontend có route guard cơ bản: chưa login thì chuyển về `/login`, đã login thì không quay lại `/login`.
 
 Workflow web đã hoàn thiện:
-- `/upload` hiển thị thông tin file đã chọn, loading/error state và tự mở document detail sau upload.
+- `/upload` có hai mode: một tệp là một văn bản, hoặc nhiều tệp thuộc cùng một văn bản nghiệp vụ.
+- `/upload` có trường `Tên văn bản`; mode nhiều tệp bắt buộc nhập tên văn bản và hiển thị danh sách tệp nguồn đã chọn.
 - `/documents/[id]` hiển thị metadata, OCR job status, OCR text, chunks và tự polling tới khi document `searchable`.
+- `/documents/[id]` hiển thị card `Tệp nguồn` để xem một hoặc nhiều file nguồn thuộc cùng document.
 - `/documents/[id]` có action reprocess, khóa nút khi document đang `ocr_pending`, `ocr_running`, `reprocess_pending`, `reprocess_running` hoặc `chunking`.
 - `/documents/[id]` hiển thị audit OCR/reprocess job gồm `job_type`, `status`, `reason`, attempts, error message và thời gian tạo/cập nhật.
 - `/documents` có refresh action, loading state, empty state và link sang detail.
@@ -506,6 +508,35 @@ Kết quả:
 - Headless Chrome xác nhận UI có `Admin audit log`, `Yêu cầu reprocess`, actor admin và reason audit verify.
 - Search `Số 72 UBND KT Kính gửi Ban chỉ huy 32 xóm` sau reprocess audit vẫn trả document `718b0db1-6c8c-4da4-b6aa-5689173d219a` top 1.
 
+Multi-file document upload và source file model ngày 2026-06-04:
+
+```bash
+docker compose run --rm --no-deps api python -m py_compile app/services/document_service.py app/routers/documents.py app/workers/ocr_worker.py app/models/document.py app/repositories/document_repository.py app/schemas/document.py
+docker compose run --rm --no-deps web npm run build
+docker compose up -d --build api worker web
+docker compose exec -T api alembic current
+curl -fsS -I http://localhost:3000/login
+```
+
+Kết quả:
+- Thêm migration `0005_document_files` tạo bảng `document_files` để một document nghiệp vụ có nhiều file nguồn.
+- Thêm model/schema/repository cho `DocumentFile`; detail API trả `files`.
+- Endpoint `POST /api/v1/documents/upload/multi-file` tạo 1 document, nhiều source files, 1 OCR job và audit event `document.upload` có `file_count`/file list.
+- Endpoint upload single cũ vẫn giữ response cũ, đồng thời tạo `document_files` một phần tử và hỗ trợ title form tùy chọn.
+- Worker ưu tiên xử lý `document_files` theo `file_order`, đánh số page liên tục qua nhiều file, fallback `documents.file_path` cho dữ liệu cũ.
+- Frontend `/upload` đã phân biệt `Tên văn bản` và `Tệp nguồn`, hỗ trợ mode nhiều tệp thuộc cùng một văn bản.
+- Frontend `/documents/[id]` hiển thị card `Tệp nguồn`; header dùng `document.title`, không coi filename là tên nghiệp vụ chính.
+- Alembic current là `0005_document_files`.
+- Smoke multi-file:
+  - Document `904886a1-30cf-46ad-bade-161d8c12461c` có title `Công văn multi-file smoke 2026-06-04`.
+  - Có 2 source files `qlvb_multi_a.txt`, `qlvb_multi_b.txt`, đều `completed`.
+  - Worker tạo 2 pages, page 1 từ file thứ nhất, page 2 từ file thứ hai, document chuyển `searchable`.
+  - Search query `zeta` trả đúng document multi-file ở top 1, chunk page 2.
+- Smoke single upload:
+  - Document `10aa4e6e-fa93-49ff-adc0-7a0755757bf7` giữ title form `Single upload title smoke 2026-06-04`.
+  - Có 1 source file `qlvb_single.txt`, OCR xong và document `searchable`.
+- `/upload` SSR có các nhãn `Một tệp`, `Nhiều tệp cùng văn bản`, `Tên văn bản`.
+
 Auth:
 - Đã có JWT login skeleton.
 - Đã có seed admin local.
@@ -516,6 +547,7 @@ Auth:
 Frontend:
 - UI hiện đã đủ cho MVP workflow cơ bản.
 - Đã có auth route guard cơ bản.
+- Upload UI đã hỗ trợ một văn bản có nhiều tệp nguồn.
 - Chưa có layout/form polish ở mức production.
 
 Generated files:
@@ -526,7 +558,7 @@ Generated files:
 
 OCR thật và trích xuất Office text mức MVP đã được triển khai. OCR scan tiếng Việt hiện ưu tiên VietOCR local.
 
-Task tiếp theo nên ưu tiên lọc/tối ưu danh sách tài liệu hoặc RBAC nhẹ nếu cần phân quyền admin/user thật sự.
+Task tiếp theo nên ưu tiên lọc/tối ưu danh sách tài liệu, zip upload dựa trên `document_files`, hoặc RBAC nhẹ nếu cần phân quyền admin/user thật sự.
 
 Workflow MVP hiện có:
 

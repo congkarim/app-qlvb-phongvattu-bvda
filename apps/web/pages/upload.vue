@@ -1,26 +1,53 @@
 <script setup lang="ts">
 import { formatFileSize } from '~/utils/format'
 
-const selectedFile = ref<File | null>(null)
-const { uploadResult, loading, error, uploadDocument, clearUploadResult } = useDocuments()
+const uploadMode = ref<'single' | 'multi'>('single')
+const selectedFiles = ref<File[]>([])
+const documentTitle = ref('')
+const {
+  uploadResult,
+  multiFileUploadResult,
+  loading,
+  error,
+  uploadDocument,
+  uploadMultiFileDocument,
+  clearUploadResult
+} = useDocuments()
 
-function handleSelected(file: File) {
-  selectedFile.value = file
+const isMultiFileMode = computed(() => uploadMode.value === 'multi')
+const canSubmit = computed(() => {
+  if (!selectedFiles.value.length) return false
+  if (isMultiFileMode.value) return Boolean(documentTitle.value.trim())
+  return true
+})
+
+const uploadSummary = computed(() => multiFileUploadResult.value || uploadResult.value)
+
+function handleSelected(files: File[]) {
+  selectedFiles.value = isMultiFileMode.value ? files : files.slice(0, 1)
   clearUploadResult()
 }
 
 async function submit() {
-  if (!selectedFile.value) return
+  if (!canSubmit.value) return
 
-  const result = await uploadDocument(selectedFile.value)
+  const result = isMultiFileMode.value
+    ? await uploadMultiFileDocument(selectedFiles.value, documentTitle.value)
+    : await uploadDocument(selectedFiles.value[0], documentTitle.value)
   if (result) {
     await navigateTo(`/documents/${result.document.id}`)
   }
 }
+
+watch(uploadMode, () => {
+  selectedFiles.value = []
+  documentTitle.value = ''
+  clearUploadResult()
+})
 </script>
 
 <template>
-  <section class="max-w-2xl space-y-5">
+  <section class="max-w-3xl space-y-5">
     <div>
       <h1 class="text-2xl font-semibold">Upload văn bản</h1>
       <p class="mt-1 text-sm text-slate-600">File được lưu local và tạo OCR job pending.</p>
@@ -28,26 +55,64 @@ async function submit() {
 
     <Card>
       <template #content>
-        <div class="space-y-4">
-          <BaseUploadDropzone @selected="handleSelected" />
-          <div v-if="selectedFile" class="rounded border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
-            <p class="font-medium">{{ selectedFile.name }}</p>
-            <p class="mt-1">Dung lượng: {{ formatFileSize(selectedFile.size) }}</p>
-            <p>Content type: {{ selectedFile.type || 'Không xác định' }}</p>
+        <div class="space-y-5">
+          <div class="inline-flex rounded border border-slate-200 bg-slate-50 p-1 text-sm">
+            <button
+              type="button"
+              class="rounded px-3 py-2"
+              :class="uploadMode === 'single' ? 'bg-white font-medium shadow-sm' : 'text-slate-600'"
+              @click="uploadMode = 'single'"
+            >
+              Một tệp
+            </button>
+            <button
+              type="button"
+              class="rounded px-3 py-2"
+              :class="uploadMode === 'multi' ? 'bg-white font-medium shadow-sm' : 'text-slate-600'"
+              @click="uploadMode = 'multi'"
+            >
+              Nhiều tệp cùng văn bản
+            </button>
+          </div>
+
+          <div class="space-y-2">
+            <label for="document-title" class="block text-sm font-medium text-slate-700">
+              Tên văn bản <span v-if="isMultiFileMode" class="text-red-600">*</span>
+            </label>
+            <InputText
+              id="document-title"
+              v-model="documentTitle"
+              class="w-full"
+              :placeholder="isMultiFileMode ? 'Ví dụ: Công văn số 123/CV-VT' : 'Để trống sẽ tự lấy theo tên file'"
+              maxlength="512"
+            />
+          </div>
+
+          <BaseUploadDropzone :multiple="isMultiFileMode" @selected="handleSelected" />
+          <div v-if="selectedFiles.length" class="rounded border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+            <p class="font-medium">Tệp nguồn đã chọn: {{ selectedFiles.length }}</p>
+            <ul class="mt-2 space-y-2">
+              <li v-for="(file, index) in selectedFiles" :key="`${file.name}-${index}`" class="rounded bg-white p-2">
+                <p class="break-words font-medium">{{ index + 1 }}. {{ file.name }}</p>
+                <p class="mt-1 text-xs text-slate-600">
+                  {{ formatFileSize(file.size) }} · {{ file.type || 'Không xác định' }}
+                </p>
+              </li>
+            </ul>
           </div>
           <Message v-if="error" severity="error">{{ error }}</Message>
-          <Button label="Upload" icon="pi pi-upload" :disabled="!selectedFile" :loading="loading" @click="submit" />
+          <Button label="Upload" icon="pi pi-upload" :disabled="!canSubmit" :loading="loading" @click="submit" />
         </div>
       </template>
     </Card>
 
-    <Card v-if="uploadResult">
+    <Card v-if="uploadSummary">
       <template #title>OCR job đã tạo</template>
       <template #content>
-        <p class="text-sm">Document: {{ uploadResult.document.id }}</p>
-        <p class="text-sm">Job: {{ uploadResult.ocr_job.id }}</p>
-        <p class="text-sm">Trạng thái job: {{ uploadResult.ocr_job.status }}</p>
-        <NuxtLink class="mt-3 inline-block text-sky-700" :to="`/documents/${uploadResult.document.id}`">
+        <p class="text-sm">Document: {{ uploadSummary.document.id }}</p>
+        <p class="text-sm">Job: {{ uploadSummary.ocr_job.id }}</p>
+        <p class="text-sm">Trạng thái job: {{ uploadSummary.ocr_job.status }}</p>
+        <NuxtLink class="mt-3 inline-block text-sky-700" :to="`/documents/${uploadSummary.document.id}`">
           Xem chi tiết
         </NuxtLink>
       </template>

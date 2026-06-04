@@ -1,81 +1,76 @@
-# Task Tiếp Theo: Document List Filters Hoặc RBAC Nhẹ
+# Task Vừa Hoàn Thành: Multi-file Document Upload Và Source File Model
 
-Trạng thái: đề xuất.
+Trạng thái: hoàn thành.
 
 Ngày cập nhật: 2026-06-04
 
-## Task Vừa Hoàn Thành
+## Kết Quả Chính
 
-Đã triển khai phương án 2: Audit Log Admin MVP cho upload và reprocess.
+Đã triển khai MVP để một văn bản nghiệp vụ có thể có nhiều tệp nguồn.
 
-Kết quả chính:
-- Thêm migration `0004_audit_logs`.
-- Thêm model/repository audit log.
-- Ghi event `document.upload` khi upload document.
-- Ghi event `document.reprocess_requested` khi request reprocess.
-- Document detail API trả `audit_logs` kèm actor và metadata.
-- Frontend document detail hiển thị card `Admin audit log`.
-- Không triển khai RBAC trong task này để giữ scope đúng phương án đã chọn.
+Thay đổi chính:
+- Thêm migration `0005_document_files`.
+- Thêm bảng/model/schema/repository `document_files`.
+- Detail API trả danh sách `files`.
+- `POST /api/v1/documents/upload/multi-file` tạo 1 document, nhiều source files, 1 OCR job.
+- Upload single cũ vẫn hoạt động và cũng tạo 1 `document_files` record.
+- Worker OCR ưu tiên xử lý `document_files` theo `file_order`, page number nối tiếp qua nhiều file.
+- Worker fallback `documents.file_path` cho dữ liệu cũ chưa có `document_files`.
+- Audit event `document.upload` ghi `file_count` và file list cho multi-file.
+- Frontend `/upload` có hai mode:
+  - `Một tệp`
+  - `Nhiều tệp cùng văn bản`
+- UI tách rõ `Tên văn bản` và danh sách `Tệp nguồn`.
+- Frontend document detail có card `Tệp nguồn`.
+- Header detail dùng `document.title`, không coi filename là tên nghiệp vụ chính.
 
-Đã kiểm tra:
+## Đã Kiểm Tra
 
 ```bash
-docker compose run --rm --no-deps api python -m py_compile /app/app/models/audit_log.py /app/app/repositories/audit_log_repository.py /app/app/repositories/document_repository.py /app/app/services/document_service.py /app/app/routers/documents.py /app/app/schemas/document.py /app/alembic/versions/0004_audit_logs.py
+docker compose run --rm --no-deps api python -m py_compile app/services/document_service.py app/routers/documents.py app/workers/ocr_worker.py app/models/document.py app/repositories/document_repository.py app/schemas/document.py
 docker compose run --rm --no-deps web npm run build
-docker compose up -d --build api web
+docker compose up -d --build api worker web
 docker compose exec -T api alembic current
-curl -fsS http://localhost:8000/health
 curl -fsS -I http://localhost:3000/login
-git diff --check
 ```
 
 Kết quả verify:
-- Alembic current là `0004_audit_logs`.
-- Reprocess audit event `0a8fa045-67b4-4b96-8d7d-ebceaf4b0206` ghi actor admin, reason và OCR job ID đúng.
-- Upload audit event cho document `9f92a517-6e03-49f7-b112-f0279e53f3c2` ghi filename, content type, document type và OCR job ID đúng.
-- Headless Chrome xác nhận UI có `Admin audit log`, `Yêu cầu reprocess`, actor admin và reason audit verify.
-- Search sau reprocess audit vẫn trả document nguồn `718b0db1-6c8c-4da4-b6aa-5689173d219a` top 1.
-- Không phát sinh runtime artifact trong git.
+- Alembic current là `0005_document_files`.
+- Multi-file smoke tạo document `904886a1-30cf-46ad-bade-161d8c12461c` với 2 files.
+- Hai files `qlvb_multi_a.txt`, `qlvb_multi_b.txt` đều chuyển `completed`.
+- Document multi-file chuyển `searchable`.
+- Page 1 lấy text từ file thứ nhất, page 2 lấy text từ file thứ hai.
+- Search query `zeta` trả đúng document multi-file ở top 1, chunk page 2.
+- Single upload cũ vẫn chạy, có title form tùy chọn và 1 source file record.
+- `/upload` SSR có các nhãn `Một tệp`, `Nhiều tệp cùng văn bản`, `Tên văn bản`.
+- Nuxt production build trong Docker Compose hoàn tất.
 
-## Mục Tiêu Task Tiếp Theo
+## Giới Hạn Còn Lại
 
-Cải thiện khả năng vận hành danh sách tài liệu hoặc thêm RBAC nhẹ nếu có nhu cầu phân quyền thật.
+- Chưa hỗ trợ `.zip`.
+- Chưa hỗ trợ batch upload nhiều document riêng trong một lần.
+- Chưa có partial success theo từng source file; nếu một file lỗi thì OCR job failed.
+- Chưa có UI kéo thả sắp xếp lại `file_order`; thứ tự hiện theo thứ tự file gửi lên.
+- Chưa có chức năng thêm tệp nguồn vào document đã tồn tại.
+- Chưa có xóa/soft-delete một source file riêng lẻ.
 
-## Ràng Buộc Không Đổi
+## Task Tiếp Theo Đề Xuất
 
-- Không dùng cloud OCR.
-- Không dùng API LLM để sửa nội dung pháp lý.
-- Docker Compose first.
-- MVP first.
-- Backend giữ `router -> service -> repository`.
-- Frontend giữ `page -> composable -> service -> API`.
-- OCR pipeline local/on-prem.
-- Không commit model files hoặc runtime artifacts.
+Ưu tiên 1 trong 3 hướng sau:
 
-## Phạm Vi Đề Xuất
+1. Lọc/tối ưu danh sách tài liệu:
+   - Tìm theo title/filename.
+   - Lọc status/document_type.
+   - Sắp xếp theo ngày tạo/cập nhật.
 
-### 1. Document List Filters
+2. Quản lý source files sau upload:
+   - Thêm file vào document đã tồn tại.
+   - Đổi thứ tự file.
+   - Soft-delete file nguồn.
+   - Reprocess sau khi thay đổi source files.
 
-Vấn đề:
-- Danh sách documents hiện còn đơn giản, khó lọc theo trạng thái, loại file, hoặc thời gian khi dữ liệu tăng.
+3. Zip upload dựa trên `document_files`:
+   - Mode zip là một văn bản gồm nhiều tệp nguồn.
+   - Chưa tự đoán zip chứa nhiều văn bản riêng để tránh sai nghiệp vụ.
 
-Hướng xử lý:
-- Thêm query params backend cho `/documents`: status, document_type, q, created_from/created_to.
-- Frontend `/documents` có filter panel MVP.
-- Giữ pagination limit/offset hiện có.
-
-### 2. RBAC Nhẹ
-
-Vấn đề:
-- Hiện mọi user active đã đăng nhập có thể upload/search/reprocess.
-
-Hướng xử lý:
-- Chỉ làm nếu cần phân quyền thật cho nhóm 50 người dùng nội bộ.
-- Thêm role `admin/user` và `require_admin`.
-- Giới hạn upload/reprocess cho admin; list/detail/search vẫn cho user active.
-
-## Tiêu Chí Hoàn Thành
-
-- Nếu làm filters, danh sách documents lọc được theo status/type/search text và UI vẫn dùng service/composable.
-- Nếu làm RBAC, user thường bị chặn khỏi endpoint admin-only và audit log vẫn ghi actor.
-- Không làm chậm workflow upload -> OCR -> search hiện tại.
+RBAC role admin/user vẫn là hướng riêng nếu cần phân quyền thật sự cho nội bộ.

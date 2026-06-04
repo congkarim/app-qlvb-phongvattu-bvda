@@ -18,9 +18,28 @@ class Document(UUIDTimestampMixin, Base):
     department_id: Mapped[str | None] = mapped_column(ForeignKey("departments.id"), nullable=True)
 
     department: Mapped["Department | None"] = relationship(back_populates="documents")
+    files: Mapped[list["DocumentFile"]] = relationship(back_populates="document", cascade="all, delete-orphan")
     pages: Mapped[list["DocumentPage"]] = relationship(back_populates="document", cascade="all, delete-orphan")
     chunks: Mapped[list["DocumentChunk"]] = relationship(back_populates="document", cascade="all, delete-orphan")
     ocr_jobs: Mapped[list["OCRJob"]] = relationship(back_populates="document", cascade="all, delete-orphan")
+
+
+class DocumentFile(UUIDTimestampMixin, Base):
+    __tablename__ = "document_files"
+
+    document_id: Mapped[str] = mapped_column(ForeignKey("documents.id"), nullable=False, index=True)
+    original_filename: Mapped[str] = mapped_column(String(512), nullable=False)
+    file_path: Mapped[str] = mapped_column(String(1024), nullable=False)
+    content_type: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    file_size: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    file_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    status: Mapped[str] = mapped_column(String(64), nullable=False, default="pending")
+
+    document: Mapped[Document] = relationship(back_populates="files")
+
+    __table_args__ = (
+        Index("ix_document_files_document_order", "document_id", "file_order"),
+    )
 
 
 class DocumentPage(UUIDTimestampMixin, Base):

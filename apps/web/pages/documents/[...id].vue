@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { formatDateTime } from '~/utils/format'
+import { formatDateTime, formatFileSize } from '~/utils/format'
 
 const route = useRoute()
 const { document, loading, reprocessLoading, error, fetchDocument, reprocessDocument } = useDocuments()
@@ -30,6 +30,18 @@ const sortedAuditLogs = computed(() => {
   return [...(document.value?.audit_logs || [])].sort((a, b) => {
     return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
   })
+})
+
+const sourceFiles = computed(() => {
+  return [...(document.value?.files || [])].sort((a, b) => {
+    return a.file_order - b.file_order || new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+  })
+})
+
+const sourceSubtitle = computed(() => {
+  if (!document.value) return ''
+  if (sourceFiles.value.length) return `${sourceFiles.value.length} tệp nguồn`
+  return document.value.original_filename
 })
 
 const shouldPoll = computed(() => {
@@ -123,7 +135,7 @@ onBeforeUnmount(stopPolling)
       <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 class="break-words text-2xl font-semibold">{{ document.title }}</h1>
-          <p class="mt-1 break-words text-sm text-slate-600">{{ document.original_filename }}</p>
+          <p class="mt-1 break-words text-sm text-slate-600">{{ sourceSubtitle }}</p>
           <p v-if="lastDetailRefreshText" class="mt-1 text-xs text-slate-500">
             Cập nhật detail lần cuối: {{ lastDetailRefreshText }}
           </p>
@@ -152,6 +164,32 @@ onBeforeUnmount(stopPolling)
               <dd class="font-medium">{{ formatDateTime(document.updated_at) }}</dd>
             </div>
           </dl>
+        </template>
+      </Card>
+
+      <Card>
+        <template #title>Tệp nguồn</template>
+        <template #content>
+          <div v-if="sourceFiles.length" class="space-y-3 text-sm">
+            <article
+              v-for="file in sourceFiles"
+              :key="file.id"
+              class="rounded border border-slate-200 p-3"
+            >
+              <div class="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p class="break-words font-medium">{{ file.file_order + 1 }}. {{ file.original_filename }}</p>
+                  <p class="mt-1 text-xs text-slate-600">
+                    {{ formatFileSize(file.file_size) }} · {{ file.content_type || 'Không xác định' }}
+                  </p>
+                </div>
+                <BaseStatusBadge :status="file.status" />
+              </div>
+            </article>
+          </div>
+          <p v-else class="break-words text-sm text-slate-600">
+            Tệp nguồn cũ: {{ document.original_filename }}
+          </p>
         </template>
       </Card>
 

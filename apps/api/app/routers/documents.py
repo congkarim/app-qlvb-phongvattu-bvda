@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
@@ -7,6 +7,7 @@ from app.models.user import User
 from app.schemas.document import (
     DocumentDetailRead,
     DocumentRead,
+    MultiFileUploadResponse,
     ReprocessDocumentRequest,
     ReprocessDocumentResponse,
     UploadResponse,
@@ -20,12 +21,40 @@ router = APIRouter(prefix="/documents", tags=["documents"], dependencies=[Depend
 @router.post("/upload", response_model=UploadResponse, status_code=status.HTTP_201_CREATED)
 def upload_document(
     file: UploadFile = File(...),
+    title: str | None = Form(default=None),
     document_type: str = Query(default="document"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> UploadResponse:
-    document, ocr_job = DocumentService(db).upload(file=file, document_type=document_type, actor=current_user)
+    document, ocr_job = DocumentService(db).upload(
+        file=file,
+        title=title,
+        document_type=document_type,
+        actor=current_user,
+    )
     return UploadResponse(document=document, ocr_job=ocr_job)
+
+
+@router.post("/upload/multi-file", response_model=MultiFileUploadResponse, status_code=status.HTTP_201_CREATED)
+def upload_multi_file_document(
+    files: list[UploadFile] = File(...),
+    title: str = Form(...),
+    document_type: str = Form(default="document"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> MultiFileUploadResponse:
+    if not title.strip():
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Document title is required")
+    if not files:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="At least one source file is required")
+
+    document, document_files, ocr_job = DocumentService(db).upload_multi_file(
+        title=title,
+        files=files,
+        document_type=document_type,
+        actor=current_user,
+    )
+    return MultiFileUploadResponse(document=document, files=document_files, ocr_job=ocr_job)
 
 
 @router.get("", response_model=list[DocumentRead])

@@ -46,6 +46,18 @@ export interface DocumentPage {
   status: string
 }
 
+export interface DocumentFile {
+  id: string
+  document_id: string
+  original_filename: string
+  content_type?: string | null
+  file_size: number
+  file_order: number
+  status: string
+  created_at: string
+  updated_at: string
+}
+
 export interface DocumentChunk {
   id: string
   chunk_index: number
@@ -57,6 +69,7 @@ export interface DocumentChunk {
 }
 
 export interface DocumentDetail extends DocumentItem {
+  files: DocumentFile[]
   pages: DocumentPage[]
   chunks: DocumentChunk[]
   ocr_jobs: OCRJob[]
@@ -65,6 +78,12 @@ export interface DocumentDetail extends DocumentItem {
 
 export interface UploadResponse {
   document: DocumentItem
+  ocr_job: OCRJob
+}
+
+export interface MultiFileUploadResponse {
+  document: DocumentItem
+  files: DocumentFile[]
   ocr_job: OCRJob
 }
 

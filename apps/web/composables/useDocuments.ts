@@ -1,10 +1,17 @@
-import type { DocumentDetail, DocumentItem, ReprocessDocumentResponse, UploadResponse } from '~/types/document'
+import type {
+  DocumentDetail,
+  DocumentItem,
+  MultiFileUploadResponse,
+  ReprocessDocumentResponse,
+  UploadResponse
+} from '~/types/document'
 import { createDocumentService } from '~/services/document.service'
 
 export function useDocuments() {
   const documents = ref<DocumentItem[]>([])
   const document = ref<DocumentDetail | null>(null)
   const uploadResult = ref<UploadResponse | null>(null)
+  const multiFileUploadResult = ref<MultiFileUploadResponse | null>(null)
   const loading = ref(false)
   const reprocessLoading = ref(false)
   const error = ref('')
@@ -34,14 +41,28 @@ export function useDocuments() {
     }
   }
 
-  async function uploadDocument(file: File): Promise<UploadResponse | null> {
+  async function uploadDocument(file: File, title = ''): Promise<UploadResponse | null> {
     loading.value = true
     error.value = ''
     try {
-      uploadResult.value = await service.upload(file)
+      uploadResult.value = await service.upload(file, 'document', title)
       return uploadResult.value
     } catch {
       error.value = 'Upload không thành công'
+      return null
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function uploadMultiFileDocument(files: File[], title: string): Promise<MultiFileUploadResponse | null> {
+    loading.value = true
+    error.value = ''
+    try {
+      multiFileUploadResult.value = await service.uploadMultiFile(files, title)
+      return multiFileUploadResult.value
+    } catch {
+      error.value = 'Upload nhiều tệp không thành công'
       return null
     } finally {
       loading.value = false
@@ -71,18 +92,21 @@ export function useDocuments() {
 
   function clearUploadResult() {
     uploadResult.value = null
+    multiFileUploadResult.value = null
   }
 
   return {
     documents,
     document,
     uploadResult,
+    multiFileUploadResult,
     loading,
     reprocessLoading,
     error,
     fetchDocuments,
     fetchDocument,
     uploadDocument,
+    uploadMultiFileDocument,
     reprocessDocument,
     clearUploadResult
   }

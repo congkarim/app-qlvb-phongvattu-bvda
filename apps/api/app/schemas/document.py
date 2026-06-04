@@ -61,6 +61,20 @@ class DocumentPageRead(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class DocumentFileRead(BaseModel):
+    id: str
+    document_id: str
+    original_filename: str
+    content_type: str | None = None
+    file_size: int
+    file_order: int
+    status: str
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
 class DocumentChunkRead(BaseModel):
     id: str
     chunk_index: int
@@ -74,6 +88,7 @@ class DocumentChunkRead(BaseModel):
 
 
 class DocumentDetailRead(DocumentRead):
+    files: list[DocumentFileRead] = []
     pages: list[DocumentPageRead] = []
     chunks: list[DocumentChunkRead] = []
     ocr_jobs: list[OCRJobRead] = []
@@ -82,6 +97,12 @@ class DocumentDetailRead(DocumentRead):
 
 class UploadResponse(BaseModel):
     document: DocumentRead
+    ocr_job: OCRJobRead
+
+
+class MultiFileUploadResponse(BaseModel):
+    document: DocumentRead
+    files: list[DocumentFileRead]
     ocr_job: OCRJobRead
 
 

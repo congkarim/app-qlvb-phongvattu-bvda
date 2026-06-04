@@ -1,11 +1,14 @@
 <script setup lang="ts">
+defineProps<{
+  multiple?: boolean
+}>()
+
 const emit = defineEmits<{
-  selected: [file: File]
+  selected: [files: File[]]
 }>()
 
 function handleSelect(event: { files: File[] }) {
-  const [file] = event.files
-  if (file) emit('selected', file)
+  if (event.files.length) emit('selected', event.files)
 }
 </script>
 
@@ -15,6 +18,7 @@ function handleSelect(event: { files: File[] }) {
     name="file"
     choose-label="Chọn file"
     :auto="false"
+    :multiple="multiple"
     custom-upload
     @select="handleSelect"
   />
