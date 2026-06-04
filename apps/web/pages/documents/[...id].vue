@@ -2,23 +2,37 @@
 import { formatDateTime } from '~/utils/format'
 
 const route = useRoute()
-const { document, loading, error, fetchDocument } = useDocuments()
+const { document, loading, reprocessLoading, error, fetchDocument, reprocessDocument } = useDocuments()
 let pollTimer: ReturnType<typeof setInterval> | undefined
+const reprocessReason = ref('')
+
+const processingStatuses = new Set([
+  'ocr_pending',
+  'ocr_running',
+  'reprocess_pending',
+  'reprocess_running',
+  'chunking'
+])
 
 const documentId = computed(() => {
   const value = route.params.id
   return Array.isArray(value) ? value.join('/') : String(value)
 })
 
-const latestOcrJob = computed(() => {
+const sortedOcrJobs = computed(() => {
   return [...(document.value?.ocr_jobs || [])].sort((a, b) => {
     return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-  })[0]
+  })
 })
 
 const shouldPoll = computed(() => {
   const status = document.value?.status
-  return Boolean(status && status !== 'searchable' && status !== 'failed')
+  return Boolean(status && processingStatuses.has(status))
+})
+
+const canReprocess = computed(() => {
+  const status = document.value?.status
+  return Boolean(status && !processingStatuses.has(status))
 })
 
 const ocrText = computed(() => {
@@ -38,6 +52,17 @@ function startPolling() {
     await fetchDocument(documentId.value, { silent: true })
     if (!shouldPoll.value) stopPolling()
   }, 3000)
+}
+
+async function submitReprocess() {
+  if (!document.value || !canReprocess.value) return
+
+  const result = await reprocessDocument(document.value.id, reprocessReason.value)
+  if (!result) return
+
+  reprocessReason.value = ''
+  await fetchDocument(documentId.value, { silent: true })
+  if (shouldPoll.value) startPolling()
 }
 
 onMounted(async () => {
@@ -92,16 +117,74 @@ onBeforeUnmount(stopPolling)
       </Card>
 
       <Card>
-        <template #title>OCR job</template>
+        <template #title>Reprocess</template>
         <template #content>
-          <div v-if="latestOcrJob" class="space-y-2 text-sm">
-            <p>Job ID: {{ latestOcrJob.id }}</p>
-            <p>Trạng thái: <BaseStatusBadge :status="latestOcrJob.status" /></p>
-            <p>Số lần thử: {{ latestOcrJob.attempts }}</p>
-            <Message v-if="latestOcrJob.error_message" severity="error">{{ latestOcrJob.error_message }}</Message>
-            <p v-if="shouldPoll" class="text-slate-600">Đang tự cập nhật trạng thái OCR...</p>
+          <div class="space-y-3">
+            <Textarea
+              v-model="reprocessReason"
+              class="w-full"
+              rows="3"
+              maxlength="500"
+              placeholder="Lý do reprocess, ví dụ: kiểm tra lại OCR sau khi tối ưu engine"
+              :disabled="!canReprocess || reprocessLoading"
+            />
+            <div class="flex flex-wrap items-center gap-3">
+              <Button
+                label="Reprocess"
+                icon="pi pi-refresh"
+                :disabled="!canReprocess"
+                :loading="reprocessLoading"
+                @click="submitReprocess"
+              />
+              <p v-if="!canReprocess" class="text-sm text-slate-600">
+                Document đang xử lý nên chưa thể reprocess.
+              </p>
+            </div>
+            <p v-if="shouldPoll" class="text-sm text-slate-600">Đang tự cập nhật trạng thái OCR/reprocess...</p>
           </div>
-          <p v-else class="text-sm text-slate-600">Chưa có OCR job.</p>
+        </template>
+      </Card>
+
+      <Card>
+        <template #title>Job audit</template>
+        <template #content>
+          <div v-if="sortedOcrJobs.length" class="space-y-3 text-sm">
+            <article
+              v-for="job in sortedOcrJobs"
+              :key="job.id"
+              class="rounded border border-slate-200 p-3"
+            >
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <div class="flex flex-wrap items-center gap-2">
+                  <Tag :value="job.job_type" severity="info" />
+                  <BaseStatusBadge :status="job.status" />
+                </div>
+                <span class="text-xs text-slate-500">{{ formatDateTime(job.created_at) }}</span>
+              </div>
+              <dl class="mt-3 grid gap-2 sm:grid-cols-2">
+                <div>
+                  <dt class="text-slate-500">Job ID</dt>
+                  <dd class="break-all font-medium">{{ job.id }}</dd>
+                </div>
+                <div>
+                  <dt class="text-slate-500">Số lần thử</dt>
+                  <dd class="font-medium">{{ job.attempts }}</dd>
+                </div>
+                <div>
+                  <dt class="text-slate-500">Cập nhật</dt>
+                  <dd class="font-medium">{{ formatDateTime(job.updated_at) }}</dd>
+                </div>
+                <div v-if="job.reason">
+                  <dt class="text-slate-500">Lý do</dt>
+                  <dd class="font-medium">{{ job.reason }}</dd>
+                </div>
+              </dl>
+              <Message v-if="job.error_message" class="mt-3" severity="error">
+                {{ job.error_message }}
+              </Message>
+            </article>
+          </div>
+          <p v-else class="text-sm text-slate-600">Chưa có OCR/reprocess job.</p>
         </template>
       </Card>
 

@@ -1,8 +1,10 @@
 export interface OCRJob {
   id: string
   document_id: string
+  job_type: string
   status: string
   attempts: number
+  reason?: string | null
   error_message?: string | null
   created_at: string
   updated_at: string
@@ -44,6 +46,11 @@ export interface DocumentDetail extends DocumentItem {
 }
 
 export interface UploadResponse {
+  document: DocumentItem
+  ocr_job: OCRJob
+}
+
+export interface ReprocessDocumentResponse {
   document: DocumentItem
   ocr_job: OCRJob
 }

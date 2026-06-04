@@ -1,6 +1,6 @@
 # Trạng Thái Dự Án
 
-Cập nhật lần cuối: 2026-06-03
+Cập nhật lần cuối: 2026-06-04
 
 ## Giai Đoạn Hiện Tại
 
@@ -89,6 +89,8 @@ Auth MVP:
 Workflow web đã hoàn thiện:
 - `/upload` hiển thị thông tin file đã chọn, loading/error state và tự mở document detail sau upload.
 - `/documents/[id]` hiển thị metadata, OCR job status, OCR text, chunks và tự polling tới khi document `searchable`.
+- `/documents/[id]` có action reprocess, khóa nút khi document đang `ocr_pending`, `ocr_running`, `reprocess_pending`, `reprocess_running` hoặc `chunking`.
+- `/documents/[id]` hiển thị audit OCR/reprocess job gồm `job_type`, `status`, `reason`, attempts, error message và thời gian tạo/cập nhật.
 - `/documents` có refresh action, loading state, empty state và link sang detail.
 - `/dashboard` có validation search input, loading/empty/error state và result link sang document nguồn.
 
@@ -403,6 +405,19 @@ Kết quả:
   - Detail API trả cả job OCR ban đầu `job_type='ocr'` và job reprocess `job_type='reprocess'`.
   - Document vẫn có `1/1` chunk active, có `content_hash` và `qdrant_point_id`.
   - Search `Số 72 UBND KT Kính gửi Ban chỉ huy 32 xóm` vẫn trả công văn JPEG top 1.
+
+UI reprocess và job audit kiểm tra ngày 2026-06-04:
+
+```bash
+docker compose run --rm --no-deps web npm run build
+```
+
+Kết quả:
+- Frontend document service đã có `reprocess(id, reason)` gọi `POST /api/v1/documents/{document_id}/reprocess`.
+- Composable `useDocuments` đã có action `reprocessDocument` và loading state riêng cho reprocess.
+- Trang `/documents/[id]` đã có form nhập lý do reprocess, nút reprocess, polling lại detail sau khi tạo job và không cho bấm khi document đang xử lý.
+- Trang `/documents/[id]` đã hiển thị danh sách audit OCR/reprocess job thay vì chỉ job mới nhất.
+- Nuxt production build trong Docker Compose hoàn tất thành công.
 
 Auth:
 - Đã có JWT login skeleton.

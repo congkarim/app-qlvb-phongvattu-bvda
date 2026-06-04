@@ -1,66 +1,51 @@
-# Task Tiếp Theo: UI Reprocess Và Job Audit
+# Task Tiếp Theo: Browser Verify Reprocess UI Và Auth Guard Backend
 
 Trạng thái: đề xuất.
 
-Ngày cập nhật: 2026-06-03
+Ngày cập nhật: 2026-06-04
 
 ## Task Vừa Hoàn Thành
 
-Đã thêm API reprocess document có audit và worker xử lý async.
+Đã thêm UI reprocess và job audit trên màn hình chi tiết document.
 
 Kết quả chính:
-- Thêm endpoint:
+- Thêm method frontend service:
 
 ```text
-POST /api/v1/documents/{document_id}/reprocess
+reprocess(id, reason) -> POST /api/v1/documents/{document_id}/reprocess
 ```
 
-- Request body hỗ trợ:
-
-```json
-{"reason":"verify reprocess API workflow"}
-```
-
-- API chỉ tạo job, không OCR inline:
-  - Tạo `ocr_jobs` mới với `job_type='reprocess'`.
-  - Lưu `reason`.
-  - Job `status='pending'`.
-  - Document chuyển `reprocess_pending`.
-  - Worker xử lý async.
-- Thêm migration `0003_ocr_job_type`:
-  - `ocr_jobs.job_type`.
-  - `ocr_jobs.reason`.
-- Worker phân biệt:
-  - `job_type='ocr'`: OCR lần đầu, create page/chunk mới.
-  - `job_type='reprocess'`: replace page/chunk hiện có, upsert lại Qdrant, xóa point dư nếu số chunk giảm.
-- Worker commit trạng thái `ocr_running` hoặc `reprocess_running` ngay khi bắt đầu để UI/API thấy trạng thái đang xử lý.
-- Nếu reprocess lỗi, document quay về trạng thái trước đó thay vì mất trạng thái `searchable`.
-- Document detail API trả `job_type` và `reason` trong `ocr_jobs`.
+- Thêm composable action `reprocessDocument(id, reason)` với loading state riêng.
+- Trang `/documents/[id]` có form nhập lý do reprocess và nút `Reprocess`.
+- UI không cho bấm reprocess khi document đang:
+  - `ocr_pending`
+  - `ocr_running`
+  - `reprocess_pending`
+  - `reprocess_running`
+  - `chunking`
+- Sau khi tạo reprocess job, page refresh detail và bật polling theo trạng thái xử lý.
+- Job audit hiển thị danh sách OCR/reprocess jobs, gồm:
+  - `job_type`
+  - `status`
+  - `reason`
+  - `attempts`
+  - `error_message`
+  - thời gian tạo/cập nhật
 
 Đã kiểm tra:
 
 ```bash
-docker compose run --rm --no-deps worker python -m py_compile /app/app/models/document.py /app/app/repositories/document_repository.py /app/app/services/document_service.py /app/app/routers/documents.py /app/app/schemas/document.py /app/app/workers/ocr_worker.py /app/alembic/versions/0003_ocr_job_type.py
-docker compose up -d --build api worker
-curl -fsS http://localhost:8000/health
-docker compose exec -T api alembic current
-curl -fsS -X POST http://localhost:8000/api/v1/documents/718b0db1-6c8c-4da4-b6aa-5689173d219a/reprocess -H 'Content-Type: application/json' -d '{"reason":"verify reprocess API workflow"}'
-curl -fsS http://localhost:8000/api/v1/documents/718b0db1-6c8c-4da4-b6aa-5689173d219a
-curl -fsS -X POST http://localhost:8000/api/v1/search/semantic -H 'Content-Type: application/json' -d '{"query":"Số 72 UBND KT Kính gửi Ban chỉ huy 32 xóm","limit":3}'
+docker compose run --rm --no-deps web npm run build
+git diff --check
 ```
 
 Kết quả verify:
-- API trả `202 Accepted`.
-- Job ID: `6a154fc5-e3f6-4f45-b929-d59db6566163`.
-- Job `job_type='reprocess'`, `reason='verify reprocess API workflow'`.
-- Worker xử lý xong: job `completed`, attempts `1`, document `searchable`.
-- Detail API trả cả job OCR ban đầu `job_type='ocr'` và job reprocess `job_type='reprocess'`.
-- Document vẫn có `1/1` chunk active, có `content_hash` và `qdrant_point_id`.
-- Search `Số 72 UBND KT Kính gửi Ban chỉ huy 32 xóm` vẫn trả công văn JPEG top 1.
+- Nuxt production build trong Docker Compose thành công.
+- Không phát sinh runtime artifact trong git.
 
 ## Mục Tiêu Task Tiếp Theo
 
-Thêm UI hoặc frontend workflow để người dùng/admin kích hoạt reprocess và xem audit job ngay trong màn hình chi tiết document.
+Kiểm tra browser workflow reprocess end-to-end và bổ sung auth guard backend cho API tài liệu/search.
 
 ## Ràng Buộc Không Đổi
 
@@ -75,32 +60,33 @@ Thêm UI hoặc frontend workflow để người dùng/admin kích hoạt reproc
 
 ## Phạm Vi Đề Xuất
 
-### 1. Frontend Reprocess Action
+### 1. Browser Verify Reprocess UI
 
 Vấn đề:
-- API reprocess đã có nhưng người dùng vẫn phải gọi bằng curl.
+- Build đã pass, nhưng cần kiểm tra thực tế trong browser với API/worker chạy đầy đủ.
 
 Hướng xử lý:
-- Thêm method `reprocessDocument(id, reason)` trong frontend document service.
-- Thêm composable action trong `useDocuments`.
-- Trên page document detail, thêm nút reprocess khi document không ở trạng thái đang xử lý.
-- Sau khi gọi reprocess, refresh/poll detail như upload OCR flow hiện tại.
+- Chạy `docker compose up -d --build api worker web`.
+- Đăng nhập admin local.
+- Mở document đã `searchable`.
+- Bấm reprocess với reason kiểm thử.
+- Xác nhận UI chuyển `reprocess_pending`/`reprocess_running`, sau đó về `searchable`.
+- Xác nhận job audit có job `reprocess` mới và reason đúng.
+- Search lại query nguồn để xác nhận document vẫn đứng đúng.
 
-### 2. Job Audit Display
+### 2. Backend Auth Guard
 
 Vấn đề:
-- Detail API đã trả `ocr_jobs`, nhưng UI chưa hiển thị rõ `job_type`, `reason`, attempts, error.
+- Frontend đã có route guard, nhưng API tài liệu/search hiện vẫn chưa enforce backend authorization dependency.
 
 Hướng xử lý:
-- Hiển thị danh sách OCR/reprocess jobs trong document detail.
-- Badge theo status.
-- Hiển thị reason nếu có.
-- Hiển thị error message khi job failed.
+- Thêm dependency auth vào documents/search routers.
+- Giữ endpoint `/health` public.
+- Kiểm tra curl không token bị từ chối và token admin vẫn dùng được.
 
 ## Tiêu Chí Hoàn Thành
 
-- Người dùng có thể bấm reprocess từ document detail.
-- UI không cho bấm reprocess khi document đang `ocr_pending`, `ocr_running`, `reprocess_pending`, `reprocess_running` hoặc `chunking`.
-- Job audit hiển thị được OCR job và reprocess job.
+- Browser workflow reprocess chạy end-to-end.
 - Search sau reprocess vẫn trả document nguồn đúng.
-- Không phát sinh runtime artifact trong git.
+- API documents/search yêu cầu token backend.
+- Frontend hiện tại vẫn gọi API thành công nhờ token từ auth store.

@@ -1,4 +1,4 @@
-import type { DocumentDetail, DocumentItem, UploadResponse } from '~/types/document'
+import type { DocumentDetail, DocumentItem, ReprocessDocumentResponse, UploadResponse } from '~/types/document'
 import { useApiClient } from './api'
 
 export function createDocumentService() {
@@ -17,6 +17,14 @@ export function createDocumentService() {
       return api<UploadResponse>(`/documents/upload?document_type=${documentType}`, {
         method: 'POST',
         body: form
+      })
+    },
+    reprocess(id: string, reason: string) {
+      return api<ReprocessDocumentResponse>(`/documents/${id}/reprocess`, {
+        method: 'POST',
+        body: {
+          reason: reason.trim() || null
+        }
       })
     }
   }

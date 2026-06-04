@@ -1,4 +1,4 @@
-import type { DocumentDetail, DocumentItem, UploadResponse } from '~/types/document'
+import type { DocumentDetail, DocumentItem, ReprocessDocumentResponse, UploadResponse } from '~/types/document'
 import { createDocumentService } from '~/services/document.service'
 
 export function useDocuments() {
@@ -6,6 +6,7 @@ export function useDocuments() {
   const document = ref<DocumentDetail | null>(null)
   const uploadResult = ref<UploadResponse | null>(null)
   const loading = ref(false)
+  const reprocessLoading = ref(false)
   const error = ref('')
   const service = createDocumentService()
 
@@ -47,6 +48,27 @@ export function useDocuments() {
     }
   }
 
+  async function reprocessDocument(id: string, reason: string): Promise<ReprocessDocumentResponse | null> {
+    reprocessLoading.value = true
+    error.value = ''
+    try {
+      const result = await service.reprocess(id, reason)
+      if (document.value?.id === id) {
+        document.value = {
+          ...document.value,
+          ...result.document,
+          ocr_jobs: [result.ocr_job, ...document.value.ocr_jobs]
+        }
+      }
+      return result
+    } catch {
+      error.value = 'Không tạo được job reprocess'
+      return null
+    } finally {
+      reprocessLoading.value = false
+    }
+  }
+
   function clearUploadResult() {
     uploadResult.value = null
   }
@@ -56,10 +78,12 @@ export function useDocuments() {
     document,
     uploadResult,
     loading,
+    reprocessLoading,
     error,
     fetchDocuments,
     fetchDocument,
     uploadDocument,
+    reprocessDocument,
     clearUploadResult
   }
 }
