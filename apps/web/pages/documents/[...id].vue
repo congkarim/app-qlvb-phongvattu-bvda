@@ -26,6 +26,12 @@ const sortedOcrJobs = computed(() => {
   })
 })
 
+const sortedAuditLogs = computed(() => {
+  return [...(document.value?.audit_logs || [])].sort((a, b) => {
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  })
+})
+
 const shouldPoll = computed(() => {
   const status = document.value?.status
   return Boolean(status && processingStatuses.has(status))
@@ -50,6 +56,18 @@ function isActiveJob(status: string): boolean {
 
 function markDetailRefreshed() {
   lastDetailRefreshedAt.value = new Date()
+}
+
+function formatAuditAction(action: string): string {
+  if (action === 'document.upload') return 'Upload văn bản'
+  if (action === 'document.reprocess_requested') return 'Yêu cầu reprocess'
+  return action
+}
+
+function formatAuditMetadataValue(value: unknown): string {
+  if (value === null || value === undefined || value === '') return '-'
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') return String(value)
+  return JSON.stringify(value)
 }
 
 function stopPolling() {
@@ -211,6 +229,36 @@ onBeforeUnmount(stopPolling)
             </article>
           </div>
           <p v-else class="text-sm text-slate-600">Chưa có OCR/reprocess job.</p>
+        </template>
+      </Card>
+
+      <Card>
+        <template #title>Admin audit log</template>
+        <template #content>
+          <div v-if="sortedAuditLogs.length" class="space-y-3 text-sm">
+            <article v-for="event in sortedAuditLogs" :key="event.id" class="rounded border border-slate-200 p-3">
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <div class="flex flex-wrap items-center gap-2">
+                  <Tag :value="formatAuditAction(event.action)" severity="info" />
+                  <span class="text-slate-700">
+                    {{ event.actor?.full_name || event.actor?.email || 'Không xác định' }}
+                  </span>
+                </div>
+                <span class="text-xs text-slate-500">{{ formatDateTime(event.created_at) }}</span>
+              </div>
+              <dl class="mt-3 grid gap-2 sm:grid-cols-2">
+                <div>
+                  <dt class="text-slate-500">Event ID</dt>
+                  <dd class="break-all font-medium">{{ event.id }}</dd>
+                </div>
+                <div v-for="(value, key) in event.metadata" :key="key">
+                  <dt class="text-slate-500">{{ key }}</dt>
+                  <dd class="break-words font-medium">{{ formatAuditMetadataValue(value) }}</dd>
+                </div>
+              </dl>
+            </article>
+          </div>
+          <p v-else class="text-sm text-slate-600">Chưa có audit log admin.</p>
         </template>
       </Card>
 

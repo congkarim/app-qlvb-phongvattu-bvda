@@ -10,6 +10,23 @@ export interface OCRJob {
   updated_at: string
 }
 
+export interface AuditActor {
+  id: string
+  email: string
+  full_name: string
+}
+
+export interface AuditLog {
+  id: string
+  actor_user_id?: string | null
+  actor?: AuditActor | null
+  action: string
+  entity_type: string
+  entity_id: string
+  metadata: Record<string, unknown>
+  created_at: string
+}
+
 export interface DocumentItem {
   id: string
   title: string
@@ -43,6 +60,7 @@ export interface DocumentDetail extends DocumentItem {
   pages: DocumentPage[]
   chunks: DocumentChunk[]
   ocr_jobs: OCRJob[]
+  audit_logs: AuditLog[]
 }
 
 export interface UploadResponse {

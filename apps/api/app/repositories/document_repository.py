@@ -5,6 +5,7 @@ from sqlalchemy import or_, select
 from sqlalchemy.orm import Session, selectinload, with_loader_criteria
 
 from app.models.document import Document, DocumentChunk, DocumentPage, OCRJob
+from app.repositories.audit_log_repository import AuditLogRepository
 
 
 class DocumentRepository:
@@ -54,7 +55,13 @@ class DocumentRepository:
                 with_loader_criteria(OCRJob, OCRJob.deleted_at.is_(None)),
             )
         )
-        return self.db.scalar(stmt)
+        document = self.db.scalar(stmt)
+        if document is not None:
+            document.audit_logs = AuditLogRepository(self.db).list_for_entity(
+                entity_type="document",
+                entity_id=document.id,
+            )
+        return document
 
     def update_status(self, document: Document, status: str) -> Document:
         document.status = status

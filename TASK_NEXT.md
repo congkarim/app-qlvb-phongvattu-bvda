@@ -1,4 +1,4 @@
-# Task Tiếp Theo: RBAC Hoặc Audit Log Admin
+# Task Tiếp Theo: Document List Filters Hoặc RBAC Nhẹ
 
 Trạng thái: đề xuất.
 
@@ -6,36 +6,40 @@ Ngày cập nhật: 2026-06-04
 
 ## Task Vừa Hoàn Thành
 
-Đã hoàn thiện UX admin MVP quanh trạng thái reprocess và xác định auth scope tối thiểu.
+Đã triển khai phương án 2: Audit Log Admin MVP cho upload và reprocess.
 
 Kết quả chính:
-- Document detail hiển thị thời điểm refresh detail gần nhất.
-- Polling OCR/reprocess cập nhật timestamp refresh theo từng lần fetch.
-- Nút `Reprocess` có confirm trước khi tạo job.
-- Job audit làm nổi bật job `pending/running` và gắn badge `Đang xử lý`.
-- Header document, reason và chunk title wrap tốt hơn trên mobile.
-- Auth scope MVP được chốt: mọi user active đã đăng nhập được dùng documents/search/reprocess; chưa thêm role/RBAC ở bước này để tránh over-engineering.
+- Thêm migration `0004_audit_logs`.
+- Thêm model/repository audit log.
+- Ghi event `document.upload` khi upload document.
+- Ghi event `document.reprocess_requested` khi request reprocess.
+- Document detail API trả `audit_logs` kèm actor và metadata.
+- Frontend document detail hiển thị card `Admin audit log`.
+- Không triển khai RBAC trong task này để giữ scope đúng phương án đã chọn.
 
 Đã kiểm tra:
 
 ```bash
+docker compose run --rm --no-deps api python -m py_compile /app/app/models/audit_log.py /app/app/repositories/audit_log_repository.py /app/app/repositories/document_repository.py /app/app/services/document_service.py /app/app/routers/documents.py /app/app/schemas/document.py /app/alembic/versions/0004_audit_logs.py
 docker compose run --rm --no-deps web npm run build
-docker compose up -d --build web
+docker compose up -d --build api web
+docker compose exec -T api alembic current
+curl -fsS http://localhost:8000/health
 curl -fsS -I http://localhost:3000/login
 git diff --check
 ```
 
 Kết quả verify:
-- Nuxt production build thành công.
-- `/login` trả HTTP 200 sau khi recreate web.
-- Headless Chrome với cookie `auth_token` xác nhận UI có `Cập nhật detail lần cuối`, `Lần refresh gần nhất`, `Reprocess`, `Job audit`.
-- Confirm cancel smoke test gọi được `window.confirm` và không tạo job reprocess mới.
-- Mobile viewport `390px` không phát hiện overflow ngang (`scrollWidth=390`).
+- Alembic current là `0004_audit_logs`.
+- Reprocess audit event `0a8fa045-67b4-4b96-8d7d-ebceaf4b0206` ghi actor admin, reason và OCR job ID đúng.
+- Upload audit event cho document `9f92a517-6e03-49f7-b112-f0279e53f3c2` ghi filename, content type, document type và OCR job ID đúng.
+- Headless Chrome xác nhận UI có `Admin audit log`, `Yêu cầu reprocess`, actor admin và reason audit verify.
+- Search sau reprocess audit vẫn trả document nguồn `718b0db1-6c8c-4da4-b6aa-5689173d219a` top 1.
 - Không phát sinh runtime artifact trong git.
 
 ## Mục Tiêu Task Tiếp Theo
 
-Chọn giữa RBAC MVP hoặc audit log admin cho thao tác nghiệp vụ nhạy cảm.
+Cải thiện khả năng vận hành danh sách tài liệu hoặc thêm RBAC nhẹ nếu có nhu cầu phân quyền thật.
 
 ## Ràng Buộc Không Đổi
 
@@ -50,30 +54,28 @@ Chọn giữa RBAC MVP hoặc audit log admin cho thao tác nghiệp vụ nhạy
 
 ## Phạm Vi Đề Xuất
 
-### 1. RBAC MVP
+### 1. Document List Filters
 
 Vấn đề:
-- Hiện mọi user active đã đăng nhập đều có thể upload/search/reprocess.
+- Danh sách documents hiện còn đơn giản, khó lọc theo trạng thái, loại file, hoặc thời gian khi dữ liệu tăng.
 
 Hướng xử lý:
-- Nếu dự án cần tách admin/user, thêm field `role` vào `users` bằng migration.
-- Seed admin local có role `admin`.
-- Thêm dependency `require_admin`.
-- Giới hạn reprocess và upload cho admin nếu phù hợp nghiệp vụ.
+- Thêm query params backend cho `/documents`: status, document_type, q, created_from/created_to.
+- Frontend `/documents` có filter panel MVP.
+- Giữ pagination limit/offset hiện có.
 
-### 2. Audit Log Admin
+### 2. RBAC Nhẹ
 
 Vấn đề:
-- Reprocess job có reason nhưng chưa có bảng audit log nghiệp vụ riêng cho thao tác admin.
+- Hiện mọi user active đã đăng nhập có thể upload/search/reprocess.
 
 Hướng xử lý:
-- Thêm bảng `audit_logs` MVP với actor, action, entity type/id, metadata, created_at.
-- Ghi log khi upload và request reprocess.
-- Hiển thị audit log đơn giản trong document detail nếu cần.
+- Chỉ làm nếu cần phân quyền thật cho nhóm 50 người dùng nội bộ.
+- Thêm role `admin/user` và `require_admin`.
+- Giới hạn upload/reprocess cho admin; list/detail/search vẫn cho user active.
 
 ## Tiêu Chí Hoàn Thành
 
-- RBAC hoặc audit log được chọn rõ, không làm cả hai nếu chưa cần.
-- Nếu làm RBAC, curl xác nhận user thường không gọi được endpoint admin-only.
-- Nếu làm audit log, document detail hoặc API trả được audit event cơ bản.
+- Nếu làm filters, danh sách documents lọc được theo status/type/search text và UI vẫn dùng service/composable.
+- Nếu làm RBAC, user thường bị chặn khỏi endpoint admin-only và audit log vẫn ghi actor.
 - Không làm chậm workflow upload -> OCR -> search hiện tại.

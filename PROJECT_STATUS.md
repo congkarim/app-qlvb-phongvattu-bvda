@@ -478,6 +478,34 @@ Kết quả:
 - Mobile viewport `390px` có `scrollWidth=390`, không phát hiện overflow ngang rõ ràng.
 - Auth scope MVP hiện giữ đơn giản: mọi user active đã đăng nhập được dùng documents/search/reprocess. Chưa thêm role/RBAC để tránh migration và phân quyền sớm khi hệ thống mới có admin local.
 
+Audit Log Admin MVP ngày 2026-06-04:
+
+```bash
+docker compose run --rm --no-deps api python -m py_compile /app/app/models/audit_log.py /app/app/repositories/audit_log_repository.py /app/app/repositories/document_repository.py /app/app/services/document_service.py /app/app/routers/documents.py /app/app/schemas/document.py /app/alembic/versions/0004_audit_logs.py
+docker compose run --rm --no-deps web npm run build
+docker compose up -d --build api web
+docker compose exec -T api alembic current
+curl -fsS http://localhost:8000/health
+curl -fsS -I http://localhost:3000/login
+```
+
+Kết quả:
+- Thêm migration `0004_audit_logs` tạo bảng `audit_logs` với actor, action, entity type/id, metadata JSONB và audit timestamp.
+- Thêm model `AuditLog` và repository `AuditLogRepository`.
+- Document detail API trả `audit_logs` cho entity document, gồm actor user và metadata.
+- `DocumentService.upload` ghi event `document.upload` với filename, content type, document type và OCR job ID.
+- `DocumentService.request_reprocess` ghi event `document.reprocess_requested` với reason, OCR job ID và previous status.
+- Trang `/documents/[id]` hiển thị card `Admin audit log`, actor, action, timestamp và metadata.
+- Verify reprocess audit trên document `718b0db1-6c8c-4da4-b6aa-5689173d219a`:
+  - Tạo job `683b14d0-ec3f-4299-87e1-6c637dfa5a03`.
+  - Event `0a8fa045-67b4-4b96-8d7d-ebceaf4b0206`, action `document.reprocess_requested`, actor `admin@example.com`, reason `audit log verify 2026-06-04`.
+  - Job chạy xong `searchable/completed`, attempts `1`, không có error.
+- Verify upload audit bằng file tạm `/tmp/audit_upload_smoke.txt`:
+  - Document `9f92a517-6e03-49f7-b112-f0279e53f3c2` chuyển `searchable`.
+  - Event `document.upload` có actor admin và metadata file/job đúng.
+- Headless Chrome xác nhận UI có `Admin audit log`, `Yêu cầu reprocess`, actor admin và reason audit verify.
+- Search `Số 72 UBND KT Kính gửi Ban chỉ huy 32 xóm` sau reprocess audit vẫn trả document `718b0db1-6c8c-4da4-b6aa-5689173d219a` top 1.
+
 Auth:
 - Đã có JWT login skeleton.
 - Đã có seed admin local.
@@ -498,7 +526,7 @@ Generated files:
 
 OCR thật và trích xuất Office text mức MVP đã được triển khai. OCR scan tiếng Việt hiện ưu tiên VietOCR local.
 
-Task tiếp theo nên ưu tiên thêm API hoặc admin action để reprocess document từ UI/backend thay vì chỉ chạy script CLI, kèm audit rõ ràng cho các lần reprocess.
+Task tiếp theo nên ưu tiên lọc/tối ưu danh sách tài liệu hoặc RBAC nhẹ nếu cần phân quyền admin/user thật sự.
 
 Workflow MVP hiện có:
 

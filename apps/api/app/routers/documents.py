@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.dependencies import get_current_user
+from app.models.user import User
 from app.schemas.document import (
     DocumentDetailRead,
     DocumentRead,
@@ -21,8 +22,9 @@ def upload_document(
     file: UploadFile = File(...),
     document_type: str = Query(default="document"),
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> UploadResponse:
-    document, ocr_job = DocumentService(db).upload(file=file, document_type=document_type)
+    document, ocr_job = DocumentService(db).upload(file=file, document_type=document_type, actor=current_user)
     return UploadResponse(document=document, ocr_job=ocr_job)
 
 
@@ -48,11 +50,13 @@ def reprocess_document(
     document_id: str,
     payload: ReprocessDocumentRequest | None = None,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> ReprocessDocumentResponse:
     try:
         document, ocr_job = DocumentService(db).request_reprocess(
             document_id,
             reason=payload.reason if payload else None,
+            actor=current_user,
         )
     except DocumentNotFoundError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
