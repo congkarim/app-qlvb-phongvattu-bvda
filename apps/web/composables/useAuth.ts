@@ -11,7 +11,7 @@ export function useAuth() {
     error.value = ''
     try {
       const response = await service.login(email, password)
-      authStore.setToken(response.access_token)
+      authStore.setSession(response.access_token, response.user)
       await navigateTo('/dashboard')
     } catch {
       error.value = 'Đăng nhập không thành công'

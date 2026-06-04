@@ -58,6 +58,12 @@ curl -X POST http://localhost:8000/api/v1/auth/login \
   -d '{"email":"admin@example.com","password":"admin123"}'
 ```
 
+Auth/RBAC MVP:
+- Admin local mặc định: `admin@example.com` / `admin123`.
+- Login response trả `user.role`.
+- Role `admin` được reprocess và quản lý source files.
+- Role `user` được upload, search, xem tài liệu/source file và sửa metadata.
+
 Web:
 
 ```text
@@ -104,6 +110,8 @@ Trang detail tự refresh trạng thái cho tới khi document chuyển sang `se
 Trong card `Metadata`, có thể bấm `Sửa metadata` để chỉnh tên văn bản, số văn bản, ngày ban hành, đơn vị ban hành và loại nghiệp vụ. Mỗi lần lưu được ghi vào audit log của document.
 
 Trong card `Tệp nguồn`, bấm `Xem trước` để preview inline PDF, ảnh hoặc text cạnh metadata/OCR text. Bấm `Mở` để mở tab mới với định dạng browser hỗ trợ; DOCX/XLSX hoặc định dạng không preview được sẽ download.
+
+Các thao tác reprocess, thêm source file, đổi thứ tự source file và xóa source file chỉ dành cho admin.
 
 6. Vào `Dashboard`, search:
 

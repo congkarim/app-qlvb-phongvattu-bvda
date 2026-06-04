@@ -6,6 +6,14 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class AuthenticatedUser(BaseModel):
+    id: str
+    email: EmailStr
+    full_name: str
+    role: str
+
+
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
+    user: AuthenticatedUser

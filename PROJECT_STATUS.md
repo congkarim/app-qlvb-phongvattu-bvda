@@ -90,8 +90,12 @@ Auth MVP:
 - API seed admin local khi khởi động nếu chưa tồn tại.
 - Admin mặc định cho Docker Compose: `admin@example.com` / `admin123`.
 - Frontend lưu access token bằng cookie.
+- Frontend lưu user role bằng cookie sau login.
 - API client frontend tự gắn `Authorization: Bearer <token>`.
 - Frontend có route guard cơ bản: chưa login thì chuyển về `/login`, đã login thì không quay lại `/login`.
+- RBAC nhẹ:
+  - `admin`: được reprocess, thêm/xóa/đổi thứ tự source file.
+  - `user`: được upload, search, xem tài liệu/source file và sửa metadata.
 
 Workflow web đã hoàn thiện:
 - `/upload` có hai mode: một tệp là một văn bản, hoặc nhiều tệp thuộc cùng một văn bản nghiệp vụ.
@@ -107,8 +111,8 @@ Workflow web đã hoàn thiện:
 - Reprocess không ghi đè metadata đã được sửa/review thủ công; kết quả auto extraction mới chỉ ghi audit log `document.metadata_auto_extracted` với `applied=false`.
 - `/documents/[id]` hiển thị card `Tệp nguồn` để xem một hoặc nhiều file nguồn thuộc cùng document.
 - `/documents/[id]` có nút `Xem trước` để preview inline PDF/image/text cạnh metadata/OCR text; nút `Mở` vẫn mở tab mới hoặc download fallback cho DOCX/XLSX.
-- `/documents/[id]` cho phép thêm source files, đổi thứ tự file và soft-delete source file; mỗi thay đổi tạo reprocess job async.
-- `/documents/[id]` có action reprocess, khóa nút khi document đang `ocr_pending`, `ocr_running`, `reprocess_pending`, `reprocess_running` hoặc `chunking`.
+- `/documents/[id]` cho phép admin thêm source files, đổi thứ tự file và soft-delete source file; mỗi thay đổi tạo reprocess job async.
+- `/documents/[id]` có action reprocess dành cho admin, khóa nút khi document đang `ocr_pending`, `ocr_running`, `reprocess_pending`, `reprocess_running` hoặc `chunking`.
 - `/documents/[id]` hiển thị audit OCR/reprocess job gồm `job_type`, `status`, `reason`, attempts, error message và thời gian tạo/cập nhật.
 - `/documents` có refresh action, filter/search/sort, loading state, empty state và link sang detail.
 - `/dashboard` có validation search input, loading/empty/error state và result link sang document nguồn.
@@ -672,7 +676,7 @@ Auth:
 - Đã có seed admin local.
 - Frontend đã có route guard cơ bản.
 - API tài liệu/search đã enforce backend Bearer JWT dependency.
-- Auth scope MVP: active authenticated user; chưa có role/RBAC.
+- Auth scope MVP: active authenticated user với role `admin` hoặc `user`.
 
 Frontend:
 - UI hiện đã đủ cho MVP workflow cơ bản.
@@ -709,7 +713,24 @@ Kết quả:
 OCR thật, trích xuất Office text, tự động lưu metadata hành chính sau OCR và tích hợp module chunking OCR text theo nhóm văn bản vào worker/UI mức MVP đã được triển khai.
 OCR scan tiếng Việt hiện ưu tiên VietOCR local.
 
-Task tiếp theo nên ưu tiên RBAC nhẹ nếu cần phân quyền admin/user thật sự.
+Task tiếp theo nên ưu tiên chunk metadata backfill hoặc màn hình quản trị user nếu cần tạo user thường từ UI.
+
+RBAC nhẹ kiểm tra ngày 2026-06-04:
+
+```bash
+PYTHONPYCACHEPREFIX=/tmp/qlvb-pycache PYTHONPATH=apps/api python3 -m py_compile apps/api/app/models/user.py apps/api/app/repositories/user_repository.py apps/api/app/schemas/auth.py apps/api/app/services/auth_service.py apps/api/app/routers/auth.py apps/api/app/dependencies.py apps/api/app/routers/documents.py apps/api/alembic/versions/0009_user_roles.py
+docker compose run --rm --no-deps web npm run build
+docker compose config --quiet
+docker compose run --rm api alembic upgrade head
+curl -fsS http://localhost:8000/health
+curl -fsS -X POST http://localhost:8000/api/v1/auth/login -H 'Content-Type: application/json' -d '{"email":"admin@example.com","password":"admin123"}'
+```
+
+Kết quả:
+- Alembic nâng DB local từ `0008_document_chunk_metadata` lên `0009_user_roles`.
+- Admin login response trả `user.role=admin` và JWT có claim `role=admin`.
+- Smoke user thường gọi `POST /documents/{id}/reprocess` trả `403` với detail `Admin role required`.
+- Frontend build pass; vẫn có warning chunk PrimeVue lớn như trước, không fail.
 
 Workflow MVP hiện có:
 

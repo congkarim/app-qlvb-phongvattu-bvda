@@ -5,7 +5,7 @@ from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
-from app.dependencies import get_current_user
+from app.dependencies import get_current_user, require_admin
 from app.models.user import User
 from app.schemas.document import (
     DocumentDetailRead,
@@ -145,7 +145,7 @@ def add_document_source_files(
     document_id: str,
     files: list[UploadFile] = File(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
 ) -> SourceFileMutationResponse:
     try:
         document, document_files, ocr_job = DocumentService(db).add_source_files(
@@ -167,7 +167,7 @@ def reorder_document_source_files(
     document_id: str,
     payload: ReorderDocumentFilesRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
 ) -> SourceFileMutationResponse:
     try:
         document, document_files, ocr_job = DocumentService(db).reorder_source_files(
@@ -189,7 +189,7 @@ def delete_document_source_file(
     document_id: str,
     document_file_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
 ) -> SourceFileMutationResponse:
     try:
         document, document_files, ocr_job = DocumentService(db).delete_source_file(
@@ -279,7 +279,7 @@ def reprocess_document(
     document_id: str,
     payload: ReprocessDocumentRequest | None = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
 ) -> ReprocessDocumentResponse:
     try:
         document, ocr_job = DocumentService(db).request_reprocess(

@@ -3,6 +3,7 @@ import type { DocumentMetadataUpdateInput } from '~/types/document'
 import { formatDate, formatDateTime, formatFileSize } from '~/utils/format'
 
 const route = useRoute()
+const authStore = useAuthStore()
 const {
   document,
   loading,
@@ -91,7 +92,7 @@ const shouldPoll = computed(() => {
 
 const canReprocess = computed(() => {
   const status = document.value?.status
-  return Boolean(status && !processingStatuses.has(status))
+  return Boolean(authStore.isAdmin && status && !processingStatuses.has(status))
 })
 
 const canManageSourceFiles = computed(() => canReprocess.value && !sourceFileLoading.value)
@@ -680,7 +681,7 @@ onBeforeUnmount(() => {
       <Card>
         <template #title>Tệp nguồn</template>
         <template #content>
-          <div class="mb-4 space-y-3 rounded border border-slate-200 bg-slate-50 p-3">
+          <div v-if="authStore.isAdmin" class="mb-4 space-y-3 rounded border border-slate-200 bg-slate-50 p-3">
             <BaseUploadDropzone :multiple="true" @selected="handleSourceFilesSelected" />
             <div v-if="selectedSourceFiles.length" class="space-y-2 text-sm">
               <p class="font-medium">Tệp sẽ thêm: {{ selectedSourceFiles.length }}</p>
@@ -703,6 +704,9 @@ onBeforeUnmount(() => {
               </p>
             </div>
           </div>
+          <p v-else class="mb-4 rounded border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
+            Chỉ admin được thêm, đổi thứ tự hoặc xóa tệp nguồn.
+          </p>
 
           <div v-if="sourceFiles.length" class="space-y-3 text-sm">
             <article
@@ -825,7 +829,10 @@ onBeforeUnmount(() => {
                 :loading="reprocessLoading"
                 @click="submitReprocess"
               />
-              <p v-if="!canReprocess" class="text-sm text-slate-600">
+              <p v-if="!authStore.isAdmin" class="text-sm text-slate-600">
+                Chỉ admin được reprocess văn bản.
+              </p>
+              <p v-else-if="!canReprocess" class="text-sm text-slate-600">
                 Document đang xử lý nên chưa thể reprocess.
               </p>
             </div>
