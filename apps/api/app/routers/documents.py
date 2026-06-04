@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, 
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
+from app.dependencies import get_current_user
 from app.schemas.document import (
     DocumentDetailRead,
     DocumentRead,
@@ -12,7 +13,7 @@ from app.schemas.document import (
 from app.services.document_service import DocumentBusyError, DocumentNotFoundError, DocumentService
 
 
-router = APIRouter(prefix="/documents", tags=["documents"])
+router = APIRouter(prefix="/documents", tags=["documents"], dependencies=[Depends(get_current_user)])
 
 
 @router.post("/upload", response_model=UploadResponse, status_code=status.HTTP_201_CREATED)

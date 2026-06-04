@@ -12,6 +12,10 @@ class UserRepository:
         stmt = select(User).where(User.email == email, User.deleted_at.is_(None))
         return self.db.scalar(stmt)
 
+    def get_by_id(self, user_id: str) -> User | None:
+        stmt = select(User).where(User.id == user_id, User.deleted_at.is_(None))
+        return self.db.scalar(stmt)
+
     def create(self, *, email: str, full_name: str, password_hash: str, is_active: bool = True) -> User:
         user = User(
             email=email,

@@ -2,11 +2,12 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
+from app.dependencies import get_current_user
 from app.schemas.search import SemanticSearchRequest, SemanticSearchResponse
 from app.services.search_service import SearchService
 
 
-router = APIRouter(prefix="/search", tags=["search"])
+router = APIRouter(prefix="/search", tags=["search"], dependencies=[Depends(get_current_user)])
 
 
 @router.post("/semantic", response_model=SemanticSearchResponse)

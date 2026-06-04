@@ -433,11 +433,37 @@ Kết quả:
 - Dev server không còn lỗi Vite pre-transform `Failed to resolve import "#app-manifest"`.
 - `/login` trả HTTP 200 sau khi rebuild service `web`.
 
+Browser verify reprocess UI và auth guard backend ngày 2026-06-04:
+
+```bash
+docker compose run --rm --no-deps api python -m py_compile /app/app/dependencies.py /app/app/repositories/user_repository.py /app/app/routers/documents.py /app/app/routers/search.py
+docker compose up -d --build api worker web
+curl -fsS http://localhost:8000/health
+curl -sS -o /tmp/documents_no_token.json -w '%{http_code}\n' http://localhost:8000/api/v1/documents
+curl -sS -o /tmp/search_no_token.json -w '%{http_code}\n' -X POST http://localhost:8000/api/v1/search/semantic -H 'Content-Type: application/json' -d '{"query":"Số 72 UBND KT","limit":3}'
+docker compose run --rm --no-deps web npm run build
+docker compose config --quiet
+```
+
+Kết quả:
+- Thêm `app.dependencies.get_current_user` để validate Bearer JWT, load user active từ DB và trả `401 Not authenticated` nếu thiếu/sai token.
+- Thêm `UserRepository.get_by_id`.
+- Gắn auth dependency ở router `/api/v1/documents` và `/api/v1/search`; `/health` vẫn public.
+- Không token:
+  - `GET /api/v1/documents` trả `401`.
+  - `POST /api/v1/search/semantic` trả `401`.
+- Token admin local vẫn gọi được:
+  - `GET /api/v1/documents` trả `200`.
+  - `POST /api/v1/search/semantic` trả `200`.
+- Headless Chrome mở `/documents/718b0db1-6c8c-4da4-b6aa-5689173d219a` với cookie `auth_token`, thấy `Reprocess`, `Job audit`, trạng thái `searchable`, nhập reason và click nút `Reprocess` thành công.
+- Job UI-created `99dcdfd8-cbf1-4332-a8b8-298d1a30abcf` chạy `reprocess_pending` -> `reprocess_running` -> `searchable/completed`, attempts `1`, reason `headless browser UI reprocess 2026-06-04 retry`, không có error.
+- Search sau reprocess UI với query `Số 72 UBND KT Kính gửi Ban chỉ huy 32 xóm` vẫn trả document `718b0db1-6c8c-4da4-b6aa-5689173d219a` top 1.
+
 Auth:
 - Đã có JWT login skeleton.
 - Đã có seed admin local.
 - Frontend đã có route guard cơ bản.
-- API tài liệu/search hiện chưa enforce backend authorization dependency, mới kiểm soát truy cập ở frontend MVP.
+- API tài liệu/search đã enforce backend Bearer JWT dependency.
 
 Frontend:
 - UI hiện đã đủ cho MVP workflow cơ bản.
