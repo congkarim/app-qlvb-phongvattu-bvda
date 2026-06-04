@@ -90,7 +90,10 @@ Workflow web đã hoàn thiện:
 - `/upload` có hai mode: một tệp là một văn bản, hoặc nhiều tệp thuộc cùng một văn bản nghiệp vụ.
 - `/upload` có trường `Tên văn bản`; mode nhiều tệp bắt buộc nhập tên văn bản và hiển thị danh sách tệp nguồn đã chọn.
 - `/upload` có mode `Zip cùng văn bản` để upload một `.zip` thành một document gồm nhiều source files.
+- `/upload` cho phép nhập metadata nghiệp vụ dùng chung: số văn bản, ngày ban hành, đơn vị ban hành và loại nghiệp vụ.
+- `/documents` hỗ trợ tìm theo tên, filename, số văn bản hoặc đơn vị ban hành; lọc/sort theo loại nghiệp vụ và ngày ban hành.
 - `/documents/[id]` hiển thị metadata, OCR job status, OCR text, chunks và tự polling tới khi document `searchable`.
+- `/documents/[id]` hiển thị metadata nghiệp vụ gồm số văn bản, ngày ban hành, đơn vị ban hành và loại nghiệp vụ.
 - `/documents/[id]` hiển thị card `Tệp nguồn` để xem một hoặc nhiều file nguồn thuộc cùng document.
 - `/documents/[id]` cho phép thêm source files, đổi thứ tự file và soft-delete source file; mỗi thay đổi tạo reprocess job async.
 - `/documents/[id]` có action reprocess, khóa nút khi document đang `ocr_pending`, `ocr_running`, `reprocess_pending`, `reprocess_running` hoặc `chunking`.
@@ -109,6 +112,27 @@ docker compose up --build
 ```bash
 curl http://localhost:8000/health
 ```
+
+Metadata nghiệp vụ kiểm tra ngày 2026-06-04:
+
+```bash
+docker compose config --quiet
+docker compose run --rm --no-deps api python -m py_compile app/models/document.py app/schemas/document.py app/repositories/document_repository.py app/services/document_service.py app/routers/documents.py
+docker compose run --rm --no-deps api python -m py_compile alembic/versions/0006_document_business_metadata.py
+docker compose run --rm api alembic upgrade head
+docker compose run --rm --no-deps web npm run build
+docker compose up -d api web
+curl -fsS http://localhost:8000/health
+curl -fsS -I http://localhost:3000/login
+```
+
+Kết quả:
+- Alembic đã nâng DB local từ `0005_document_files` lên `0006_document_business_metadata`.
+- Frontend build thành công qua Docker; build có warning chunk PrimeVue lớn như trước, không fail.
+- `npm run build` trực tiếp trên host fail vì `apps/web/node_modules/.bin/nuxt` không tồn tại; workflow Docker vẫn chạy được.
+- Smoke upload `metadata-smoke.txt` với `document_number=123/CV-VT`, `issued_date=2026-06-04`, `issuing_agency=Phòng Vật tư`, `business_type=incoming_dispatch` trả đúng metadata trong response.
+- `GET /api/v1/documents?q=123%2FCV-VT&business_type=incoming_dispatch&sort_by=issued_date&sort_dir=desc` trả đúng document smoke và worker đã chuyển sang `searchable`.
+- `/upload` và `/documents` redirect `302 /login` khi chưa đăng nhập, `/login` trả 200.
 
 Test upload:
 

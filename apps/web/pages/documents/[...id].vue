@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { formatDateTime, formatFileSize } from '~/utils/format'
+import { formatDate, formatDateTime, formatFileSize } from '~/utils/format'
 
 const route = useRoute()
 const {
@@ -92,6 +92,14 @@ function formatAuditAction(action: string): string {
   if (action === 'document.source_files_reordered') return 'Đổi thứ tự tệp nguồn'
   if (action === 'document.source_file_deleted') return 'Xóa tệp nguồn'
   return action
+}
+
+function formatBusinessType(value?: string | null): string {
+  if (value === 'incoming_dispatch') return 'Công văn đến'
+  if (value === 'outgoing_dispatch') return 'Công văn đi'
+  if (value === 'contract') return 'Hợp đồng'
+  if (value === 'decision') return 'Quyết định'
+  return value || '-'
 }
 
 function formatAuditMetadataValue(value: unknown): string {
@@ -208,6 +216,22 @@ onBeforeUnmount(stopPolling)
             <div>
               <dt class="text-slate-500">Loại văn bản</dt>
               <dd class="font-medium">{{ document.document_type }}</dd>
+            </div>
+            <div>
+              <dt class="text-slate-500">Loại nghiệp vụ</dt>
+              <dd class="font-medium">{{ formatBusinessType(document.business_type) }}</dd>
+            </div>
+            <div>
+              <dt class="text-slate-500">Số văn bản</dt>
+              <dd class="break-words font-medium">{{ document.document_number || '-' }}</dd>
+            </div>
+            <div>
+              <dt class="text-slate-500">Ngày ban hành</dt>
+              <dd class="font-medium">{{ formatDate(document.issued_date) }}</dd>
+            </div>
+            <div>
+              <dt class="text-slate-500">Đơn vị ban hành</dt>
+              <dd class="break-words font-medium">{{ document.issuing_agency || '-' }}</dd>
             </div>
             <div>
               <dt class="text-slate-500">Trạng thái</dt>

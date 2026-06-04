@@ -79,7 +79,13 @@ Email: admin@example.com
 Password: admin123
 ```
 
-3. Vào `Upload`, chọn file `.txt`, `.pdf`, ảnh, `.docx` hoặc `.xlsx`, bấm `Upload`.
+3. Vào `Upload`, chọn file `.txt`, `.pdf`, ảnh, `.docx` hoặc `.xlsx`, nhập metadata nghiệp vụ nếu có, bấm `Upload`.
+
+Metadata nghiệp vụ hiện hỗ trợ:
+- Số văn bản.
+- Ngày ban hành.
+- Đơn vị ban hành.
+- Loại nghiệp vụ: công văn đến, công văn đi, hợp đồng, quyết định.
 
 4. Sau khi upload thành công, web mở trang chi tiết document:
 
@@ -88,7 +94,7 @@ Password: admin123
 ```
 
 5. Ở trang detail, theo dõi:
-- Metadata văn bản.
+- Metadata văn bản và metadata nghiệp vụ.
 - OCR job status.
 - OCR text.
 - Chunks.

@@ -20,6 +20,10 @@ class DocumentRepository:
         file_path: str,
         content_type: str | None,
         document_type: str = "document",
+        document_number: str | None = None,
+        issued_date=None,
+        issuing_agency: str | None = None,
+        business_type: str | None = None,
     ) -> Document:
         document = Document(
             title=title,
@@ -27,6 +31,10 @@ class DocumentRepository:
             file_path=file_path,
             content_type=content_type,
             document_type=document_type,
+            document_number=document_number,
+            issued_date=issued_date,
+            issuing_agency=issuing_agency,
+            business_type=business_type,
         )
         self.db.add(document)
         self.db.flush()
@@ -40,24 +48,36 @@ class DocumentRepository:
         query: str | None = None,
         status: str | None = None,
         document_type: str | None = None,
+        business_type: str | None = None,
         sort_by: str = "created_at",
         sort_dir: str = "desc",
     ) -> list[Document]:
         stmt = select(Document).where(Document.deleted_at.is_(None))
         if query:
             pattern = f"%{query}%"
-            stmt = stmt.where(or_(Document.title.ilike(pattern), Document.original_filename.ilike(pattern)))
+            stmt = stmt.where(
+                or_(
+                    Document.title.ilike(pattern),
+                    Document.original_filename.ilike(pattern),
+                    Document.document_number.ilike(pattern),
+                    Document.issuing_agency.ilike(pattern),
+                )
+            )
         if status:
             stmt = stmt.where(Document.status == status)
         if document_type:
             stmt = stmt.where(Document.document_type == document_type)
+        if business_type:
+            stmt = stmt.where(Document.business_type == business_type)
 
         sortable_columns = {
             "created_at": Document.created_at,
             "updated_at": Document.updated_at,
+            "issued_date": Document.issued_date,
             "title": Document.title,
             "status": Document.status,
             "document_type": Document.document_type,
+            "business_type": Document.business_type,
         }
         sort_column = sortable_columns.get(sort_by, Document.created_at)
         direction = asc if sort_dir == "asc" else desc

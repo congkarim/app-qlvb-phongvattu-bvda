@@ -1,4 +1,4 @@
-# Task Vừa Hoàn Thành: Documents Filter, Source File Management Và Zip Upload
+# Task Vừa Hoàn Thành: Metadata Nghiệp Vụ Cho Văn Bản
 
 Trạng thái: hoàn thành.
 
@@ -6,66 +6,54 @@ Ngày cập nhật: 2026-06-04
 
 ## Phạm Vi Đã Thực Hiện
 
-Đã triển khai theo đúng thứ tự:
-
-1. Lọc/tối ưu danh sách tài liệu.
-2. Quản lý source files sau upload.
-3. Zip upload dựa trên `document_files`.
+Đã triển khai metadata nghiệp vụ dùng chung trên bảng `documents`, chưa tập trung tiếp vào preview/kiểm soát zip theo yêu cầu hiện tại.
 
 ## Kết Quả Chính
 
-Danh sách tài liệu:
+Database/backend:
+- Thêm migration `0006_document_business_metadata`.
+- Bảng `documents` có thêm:
+  - `document_number`: số văn bản.
+  - `issued_date`: ngày ban hành.
+  - `issuing_agency`: đơn vị ban hành.
+  - `business_type`: loại nghiệp vụ.
 - `GET /api/v1/documents` hỗ trợ:
-  - `q`: tìm theo title hoặc original filename.
-  - `status`: lọc trạng thái.
-  - `document_type`: lọc loại văn bản.
-  - `sort_by`: `created_at`, `updated_at`, `title`, `status`, `document_type`.
-  - `sort_dir`: `asc` hoặc `desc`.
-- Frontend `/documents` có filter/search/sort và nút xóa lọc.
-- Bảng danh sách hiển thị thêm `Cập nhật`.
+  - Tìm `q` theo title, original filename, số văn bản hoặc đơn vị ban hành.
+  - Lọc `business_type`.
+  - Sort thêm `issued_date` và `business_type`.
+- Upload một tệp, nhiều tệp và zip đều nhận metadata nghiệp vụ qua form data.
+- Audit metadata khi upload có ghi kèm các trường nghiệp vụ.
 
-Quản lý source files:
-- Thêm API `POST /api/v1/documents/{document_id}/files`.
-- Thêm API `PATCH /api/v1/documents/{document_id}/files/order`.
-- Thêm API `DELETE /api/v1/documents/{document_id}/files/{document_file_id}`.
-- Thêm source file, đổi thứ tự hoặc soft-delete source file đều tạo OCR job `reprocess` async.
-- Không cho sửa source files khi document đang có OCR/reprocess job active.
-- Không cho xóa source file cuối cùng.
-- Detail UI có:
-  - chọn thêm nhiều source files,
-  - nút lên/xuống để đổi thứ tự,
-  - nút xóa source file,
-  - tự polling sau khi tạo reprocess job.
-- Audit log có label cho:
-  - `document.source_files_added`,
-  - `document.source_files_reordered`,
-  - `document.source_file_deleted`.
-
-Zip upload:
-- Thêm API `POST /api/v1/documents/upload/zip`.
-- Mode zip hiện là: một `.zip` = một document nghiệp vụ gồm nhiều tệp nguồn.
-- Mỗi file entry trong zip được lưu thành một `document_files` record.
-- Không tự đoán zip chứa nhiều văn bản riêng.
-- Frontend `/upload` có mode `Zip cùng văn bản`.
-- Audit log có event `document.upload_zip`.
+Frontend:
+- `/upload` có form metadata nghiệp vụ:
+  - Số văn bản.
+  - Ngày ban hành.
+  - Đơn vị ban hành.
+  - Loại nghiệp vụ: công văn đến, công văn đi, hợp đồng, quyết định.
+- `/documents` có filter loại nghiệp vụ, sort ngày ban hành/loại nghiệp vụ và hiển thị thêm số văn bản, ngày ban hành, đơn vị ban hành.
+- `/documents/[id]` hiển thị đầy đủ metadata nghiệp vụ trong card `Metadata`.
 
 ## Đã Kiểm Tra
 
 ```bash
-docker compose run --rm --no-deps api python -m py_compile app/services/document_service.py app/routers/documents.py app/repositories/document_repository.py app/schemas/document.py
+docker compose config --quiet
+docker compose run --rm --no-deps api python -m py_compile app/models/document.py app/schemas/document.py app/repositories/document_repository.py app/services/document_service.py app/routers/documents.py
+docker compose run --rm --no-deps api python -m py_compile alembic/versions/0006_document_business_metadata.py
+docker compose run --rm api alembic upgrade head
 docker compose run --rm --no-deps web npm run build
-docker compose up -d --build api worker web
+docker compose up -d api web
+curl -fsS http://localhost:8000/health
 curl -fsS -I http://localhost:3000/login
 ```
 
-Smoke test:
-- Filter list với `q=multi`, `status=searchable`, `sort_by=updated_at`, `sort_dir=desc` trả đúng document multi-file smoke.
-- Zip upload tạo document `53fc35a4-dfc6-43bd-9e8b-0c2baf94be2a`, có 2 source files, OCR xong `searchable`.
-- Thêm source file vào document zip tạo reprocess job, OCR xong có 3 pages.
-- Đổi thứ tự source files tạo reprocess job, page 1 đổi đúng theo file mới đứng đầu.
-- Soft-delete source file tạo reprocess job, OCR xong còn 2 source files và 2 pages.
-- SSR `/documents` có nhãn filter/sort.
-- SSR `/upload` có mode `Zip cùng văn bản`.
+Kết quả:
+- Backend compile pass.
+- Alembic upgrade pass, DB local đã lên revision `0006_document_business_metadata`.
+- Frontend build pass qua Docker.
+- `npm run build` trực tiếp trên host fail do thiếu `apps/web/node_modules/.bin/nuxt`; dùng Docker Compose là workflow hợp lệ.
+- Smoke upload `metadata-smoke.txt` với metadata nghiệp vụ trả đúng response.
+- Search/list theo `q=123/CV-VT`, `business_type=incoming_dispatch`, `sort_by=issued_date` trả đúng document smoke.
+- Web `/upload` và `/documents` redirect về `/login` khi chưa đăng nhập; `/login` trả 200.
 
 ## Giới Hạn Còn Lại
 
@@ -73,25 +61,25 @@ Smoke test:
 - Chưa có preview nội dung zip trước khi upload.
 - Chưa có kéo thả reorder; hiện dùng nút lên/xuống.
 - Chưa có khôi phục source file đã soft-delete.
-- Chưa có metadata nghiệp vụ riêng cho công văn/hợp đồng/quyết định.
+- Metadata hiện là field chung trên `documents`, chưa tách bảng riêng cho công văn/hợp đồng/quyết định.
+- Chưa có màn sửa metadata sau upload.
 - Chưa có RBAC role admin/user.
 
 ## Task Tiếp Theo Đề Xuất
 
 Ưu tiên tiếp theo nên là một trong các hướng sau:
 
-1. Metadata nghiệp vụ:
-   - Số văn bản.
-   - Ngày ban hành.
-   - Đơn vị ban hành.
-   - Loại nghiệp vụ: công văn đến/đi, hợp đồng, quyết định.
+1. Sửa metadata sau upload:
+   - API `PATCH /api/v1/documents/{id}/metadata`.
+   - Form chỉnh sửa trong trang detail.
+   - Ghi audit log `document.metadata_updated`.
 
 2. RBAC nhẹ:
    - Role `admin` và `user`.
    - Chỉ admin được reprocess, xóa source file, đổi source file.
    - User thường chỉ upload/search/xem.
 
-3. Preview và kiểm soát zip:
+3. Preview và kiểm soát zip, tạm để sau:
    - Xem danh sách file trong zip trước khi tạo document.
    - Cho phép bỏ chọn file trong zip.
    - Cảnh báo file unsupported trước OCR.

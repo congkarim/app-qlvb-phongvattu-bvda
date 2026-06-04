@@ -33,9 +33,20 @@ export interface DocumentItem {
   original_filename: string
   content_type?: string | null
   document_type: string
+  document_number?: string | null
+  issued_date?: string | null
+  issuing_agency?: string | null
+  business_type?: string | null
   status: string
   created_at: string
   updated_at: string
+}
+
+export interface DocumentMetadataInput {
+  document_number?: string
+  issued_date?: string
+  issuing_agency?: string
+  business_type?: string
 }
 
 export interface DocumentPage {
@@ -97,7 +108,8 @@ export interface DocumentListFilters {
   q?: string
   status?: string
   document_type?: string
-  sort_by?: 'created_at' | 'updated_at' | 'title' | 'status' | 'document_type'
+  business_type?: string
+  sort_by?: 'created_at' | 'updated_at' | 'issued_date' | 'title' | 'status' | 'document_type' | 'business_type'
   sort_dir?: 'asc' | 'desc'
   limit?: number
   offset?: number

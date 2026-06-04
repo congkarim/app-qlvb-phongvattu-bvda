@@ -2,6 +2,7 @@ import type {
   DocumentDetail,
   DocumentItem,
   DocumentListFilters,
+  DocumentMetadataInput,
   MultiFileUploadResponse,
   ReprocessDocumentResponse,
   SourceFileMutationResponse,
@@ -44,11 +45,11 @@ export function useDocuments() {
     }
   }
 
-  async function uploadDocument(file: File, title = ''): Promise<UploadResponse | null> {
+  async function uploadDocument(file: File, title = '', metadata: DocumentMetadataInput = {}): Promise<UploadResponse | null> {
     loading.value = true
     error.value = ''
     try {
-      uploadResult.value = await service.upload(file, 'document', title)
+      uploadResult.value = await service.upload(file, 'document', title, metadata)
       return uploadResult.value
     } catch {
       error.value = 'Upload không thành công'
@@ -58,11 +59,15 @@ export function useDocuments() {
     }
   }
 
-  async function uploadMultiFileDocument(files: File[], title: string): Promise<MultiFileUploadResponse | null> {
+  async function uploadMultiFileDocument(
+    files: File[],
+    title: string,
+    metadata: DocumentMetadataInput = {}
+  ): Promise<MultiFileUploadResponse | null> {
     loading.value = true
     error.value = ''
     try {
-      multiFileUploadResult.value = await service.uploadMultiFile(files, title)
+      multiFileUploadResult.value = await service.uploadMultiFile(files, title, 'document', metadata)
       return multiFileUploadResult.value
     } catch {
       error.value = 'Upload nhiều tệp không thành công'
@@ -72,11 +77,15 @@ export function useDocuments() {
     }
   }
 
-  async function uploadZipDocument(zipFile: File, title: string): Promise<MultiFileUploadResponse | null> {
+  async function uploadZipDocument(
+    zipFile: File,
+    title: string,
+    metadata: DocumentMetadataInput = {}
+  ): Promise<MultiFileUploadResponse | null> {
     loading.value = true
     error.value = ''
     try {
-      multiFileUploadResult.value = await service.uploadZip(zipFile, title)
+      multiFileUploadResult.value = await service.uploadZip(zipFile, title, 'document', metadata)
       return multiFileUploadResult.value
     } catch {
       error.value = 'Upload zip không thành công'

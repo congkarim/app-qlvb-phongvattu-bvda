@@ -1,5 +1,6 @@
 import shutil
 import zipfile
+from datetime import date
 from mimetypes import guess_type
 from pathlib import Path
 from uuid import uuid4
@@ -43,6 +44,10 @@ class DocumentService:
         document_type: str = "document",
         *,
         title: str | None = None,
+        document_number: str | None = None,
+        issued_date: date | None = None,
+        issuing_agency: str | None = None,
+        business_type: str | None = None,
         actor: User | None = None,
     ):
         upload_dir = Path(self.settings.upload_dir)
@@ -58,6 +63,10 @@ class DocumentService:
             file_path=str(file_path),
             content_type=file.content_type,
             document_type=document_type,
+            document_number=self._normalize_title(document_number),
+            issued_date=issued_date,
+            issuing_agency=self._normalize_title(issuing_agency),
+            business_type=self._normalize_title(business_type),
         )
         document_file = self.documents.create_file(
             document_id=document.id,
@@ -78,6 +87,10 @@ class DocumentService:
                 "filename": document.original_filename,
                 "content_type": document.content_type,
                 "document_type": document.document_type,
+                "document_number": document.document_number,
+                "issued_date": document.issued_date.isoformat() if document.issued_date else None,
+                "issuing_agency": document.issuing_agency,
+                "business_type": document.business_type,
                 "document_file_ids": [document_file.id],
                 "file_count": 1,
                 "ocr_job_id": ocr_job.id,
@@ -94,6 +107,10 @@ class DocumentService:
         title: str,
         files: list[UploadFile],
         document_type: str = "document",
+        document_number: str | None = None,
+        issued_date: date | None = None,
+        issuing_agency: str | None = None,
+        business_type: str | None = None,
         actor: User | None = None,
     ):
         document_title = self._normalize_title(title)
@@ -124,6 +141,10 @@ class DocumentService:
             file_path=str(first_file["file_path"]),
             content_type=first_file["content_type"],
             document_type=document_type,
+            document_number=self._normalize_title(document_number),
+            issued_date=issued_date,
+            issuing_agency=self._normalize_title(issuing_agency),
+            business_type=self._normalize_title(business_type),
         )
 
         document_files = [
@@ -147,6 +168,10 @@ class DocumentService:
             metadata={
                 "title": document.title,
                 "document_type": document.document_type,
+                "document_number": document.document_number,
+                "issued_date": document.issued_date.isoformat() if document.issued_date else None,
+                "issuing_agency": document.issuing_agency,
+                "business_type": document.business_type,
                 "file_count": len(document_files),
                 "files": [
                     {
@@ -174,6 +199,10 @@ class DocumentService:
         title: str,
         zip_file: UploadFile,
         document_type: str = "document",
+        document_number: str | None = None,
+        issued_date: date | None = None,
+        issuing_agency: str | None = None,
+        business_type: str | None = None,
         actor: User | None = None,
     ):
         document_title = self._normalize_title(title)
@@ -192,6 +221,10 @@ class DocumentService:
             title=document_title,
             document_type=document_type,
             saved_files=saved_files,
+            document_number=self._normalize_title(document_number),
+            issued_date=issued_date,
+            issuing_agency=self._normalize_title(issuing_agency),
+            business_type=self._normalize_title(business_type),
         )
         document_files = [
             self.documents.create_file(
@@ -215,6 +248,10 @@ class DocumentService:
                 "title": document.title,
                 "zip_filename": zip_file.filename,
                 "document_type": document.document_type,
+                "document_number": document.document_number,
+                "issued_date": document.issued_date.isoformat() if document.issued_date else None,
+                "issuing_agency": document.issuing_agency,
+                "business_type": document.business_type,
                 "file_count": len(document_files),
                 "files": self._document_file_metadata(document_files),
                 "ocr_job_id": ocr_job.id,
@@ -235,6 +272,7 @@ class DocumentService:
         query: str | None = None,
         status: str | None = None,
         document_type: str | None = None,
+        business_type: str | None = None,
         sort_by: str = "created_at",
         sort_dir: str = "desc",
     ):
@@ -244,6 +282,7 @@ class DocumentService:
             query=self._normalize_title(query),
             status=self._normalize_title(status),
             document_type=self._normalize_title(document_type),
+            business_type=self._normalize_title(business_type),
             sort_by=sort_by,
             sort_dir=sort_dir,
         )
@@ -450,6 +489,10 @@ class DocumentService:
         title: str,
         document_type: str,
         saved_files: list[dict[str, str | int | None]],
+        document_number: str | None = None,
+        issued_date: date | None = None,
+        issuing_agency: str | None = None,
+        business_type: str | None = None,
     ):
         first_file = saved_files[0]
         return self.documents.create_document(
@@ -458,6 +501,10 @@ class DocumentService:
             file_path=str(first_file["file_path"]),
             content_type=first_file["content_type"],
             document_type=document_type,
+            document_number=document_number,
+            issued_date=issued_date,
+            issuing_agency=issuing_agency,
+            business_type=business_type,
         )
 
     def _get_mutable_document(self, document_id: str):

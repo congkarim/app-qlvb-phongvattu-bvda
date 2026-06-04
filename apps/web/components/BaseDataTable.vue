@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { DocumentItem } from '~/types/document'
-import { formatDateTime } from '~/utils/format'
+import { formatDate, formatDateTime } from '~/utils/format'
 
 defineProps<{
   rows: DocumentItem[]
@@ -9,13 +9,31 @@ defineProps<{
 </script>
 
 <template>
-  <DataTable :value="rows" :loading="loading" data-key="id" table-style="min-width: 56rem">
+  <DataTable :value="rows" :loading="loading" data-key="id" table-style="min-width: 72rem">
     <Column field="title" header="Tên văn bản">
       <template #body="{ data }">
-        <NuxtLink class="font-medium text-sky-700" :to="`/documents/${data.id}`">{{ data.title }}</NuxtLink>
+        <div>
+          <NuxtLink class="font-medium text-sky-700" :to="`/documents/${data.id}`">{{ data.title }}</NuxtLink>
+          <p v-if="data.issuing_agency" class="mt-1 text-xs text-slate-500">{{ data.issuing_agency }}</p>
+        </div>
+      </template>
+    </Column>
+    <Column field="document_number" header="Số văn bản">
+      <template #body="{ data }">
+        {{ data.document_number || '-' }}
+      </template>
+    </Column>
+    <Column field="issued_date" header="Ngày ban hành">
+      <template #body="{ data }">
+        {{ formatDate(data.issued_date) }}
       </template>
     </Column>
     <Column field="document_type" header="Loại" />
+    <Column field="business_type" header="Nghiệp vụ">
+      <template #body="{ data }">
+        {{ data.business_type || '-' }}
+      </template>
+    </Column>
     <Column field="status" header="Trạng thái">
       <template #body="{ data }">
         <BaseStatusBadge :status="data.status" />

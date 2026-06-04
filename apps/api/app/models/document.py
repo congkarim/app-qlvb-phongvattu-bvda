@@ -1,6 +1,6 @@
-from datetime import datetime
+from datetime import date, datetime
 
-from sqlalchemy import Float, ForeignKey, Index, Integer, String, Text
+from sqlalchemy import Date, Float, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, UUIDTimestampMixin
@@ -14,6 +14,10 @@ class Document(UUIDTimestampMixin, Base):
     file_path: Mapped[str] = mapped_column(String(1024), nullable=False)
     content_type: Mapped[str | None] = mapped_column(String(255), nullable=True)
     document_type: Mapped[str] = mapped_column(String(64), nullable=False, default="document")
+    document_number: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    issued_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    issuing_agency: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    business_type: Mapped[str | None] = mapped_column(String(64), nullable=True)
     status: Mapped[str] = mapped_column(String(64), nullable=False, default="uploaded", index=True)
     department_id: Mapped[str | None] = mapped_column(ForeignKey("departments.id"), nullable=True)
 

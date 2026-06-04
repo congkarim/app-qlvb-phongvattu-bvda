@@ -2,10 +2,13 @@
 import type { DocumentListFilters } from '~/types/document'
 
 const { documents, loading, error, fetchDocuments } = useDocuments()
-const filters = reactive<Required<Pick<DocumentListFilters, 'q' | 'status' | 'document_type' | 'sort_by' | 'sort_dir'>>>({
+const filters = reactive<
+  Required<Pick<DocumentListFilters, 'q' | 'status' | 'document_type' | 'business_type' | 'sort_by' | 'sort_dir'>>
+>({
   q: '',
   status: '',
   document_type: '',
+  business_type: '',
   sort_by: 'created_at',
   sort_dir: 'desc'
 })
@@ -28,12 +31,22 @@ const typeOptions = [
   { label: 'Decision', value: 'decision' }
 ]
 
+const businessTypeOptions = [
+  { label: 'Tất cả nghiệp vụ', value: '' },
+  { label: 'Công văn đến', value: 'incoming_dispatch' },
+  { label: 'Công văn đi', value: 'outgoing_dispatch' },
+  { label: 'Hợp đồng', value: 'contract' },
+  { label: 'Quyết định', value: 'decision' }
+]
+
 const sortOptions = [
   { label: 'Ngày tạo', value: 'created_at' },
   { label: 'Cập nhật', value: 'updated_at' },
+  { label: 'Ngày ban hành', value: 'issued_date' },
   { label: 'Tên văn bản', value: 'title' },
   { label: 'Trạng thái', value: 'status' },
-  { label: 'Loại', value: 'document_type' }
+  { label: 'Loại', value: 'document_type' },
+  { label: 'Loại nghiệp vụ', value: 'business_type' }
 ]
 
 function currentFilters(): DocumentListFilters {
@@ -41,6 +54,7 @@ function currentFilters(): DocumentListFilters {
     q: filters.q,
     status: filters.status,
     document_type: filters.document_type,
+    business_type: filters.business_type,
     sort_by: filters.sort_by,
     sort_dir: filters.sort_dir,
     limit: 100
@@ -55,6 +69,7 @@ function resetFilters() {
   filters.q = ''
   filters.status = ''
   filters.document_type = ''
+  filters.business_type = ''
   filters.sort_by = 'created_at'
   filters.sort_dir = 'desc'
   void loadDocuments()
@@ -80,11 +95,11 @@ onMounted(loadDocuments)
 
     <Card>
       <template #content>
-        <div class="grid gap-3 md:grid-cols-6">
+        <div class="grid gap-3 md:grid-cols-7">
           <InputText
             v-model="filters.q"
             class="md:col-span-2"
-            placeholder="Tìm theo tên văn bản hoặc filename"
+            placeholder="Tìm theo tên, số văn bản, đơn vị hoặc filename"
             @keyup.enter="loadDocuments"
           />
           <select v-model="filters.status" class="rounded border border-slate-300 px-3 py-2 text-sm">
@@ -94,6 +109,11 @@ onMounted(loadDocuments)
           </select>
           <select v-model="filters.document_type" class="rounded border border-slate-300 px-3 py-2 text-sm">
             <option v-for="option in typeOptions" :key="option.value" :value="option.value">
+              {{ option.label }}
+            </option>
+          </select>
+          <select v-model="filters.business_type" class="rounded border border-slate-300 px-3 py-2 text-sm">
+            <option v-for="option in businessTypeOptions" :key="option.value" :value="option.value">
               {{ option.label }}
             </option>
           </select>

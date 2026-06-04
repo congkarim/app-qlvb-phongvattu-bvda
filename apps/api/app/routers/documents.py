@@ -1,3 +1,5 @@
+from datetime import date
+
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from sqlalchemy.orm import Session
 
@@ -30,6 +32,10 @@ router = APIRouter(prefix="/documents", tags=["documents"], dependencies=[Depend
 def upload_document(
     file: UploadFile = File(...),
     title: str | None = Form(default=None),
+    document_number: str | None = Form(default=None),
+    issued_date: date | None = Form(default=None),
+    issuing_agency: str | None = Form(default=None),
+    business_type: str | None = Form(default=None),
     document_type: str = Query(default="document"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -38,6 +44,10 @@ def upload_document(
         file=file,
         title=title,
         document_type=document_type,
+        document_number=document_number,
+        issued_date=issued_date,
+        issuing_agency=issuing_agency,
+        business_type=business_type,
         actor=current_user,
     )
     return UploadResponse(document=document, ocr_job=ocr_job)
@@ -48,6 +58,10 @@ def upload_multi_file_document(
     files: list[UploadFile] = File(...),
     title: str = Form(...),
     document_type: str = Form(default="document"),
+    document_number: str | None = Form(default=None),
+    issued_date: date | None = Form(default=None),
+    issuing_agency: str | None = Form(default=None),
+    business_type: str | None = Form(default=None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> MultiFileUploadResponse:
@@ -60,6 +74,10 @@ def upload_multi_file_document(
         title=title,
         files=files,
         document_type=document_type,
+        document_number=document_number,
+        issued_date=issued_date,
+        issuing_agency=issuing_agency,
+        business_type=business_type,
         actor=current_user,
     )
     return MultiFileUploadResponse(document=document, files=document_files, ocr_job=ocr_job)
@@ -70,6 +88,10 @@ def upload_zip_document(
     zip_file: UploadFile = File(...),
     title: str = Form(...),
     document_type: str = Form(default="document"),
+    document_number: str | None = Form(default=None),
+    issued_date: date | None = Form(default=None),
+    issuing_agency: str | None = Form(default=None),
+    business_type: str | None = Form(default=None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> MultiFileUploadResponse:
@@ -80,6 +102,10 @@ def upload_zip_document(
             title=title,
             zip_file=zip_file,
             document_type=document_type,
+            document_number=document_number,
+            issued_date=issued_date,
+            issuing_agency=issuing_agency,
+            business_type=business_type,
             actor=current_user,
         )
     except ValueError as exc:
@@ -93,8 +119,9 @@ def list_documents(
     offset: int = Query(default=0, ge=0),
     q: str | None = Query(default=None, max_length=200),
     document_type: str | None = Query(default=None, max_length=64),
+    business_type: str | None = Query(default=None, max_length=64),
     status_filter: str | None = Query(default=None, alias="status", max_length=64),
-    sort_by: str = Query(default="created_at", pattern="^(created_at|updated_at|title|status|document_type)$"),
+    sort_by: str = Query(default="created_at", pattern="^(created_at|updated_at|issued_date|title|status|document_type|business_type)$"),
     sort_dir: str = Query(default="desc", pattern="^(asc|desc)$"),
     db: Session = Depends(get_db),
 ) -> list[DocumentRead]:
@@ -104,6 +131,7 @@ def list_documents(
         query=q,
         status=status_filter,
         document_type=document_type,
+        business_type=business_type,
         sort_by=sort_by,
         sort_dir=sort_dir,
     )

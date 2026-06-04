@@ -2,6 +2,7 @@ import type {
   DocumentDetail,
   DocumentItem,
   DocumentListFilters,
+  DocumentMetadataInput,
   MultiFileUploadResponse,
   ReprocessDocumentResponse,
   SourceFileMutationResponse,
@@ -26,19 +27,21 @@ export function createDocumentService() {
     get(id: string) {
       return api<DocumentDetail>(`/documents/${id}`)
     },
-    upload(file: File, documentType = 'document', title = '') {
+    upload(file: File, documentType = 'document', title = '', metadata: DocumentMetadataInput = {}) {
       const form = new FormData()
       form.append('file', file)
       if (title.trim()) form.append('title', title.trim())
+      appendMetadata(form, metadata)
       return api<UploadResponse>(`/documents/upload?document_type=${documentType}`, {
         method: 'POST',
         body: form
       })
     },
-    uploadMultiFile(files: File[], title: string, documentType = 'document') {
+    uploadMultiFile(files: File[], title: string, documentType = 'document', metadata: DocumentMetadataInput = {}) {
       const form = new FormData()
       form.append('title', title.trim())
       form.append('document_type', documentType)
+      appendMetadata(form, metadata)
       for (const file of files) {
         form.append('files', file)
       }
@@ -47,10 +50,11 @@ export function createDocumentService() {
         body: form
       })
     },
-    uploadZip(zipFile: File, title: string, documentType = 'document') {
+    uploadZip(zipFile: File, title: string, documentType = 'document', metadata: DocumentMetadataInput = {}) {
       const form = new FormData()
       form.append('title', title.trim())
       form.append('document_type', documentType)
+      appendMetadata(form, metadata)
       form.append('zip_file', zipFile)
       return api<MultiFileUploadResponse>('/documents/upload/zip', {
         method: 'POST',
@@ -89,4 +93,11 @@ export function createDocumentService() {
       })
     }
   }
+}
+
+function appendMetadata(form: FormData, metadata: DocumentMetadataInput) {
+  if (metadata.document_number?.trim()) form.append('document_number', metadata.document_number.trim())
+  if (metadata.issued_date?.trim()) form.append('issued_date', metadata.issued_date.trim())
+  if (metadata.issuing_agency?.trim()) form.append('issuing_agency', metadata.issuing_agency.trim())
+  if (metadata.business_type?.trim()) form.append('business_type', metadata.business_type.trim())
 }

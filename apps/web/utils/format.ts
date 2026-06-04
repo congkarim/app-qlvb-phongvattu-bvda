@@ -10,3 +10,10 @@ export function formatDateTime(value: string): string {
     timeStyle: 'short'
   }).format(new Date(value))
 }
+
+export function formatDate(value?: string | null): string {
+  if (!value) return '-'
+  return new Intl.DateTimeFormat('vi-VN', {
+    dateStyle: 'short'
+  }).format(new Date(value))
+}

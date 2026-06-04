@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 
 from pydantic import BaseModel, Field
 
@@ -44,6 +44,10 @@ class DocumentRead(BaseModel):
     original_filename: str
     content_type: str | None = None
     document_type: str
+    document_number: str | None = None
+    issued_date: date | None = None
+    issuing_agency: str | None = None
+    business_type: str | None = None
     status: str
     created_at: datetime
     updated_at: datetime
