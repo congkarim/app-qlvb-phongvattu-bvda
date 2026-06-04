@@ -113,6 +113,25 @@ class DocumentRepository:
         self.db.flush()
         return document
 
+    def update_metadata(
+        self,
+        document: Document,
+        *,
+        title: str,
+        document_number: str | None,
+        issued_date,
+        issuing_agency: str | None,
+        business_type: str | None,
+    ) -> Document:
+        document.title = title
+        document.document_number = document_number
+        document.issued_date = issued_date
+        document.issuing_agency = issuing_agency
+        document.business_type = business_type
+        self.db.add(document)
+        self.db.flush()
+        return document
+
     def create_file(
         self,
         *,

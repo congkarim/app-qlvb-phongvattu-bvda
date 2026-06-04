@@ -94,6 +94,7 @@ Workflow web đã hoàn thiện:
 - `/documents` hỗ trợ tìm theo tên, filename, số văn bản hoặc đơn vị ban hành; lọc/sort theo loại nghiệp vụ và ngày ban hành.
 - `/documents/[id]` hiển thị metadata, OCR job status, OCR text, chunks và tự polling tới khi document `searchable`.
 - `/documents/[id]` hiển thị metadata nghiệp vụ gồm số văn bản, ngày ban hành, đơn vị ban hành và loại nghiệp vụ.
+- `/documents/[id]` cho phép sửa tên văn bản và metadata nghiệp vụ sau upload; mỗi lần lưu ghi audit log `document.metadata_updated`.
 - `/documents/[id]` hiển thị card `Tệp nguồn` để xem một hoặc nhiều file nguồn thuộc cùng document.
 - `/documents/[id]` cho phép thêm source files, đổi thứ tự file và soft-delete source file; mỗi thay đổi tạo reprocess job async.
 - `/documents/[id]` có action reprocess, khóa nút khi document đang `ocr_pending`, `ocr_running`, `reprocess_pending`, `reprocess_running` hoặc `chunking`.
@@ -133,6 +134,27 @@ Kết quả:
 - Smoke upload `metadata-smoke.txt` với `document_number=123/CV-VT`, `issued_date=2026-06-04`, `issuing_agency=Phòng Vật tư`, `business_type=incoming_dispatch` trả đúng metadata trong response.
 - `GET /api/v1/documents?q=123%2FCV-VT&business_type=incoming_dispatch&sort_by=issued_date&sort_dir=desc` trả đúng document smoke và worker đã chuyển sang `searchable`.
 - `/upload` và `/documents` redirect `302 /login` khi chưa đăng nhập, `/login` trả 200.
+
+Sửa metadata sau upload kiểm tra ngày 2026-06-04:
+
+```bash
+docker compose config --quiet
+docker compose run --rm --no-deps api python -m py_compile app/schemas/document.py app/repositories/document_repository.py app/services/document_service.py app/routers/documents.py
+docker compose run --rm --no-deps web npm run build
+curl -fsS -X PATCH http://localhost:8000/api/v1/documents/{document_id}/metadata \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"title":"Metadata smoke updated","document_number":"456/CV-VT","issued_date":"2026-06-04","issuing_agency":"Phòng Vật tư cập nhật","business_type":"outgoing_dispatch"}'
+curl -fsS http://localhost:8000/api/v1/documents/{document_id} -H "Authorization: Bearer <token>"
+curl -fsS -I http://localhost:3000/login
+curl -fsS -I http://localhost:3000/documents/{document_id}
+```
+
+Kết quả:
+- `PATCH /api/v1/documents/{id}/metadata` cập nhật được title, số văn bản, ngày ban hành, đơn vị ban hành và loại nghiệp vụ.
+- Detail response có audit event `document.metadata_updated`.
+- Frontend build pass qua Docker; build có warning chunk PrimeVue lớn như trước, không fail.
+- `/login` trả 200, detail route redirect `302 /login` khi chưa đăng nhập.
 
 Test upload:
 

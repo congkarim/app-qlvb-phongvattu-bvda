@@ -3,6 +3,7 @@ import type {
   DocumentItem,
   DocumentListFilters,
   DocumentMetadataInput,
+  DocumentMetadataUpdateInput,
   MultiFileUploadResponse,
   ReprocessDocumentResponse,
   SourceFileMutationResponse,
@@ -16,6 +17,7 @@ export function useDocuments() {
   const uploadResult = ref<UploadResponse | null>(null)
   const multiFileUploadResult = ref<MultiFileUploadResponse | null>(null)
   const loading = ref(false)
+  const metadataLoading = ref(false)
   const reprocessLoading = ref(false)
   const sourceFileLoading = ref(false)
   const error = ref('')
@@ -92,6 +94,29 @@ export function useDocuments() {
       return null
     } finally {
       loading.value = false
+    }
+  }
+
+  async function updateDocumentMetadata(
+    id: string,
+    metadata: DocumentMetadataUpdateInput
+  ): Promise<DocumentItem | null> {
+    metadataLoading.value = true
+    error.value = ''
+    try {
+      const result = await service.updateMetadata(id, metadata)
+      if (document.value?.id === id) {
+        document.value = {
+          ...document.value,
+          ...result
+        }
+      }
+      return result
+    } catch {
+      error.value = 'Không cập nhật được metadata'
+      return null
+    } finally {
+      metadataLoading.value = false
     }
   }
 
@@ -182,6 +207,7 @@ export function useDocuments() {
     uploadResult,
     multiFileUploadResult,
     loading,
+    metadataLoading,
     reprocessLoading,
     sourceFileLoading,
     error,
@@ -190,6 +216,7 @@ export function useDocuments() {
     uploadDocument,
     uploadMultiFileDocument,
     uploadZipDocument,
+    updateDocumentMetadata,
     addSourceFiles,
     reorderSourceFiles,
     deleteSourceFile,

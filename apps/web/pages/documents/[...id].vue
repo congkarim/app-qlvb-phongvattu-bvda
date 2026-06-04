@@ -1,14 +1,17 @@
 <script setup lang="ts">
+import type { DocumentMetadataUpdateInput } from '~/types/document'
 import { formatDate, formatDateTime, formatFileSize } from '~/utils/format'
 
 const route = useRoute()
 const {
   document,
   loading,
+  metadataLoading,
   reprocessLoading,
   sourceFileLoading,
   error,
   fetchDocument,
+  updateDocumentMetadata,
   reprocessDocument,
   addSourceFiles,
   reorderSourceFiles,
@@ -18,6 +21,14 @@ let pollTimer: ReturnType<typeof setInterval> | undefined
 const reprocessReason = ref('')
 const selectedSourceFiles = ref<File[]>([])
 const lastDetailRefreshedAt = ref<Date | null>(null)
+const isEditingMetadata = ref(false)
+const metadataForm = reactive<DocumentMetadataUpdateInput>({
+  title: '',
+  document_number: '',
+  issued_date: '',
+  issuing_agency: '',
+  business_type: ''
+})
 
 const processingStatuses = new Set([
   'ocr_pending',
@@ -67,6 +78,7 @@ const canReprocess = computed(() => {
 })
 
 const canManageSourceFiles = computed(() => canReprocess.value && !sourceFileLoading.value)
+const canSaveMetadata = computed(() => Boolean(metadataForm.title.trim()) && !metadataLoading.value)
 
 const ocrText = computed(() => {
   return document.value?.pages.map((page) => page.text).join('\n\n') || ''
@@ -76,12 +88,29 @@ const lastDetailRefreshText = computed(() => {
   return lastDetailRefreshedAt.value ? formatDateTime(lastDetailRefreshedAt.value.toISOString()) : ''
 })
 
+const businessTypeOptions = [
+  { label: 'Chưa phân loại', value: '' },
+  { label: 'Công văn đến', value: 'incoming_dispatch' },
+  { label: 'Công văn đi', value: 'outgoing_dispatch' },
+  { label: 'Hợp đồng', value: 'contract' },
+  { label: 'Quyết định', value: 'decision' }
+]
+
 function isActiveJob(status: string): boolean {
   return status.includes('pending') || status.includes('running')
 }
 
 function markDetailRefreshed() {
   lastDetailRefreshedAt.value = new Date()
+}
+
+function syncMetadataForm() {
+  if (!document.value) return
+  metadataForm.title = document.value.title || ''
+  metadataForm.document_number = document.value.document_number || ''
+  metadataForm.issued_date = document.value.issued_date || ''
+  metadataForm.issuing_agency = document.value.issuing_agency || ''
+  metadataForm.business_type = document.value.business_type || ''
 }
 
 function formatAuditAction(action: string): string {
@@ -91,6 +120,7 @@ function formatAuditAction(action: string): string {
   if (action === 'document.source_files_added') return 'Thêm tệp nguồn'
   if (action === 'document.source_files_reordered') return 'Đổi thứ tự tệp nguồn'
   if (action === 'document.source_file_deleted') return 'Xóa tệp nguồn'
+  if (action === 'document.metadata_updated') return 'Cập nhật metadata'
   return action
 }
 
@@ -138,6 +168,21 @@ async function submitReprocess() {
   if (shouldPoll.value) startPolling()
 }
 
+async function submitMetadataUpdate() {
+  if (!document.value || !canSaveMetadata.value) return
+  const result = await updateDocumentMetadata(document.value.id, metadataForm)
+  if (!result) return
+  isEditingMetadata.value = false
+  await fetchDocument(documentId.value, { silent: true })
+  syncMetadataForm()
+  markDetailRefreshed()
+}
+
+function cancelMetadataEdit() {
+  syncMetadataForm()
+  isEditingMetadata.value = false
+}
+
 function handleSourceFilesSelected(files: File[]) {
   selectedSourceFiles.value = files
 }
@@ -180,6 +225,7 @@ async function refreshAfterSourceFileMutation() {
 
 onMounted(async () => {
   await fetchDocument(documentId.value)
+  syncMetadataForm()
   markDetailRefreshed()
   if (shouldPoll.value) startPolling()
 })
@@ -210,9 +256,96 @@ onBeforeUnmount(stopPolling)
       </div>
 
       <Card>
-        <template #title>Metadata</template>
+        <template #title>
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <span>Metadata</span>
+            <Button
+              v-if="!isEditingMetadata"
+              label="Sửa metadata"
+              icon="pi pi-pencil"
+              severity="secondary"
+              size="small"
+              @click="isEditingMetadata = true"
+            />
+          </div>
+        </template>
         <template #content>
-          <dl class="grid gap-3 text-sm sm:grid-cols-2">
+          <form v-if="isEditingMetadata" class="space-y-4" @submit.prevent="submitMetadataUpdate">
+            <div class="grid gap-3 sm:grid-cols-2">
+              <div class="space-y-2 sm:col-span-2">
+                <label for="metadata-title" class="block text-sm font-medium text-slate-700">Tên văn bản *</label>
+                <InputText
+                  id="metadata-title"
+                  v-model="metadataForm.title"
+                  class="w-full"
+                  maxlength="512"
+                  :disabled="metadataLoading"
+                />
+              </div>
+              <div class="space-y-2">
+                <label for="metadata-number" class="block text-sm font-medium text-slate-700">Số văn bản</label>
+                <InputText
+                  id="metadata-number"
+                  v-model="metadataForm.document_number"
+                  class="w-full"
+                  maxlength="128"
+                  :disabled="metadataLoading"
+                />
+              </div>
+              <div class="space-y-2">
+                <label for="metadata-issued-date" class="block text-sm font-medium text-slate-700">Ngày ban hành</label>
+                <InputText
+                  id="metadata-issued-date"
+                  v-model="metadataForm.issued_date"
+                  class="w-full"
+                  type="date"
+                  :disabled="metadataLoading"
+                />
+              </div>
+              <div class="space-y-2">
+                <label for="metadata-agency" class="block text-sm font-medium text-slate-700">Đơn vị ban hành</label>
+                <InputText
+                  id="metadata-agency"
+                  v-model="metadataForm.issuing_agency"
+                  class="w-full"
+                  maxlength="255"
+                  :disabled="metadataLoading"
+                />
+              </div>
+              <div class="space-y-2">
+                <label for="metadata-business-type" class="block text-sm font-medium text-slate-700">Loại nghiệp vụ</label>
+                <select
+                  id="metadata-business-type"
+                  v-model="metadataForm.business_type"
+                  class="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+                  :disabled="metadataLoading"
+                >
+                  <option v-for="option in businessTypeOptions" :key="option.value" :value="option.value">
+                    {{ option.label }}
+                  </option>
+                </select>
+              </div>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <Button
+                type="submit"
+                label="Lưu metadata"
+                icon="pi pi-save"
+                :disabled="!canSaveMetadata"
+                :loading="metadataLoading"
+              />
+              <Button
+                type="button"
+                label="Hủy"
+                icon="pi pi-times"
+                severity="secondary"
+                :disabled="metadataLoading"
+                @click="cancelMetadataEdit"
+              />
+            </div>
+          </form>
+
+          <dl v-else class="grid gap-3 text-sm sm:grid-cols-2">
             <div>
               <dt class="text-slate-500">Loại văn bản</dt>
               <dd class="font-medium">{{ document.document_type }}</dd>

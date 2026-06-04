@@ -1,4 +1,4 @@
-# Task Vừa Hoàn Thành: Metadata Nghiệp Vụ Cho Văn Bản
+# Task Vừa Hoàn Thành: Sửa Metadata Sau Upload
 
 Trạng thái: hoàn thành.
 
@@ -6,54 +6,50 @@ Ngày cập nhật: 2026-06-04
 
 ## Phạm Vi Đã Thực Hiện
 
-Đã triển khai metadata nghiệp vụ dùng chung trên bảng `documents`, chưa tập trung tiếp vào preview/kiểm soát zip theo yêu cầu hiện tại.
+Đã triển khai sửa metadata nghiệp vụ sau upload theo task ưu tiên trong kế hoạch. Phần preview/kiểm soát zip vẫn tạm để sau.
 
 ## Kết Quả Chính
 
-Database/backend:
-- Thêm migration `0006_document_business_metadata`.
-- Bảng `documents` có thêm:
-  - `document_number`: số văn bản.
-  - `issued_date`: ngày ban hành.
-  - `issuing_agency`: đơn vị ban hành.
-  - `business_type`: loại nghiệp vụ.
-- `GET /api/v1/documents` hỗ trợ:
-  - Tìm `q` theo title, original filename, số văn bản hoặc đơn vị ban hành.
-  - Lọc `business_type`.
-  - Sort thêm `issued_date` và `business_type`.
-- Upload một tệp, nhiều tệp và zip đều nhận metadata nghiệp vụ qua form data.
-- Audit metadata khi upload có ghi kèm các trường nghiệp vụ.
+Backend:
+- Thêm request DTO `DocumentMetadataUpdateRequest`.
+- Thêm API `PATCH /api/v1/documents/{document_id}/metadata`.
+- Service cập nhật:
+  - `title`
+  - `document_number`
+  - `issued_date`
+  - `issuing_agency`
+  - `business_type`
+- Repository có method cập nhật metadata riêng, không đặt business logic trong router.
+- Mỗi lần lưu metadata ghi audit log `document.metadata_updated`, gồm `changed_fields`, `previous`, `current`.
 
 Frontend:
-- `/upload` có form metadata nghiệp vụ:
-  - Số văn bản.
-  - Ngày ban hành.
-  - Đơn vị ban hành.
-  - Loại nghiệp vụ: công văn đến, công văn đi, hợp đồng, quyết định.
-- `/documents` có filter loại nghiệp vụ, sort ngày ban hành/loại nghiệp vụ và hiển thị thêm số văn bản, ngày ban hành, đơn vị ban hành.
-- `/documents/[id]` hiển thị đầy đủ metadata nghiệp vụ trong card `Metadata`.
+- `document.service.ts` có `updateMetadata`.
+- `useDocuments.ts` có `updateDocumentMetadata` và `metadataLoading`.
+- Trang `/documents/[id]` có chế độ sửa trong card `Metadata`.
+- Form cho phép sửa tên văn bản, số văn bản, ngày ban hành, đơn vị ban hành và loại nghiệp vụ.
+- Lưu thành công refresh detail để hiển thị audit log mới.
 
 ## Đã Kiểm Tra
 
 ```bash
 docker compose config --quiet
-docker compose run --rm --no-deps api python -m py_compile app/models/document.py app/schemas/document.py app/repositories/document_repository.py app/services/document_service.py app/routers/documents.py
-docker compose run --rm --no-deps api python -m py_compile alembic/versions/0006_document_business_metadata.py
-docker compose run --rm api alembic upgrade head
+docker compose run --rm --no-deps api python -m py_compile app/schemas/document.py app/repositories/document_repository.py app/services/document_service.py app/routers/documents.py
 docker compose run --rm --no-deps web npm run build
-docker compose up -d api web
-curl -fsS http://localhost:8000/health
 curl -fsS -I http://localhost:3000/login
+curl -fsS -I http://localhost:3000/documents/{document_id}
 ```
 
 Kết quả:
 - Backend compile pass.
-- Alembic upgrade pass, DB local đã lên revision `0006_document_business_metadata`.
 - Frontend build pass qua Docker.
-- `npm run build` trực tiếp trên host fail do thiếu `apps/web/node_modules/.bin/nuxt`; dùng Docker Compose là workflow hợp lệ.
-- Smoke upload `metadata-smoke.txt` với metadata nghiệp vụ trả đúng response.
-- Search/list theo `q=123/CV-VT`, `business_type=incoming_dispatch`, `sort_by=issued_date` trả đúng document smoke.
-- Web `/upload` và `/documents` redirect về `/login` khi chưa đăng nhập; `/login` trả 200.
+- `PATCH /api/v1/documents/419a80f8-dc60-4148-a62d-c55a6acf6bc9/metadata` cập nhật đúng:
+  - title: `Metadata smoke updated`
+  - document_number: `456/CV-VT`
+  - issuing_agency: `Phòng Vật tư cập nhật`
+  - business_type: `outgoing_dispatch`
+- Detail response có audit log mới nhất `document.metadata_updated`.
+- `/login` trả 200.
+- Detail route redirect `302 /login` khi chưa đăng nhập.
 
 ## Giới Hạn Còn Lại
 
@@ -62,24 +58,22 @@ Kết quả:
 - Chưa có kéo thả reorder; hiện dùng nút lên/xuống.
 - Chưa có khôi phục source file đã soft-delete.
 - Metadata hiện là field chung trên `documents`, chưa tách bảng riêng cho công văn/hợp đồng/quyết định.
-- Chưa có màn sửa metadata sau upload.
 - Chưa có RBAC role admin/user.
 
 ## Task Tiếp Theo Đề Xuất
 
 Ưu tiên tiếp theo nên là một trong các hướng sau:
 
-1. Sửa metadata sau upload:
-   - API `PATCH /api/v1/documents/{id}/metadata`.
-   - Form chỉnh sửa trong trang detail.
-   - Ghi audit log `document.metadata_updated`.
-
-2. RBAC nhẹ:
+1. RBAC nhẹ:
    - Role `admin` và `user`.
    - Chỉ admin được reprocess, xóa source file, đổi source file.
    - User thường chỉ upload/search/xem.
 
-3. Preview và kiểm soát zip, tạm để sau:
+2. Preview và kiểm soát zip, tạm để sau:
    - Xem danh sách file trong zip trước khi tạo document.
    - Cho phép bỏ chọn file trong zip.
    - Cảnh báo file unsupported trước OCR.
+
+3. Metadata nghiệp vụ chuyên sâu:
+   - Tách bảng riêng cho công văn/hợp đồng/quyết định khi workflow thực tế đủ rõ.
+   - Bổ sung validation nghiệp vụ theo từng loại.

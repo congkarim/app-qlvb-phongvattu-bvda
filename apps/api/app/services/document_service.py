@@ -290,6 +290,53 @@ class DocumentService:
     def get_document(self, document_id: str):
         return self.documents.get_document(document_id)
 
+    def update_metadata(
+        self,
+        document_id: str,
+        *,
+        title: str,
+        document_number: str | None = None,
+        issued_date: date | None = None,
+        issuing_agency: str | None = None,
+        business_type: str | None = None,
+        actor: User | None = None,
+    ):
+        document = self.documents.get_document(document_id)
+        if document is None:
+            raise DocumentNotFoundError(f"Document not found: {document_id}")
+
+        next_metadata = {
+            "title": self._normalize_title(title),
+            "document_number": self._normalize_title(document_number),
+            "issued_date": issued_date,
+            "issuing_agency": self._normalize_title(issuing_agency),
+            "business_type": self._normalize_title(business_type),
+        }
+        if not next_metadata["title"]:
+            raise ValueError("Document title is required")
+
+        previous_metadata = self._document_metadata(document)
+        document = self.documents.update_metadata(document, **next_metadata)
+        changed_fields = [
+            key
+            for key, previous_value in previous_metadata.items()
+            if previous_value != self._serialize_metadata_value(next_metadata[key])
+        ]
+        self.audit_logs.create(
+            action="document.metadata_updated",
+            entity_type="document",
+            entity_id=document.id,
+            actor_user_id=actor.id if actor else None,
+            metadata={
+                "changed_fields": changed_fields,
+                "previous": previous_metadata,
+                "current": self._document_metadata(document),
+            },
+        )
+        self.db.commit()
+        self.db.refresh(document)
+        return document
+
     def request_reprocess(self, document_id: str, *, reason: str | None = None, actor: User | None = None):
         document = self.documents.get_document(document_id)
         if document is None:
@@ -554,6 +601,20 @@ class DocumentService:
             }
             for document_file in document_files
         ]
+
+    def _document_metadata(self, document) -> dict[str, str | None]:
+        return {
+            "title": document.title,
+            "document_number": document.document_number,
+            "issued_date": document.issued_date.isoformat() if document.issued_date else None,
+            "issuing_agency": document.issuing_agency,
+            "business_type": document.business_type,
+        }
+
+    def _serialize_metadata_value(self, value) -> str | None:
+        if isinstance(value, date):
+            return value.isoformat()
+        return value
 
     def _normalize_title(self, title: str | None) -> str | None:
         if title is None:

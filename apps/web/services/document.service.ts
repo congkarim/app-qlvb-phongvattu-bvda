@@ -3,6 +3,7 @@ import type {
   DocumentItem,
   DocumentListFilters,
   DocumentMetadataInput,
+  DocumentMetadataUpdateInput,
   MultiFileUploadResponse,
   ReprocessDocumentResponse,
   SourceFileMutationResponse,
@@ -26,6 +27,12 @@ export function createDocumentService() {
     },
     get(id: string) {
       return api<DocumentDetail>(`/documents/${id}`)
+    },
+    updateMetadata(id: string, metadata: DocumentMetadataUpdateInput) {
+      return api<DocumentItem>(`/documents/${id}/metadata`, {
+        method: 'PATCH',
+        body: normalizeMetadataUpdate(metadata)
+      })
     },
     upload(file: File, documentType = 'document', title = '', metadata: DocumentMetadataInput = {}) {
       const form = new FormData()
@@ -100,4 +107,14 @@ function appendMetadata(form: FormData, metadata: DocumentMetadataInput) {
   if (metadata.issued_date?.trim()) form.append('issued_date', metadata.issued_date.trim())
   if (metadata.issuing_agency?.trim()) form.append('issuing_agency', metadata.issuing_agency.trim())
   if (metadata.business_type?.trim()) form.append('business_type', metadata.business_type.trim())
+}
+
+function normalizeMetadataUpdate(metadata: DocumentMetadataUpdateInput) {
+  return {
+    title: metadata.title.trim(),
+    document_number: metadata.document_number?.trim() || null,
+    issued_date: metadata.issued_date?.trim() || null,
+    issuing_agency: metadata.issuing_agency?.trim() || null,
+    business_type: metadata.business_type?.trim() || null
+  }
 }

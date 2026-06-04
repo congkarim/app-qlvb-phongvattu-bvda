@@ -49,6 +49,10 @@ export interface DocumentMetadataInput {
   business_type?: string
 }
 
+export interface DocumentMetadataUpdateInput extends DocumentMetadataInput {
+  title: string
+}
+
 export interface DocumentPage {
   id: string
   page_number: number

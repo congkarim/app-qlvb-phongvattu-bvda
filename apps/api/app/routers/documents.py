@@ -8,6 +8,7 @@ from app.dependencies import get_current_user
 from app.models.user import User
 from app.schemas.document import (
     DocumentDetailRead,
+    DocumentMetadataUpdateRequest,
     DocumentRead,
     MultiFileUploadResponse,
     ReorderDocumentFilesRequest,
@@ -211,6 +212,29 @@ def get_document(document_id: str, db: Session = Depends(get_db)) -> DocumentDet
     if not document:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
     return document
+
+
+@router.patch("/{document_id}/metadata", response_model=DocumentRead)
+def update_document_metadata(
+    document_id: str,
+    payload: DocumentMetadataUpdateRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> DocumentRead:
+    try:
+        return DocumentService(db).update_metadata(
+            document_id,
+            title=payload.title,
+            document_number=payload.document_number,
+            issued_date=payload.issued_date,
+            issuing_agency=payload.issuing_agency,
+            business_type=payload.business_type,
+            actor=current_user,
+        )
+    except DocumentNotFoundError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
 
 
 @router.post("/{document_id}/reprocess", response_model=ReprocessDocumentResponse, status_code=status.HTTP_202_ACCEPTED)

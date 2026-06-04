@@ -99,6 +99,14 @@ class DocumentDetailRead(DocumentRead):
     audit_logs: list[AuditLogRead] = []
 
 
+class DocumentMetadataUpdateRequest(BaseModel):
+    title: str = Field(min_length=1, max_length=512)
+    document_number: str | None = Field(default=None, max_length=128)
+    issued_date: date | None = None
+    issuing_agency: str | None = Field(default=None, max_length=255)
+    business_type: str | None = Field(default=None, max_length=64)
+
+
 class UploadResponse(BaseModel):
     document: DocumentRead
     ocr_job: OCRJobRead

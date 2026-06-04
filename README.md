@@ -101,6 +101,8 @@ Metadata nghiệp vụ hiện hỗ trợ:
 
 Trang detail tự refresh trạng thái cho tới khi document chuyển sang `searchable`.
 
+Trong card `Metadata`, có thể bấm `Sửa metadata` để chỉnh tên văn bản, số văn bản, ngày ban hành, đơn vị ban hành và loại nghiệp vụ. Mỗi lần lưu được ghi vào audit log của document.
+
 6. Vào `Dashboard`, search:
 
 ```text
