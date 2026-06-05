@@ -1,59 +1,59 @@
-# Ke Hoach Task Tiep Theo
+# Kế Hoạch Task Tiếp Theo
 
-Cap nhat lan cuoi: 2026-06-05
+Cập nhật lần cuối: 2026-06-05
 
-Tai lieu nay bam theo `ROADMAP.md` va trang thai da ghi trong `PROJECT_STATUS.md`. Muc uu tien hien tai la on dinh core workflow sau khi MVP va review queue pagination da hoan thanh.
+Tài liệu này bám theo `ROADMAP.md` và trạng thái đã ghi trong `PROJECT_STATUS.md`. Mục ưu tiên hiện tại là ổn định core workflow sau khi MVP và review queue pagination đã hoàn thành.
 
-## Task Vua Hoan Thanh
+## Task Vừa Hoàn Thành
 
-Queue pagination polish: hoan thanh ngay 2026-06-05.
+Queue pagination polish: hoàn thành ngày 2026-06-05.
 
-Ket qua chinh:
-- Backend `GET /api/v1/documents/chunks/review-queue` tra `items`, `total`, `limit`, `offset`.
-- Repository co count matching cung filter `section_role`, `document_id`, `max_confidence`.
-- Query queue co sort on dinh theo confidence, `updated_at` va `DocumentChunk.id`.
-- Dashboard admin hien thi tong so item, khoang item hien tai, nut `Truoc/Sau`, giu filter khi chuyen trang va refresh hop ly sau action `Da review`.
-- Frontend van giu dung luong `page -> composable -> service -> API`.
+Kết quả chính:
+- Backend `GET /api/v1/documents/chunks/review-queue` trả `items`, `total`, `limit`, `offset`.
+- Repository có count matching cùng filter `section_role`, `document_id`, `max_confidence`.
+- Query queue có sort ổn định theo confidence, `updated_at` và `DocumentChunk.id`.
+- Dashboard admin hiển thị tổng số item, khoảng item hiện tại, nút `Trước/Sau`, giữ filter khi chuyển trang và refresh hợp lý sau action `Đã review`.
+- Frontend vẫn giữ đúng luồng `page -> composable -> service -> API`.
 
-Da kiem tra:
+Đã kiểm tra:
 - Backend compile pass.
-- Frontend build pass, chi con warning chunk PrimeVue lon nhu truoc.
+- Frontend build pass, chỉ còn warning chunk PrimeVue lớn như trước.
 - Appendix smoke pass.
-- Pagination smoke pass voi hai page khong trung item.
-- User forbidden smoke pass voi review queue tra `403`.
+- Pagination smoke pass với hai page không trùng item.
+- User forbidden smoke pass với review queue trả `403`.
 
-## Uu Tien 1 - Documents Pagination Polish
+## Ưu Tiên 1 - Documents Pagination Polish
 
-Trang thai: de xuat lam tiep theo.
+Trạng thái: đề xuất làm tiếp theo.
 
-Muc tieu:
-- Thay limit co dinh tren `/documents` bang pagination co total count de danh sach van ban dung duoc khi data tang.
-- Giu luong frontend `page -> composable -> service -> API`.
-- Giu backend `router -> service -> repository`.
+Mục tiêu:
+- Thay limit cố định trên `/documents` bằng pagination có total count để danh sách văn bản dùng được khi data tăng.
+- Giữ luồng frontend `page -> composable -> service -> API`.
+- Giữ backend `router -> service -> repository`.
 
-Pham vi backend:
-- Mo rong schema response danh sach document thanh object co `items`, `total`, `limit`, `offset`.
-- Giu cac filter/search/sort hien co cua danh sach document.
-- Them repository count document matching dung cung filter voi list.
-- Tach helper filter neu can de list/count khong lech logic.
-- Them sort tie-breaker bang `Document.id` de pagination on dinh.
-- Giu endpoint permission hien co, khong them migration neu khong can.
+Phạm vi backend:
+- Mở rộng schema response danh sách document thành object có `items`, `total`, `limit`, `offset`.
+- Giữ các filter/search/sort hiện có của danh sách document.
+- Thêm repository count document matching đúng cùng filter với list.
+- Tách helper filter nếu cần để list/count không lệch logic.
+- Thêm sort tie-breaker bằng `Document.id` để pagination ổn định.
+- Giữ endpoint permission hiện có, không thêm migration nếu không cần.
 
-Pham vi frontend:
-- Cap nhat type response document list.
-- Cap nhat `document.service.ts` nhan response pagination.
-- Cap nhat composable quan ly `documents`, `documentsTotal`, `documentsLimit`, `documentsOffset`.
-- Cap nhat page `/documents` de hien thi tong so, khoang item, nut trang truoc/sau hoac paginator PrimeVue neu phu hop.
-- Reset offset ve `0` khi doi search/filter/sort.
-- Giu refresh action va empty/loading/error state hien co.
+Phạm vi frontend:
+- Cập nhật type response document list.
+- Cập nhật `document.service.ts` nhận response pagination.
+- Cập nhật composable quản lý `documents`, `documentsTotal`, `documentsLimit`, `documentsOffset`.
+- Cập nhật page `/documents` để hiển thị tổng số, khoảng item, nút trang trước/sau hoặc paginator PrimeVue nếu phù hợp.
+- Reset offset về `0` khi đổi search/filter/sort.
+- Giữ refresh action và empty/loading/error state hiện có.
 
-Tieu chi chap nhan:
-- Danh sach document page 1/page 2 khong trung item khi du lieu du lon.
-- Search/filter/sort van hoat dong sau khi them pagination.
-- UI khong goi API truc tiep trong component ngoai service/composable hien co.
-- Khong pha document detail, upload, search dashboard.
+Tiêu chí chấp nhận:
+- Danh sách document page 1/page 2 không trùng item khi dữ liệu đủ lớn.
+- Search/filter/sort vẫn hoạt động sau khi thêm pagination.
+- UI không gọi API trực tiếp trong component ngoài service/composable hiện có.
+- Không phá document detail, upload, search dashboard.
 
-Kiem tra can chay:
+Kiểm tra cần chạy:
 
 ```bash
 PYTHONPYCACHEPREFIX=/tmp/qlvb-pycache PYTHONPATH=apps/api python3 -m py_compile apps/api/app/schemas/document.py apps/api/app/repositories/document_repository.py apps/api/app/services/document_service.py apps/api/app/routers/documents.py
@@ -62,30 +62,30 @@ python3 <documents pagination smoke script>
 git diff --check
 ```
 
-## Uu Tien 2 - Smoke API Auth Wrapper
+## Ưu Tiên 2 - Smoke API Auth Wrapper
 
-Trang thai: de xuat sau documents pagination.
+Trạng thái: đề xuất sau documents pagination.
 
-Muc tieu:
-- Chuyen cac smoke HTTP inline thanh script tai chay duoc, co login admin/user va cleanup ro rang.
-- Giam rui ro regression cho review queue, semantic search va review action.
+Mục tiêu:
+- Chuyển các smoke HTTP inline thành script tái chạy được, có login admin/user và cleanup rõ ràng.
+- Giảm rủi ro regression cho review queue, semantic search và review action.
 
-Pham vi:
-- Tao script smoke API workflow trong `apps/api/app/scripts/`.
-- Dung admin local de login va lay token.
-- Tao user thuong tam neu can de kiem tra permission.
-- Seed document/chunk smoke toi thieu hoac tai su dung appendix fixture hien co.
-- Kiem tra review queue admin thanh cong va user thuong bi `403`.
-- Kiem tra semantic search voi filter co ban va filter `section_role=appendix`.
-- Kiem tra action review chunk cap nhat DB va Qdrant payload.
-- Cleanup user/document/chunk/Qdrant point sau khi chay, co option `--keep-data` neu can debug UI.
+Phạm vi:
+- Tạo script smoke API workflow trong `apps/api/app/scripts/`.
+- Dùng admin local để login và lấy token.
+- Tạo user thường tạm nếu cần để kiểm tra permission.
+- Seed document/chunk smoke tối thiểu hoặc tái sử dụng appendix fixture hiện có.
+- Kiểm tra review queue admin thành công và user thường bị `403`.
+- Kiểm tra semantic search với filter cơ bản và filter `section_role=appendix`.
+- Kiểm tra action review chunk cập nhật DB và Qdrant payload.
+- Cleanup user/document/chunk/Qdrant point sau khi chạy, có option `--keep-data` nếu cần debug UI.
 
-Tieu chi chap nhan:
-- Mot command smoke co the chay lai tren Docker Compose dang active.
-- Script fail fast voi error message ro endpoint nao loi.
-- Du lieu smoke khong de lai rac khi chay mac dinh.
+Tiêu chí chấp nhận:
+- Một command smoke có thể chạy lại trên Docker Compose đang active.
+- Script fail fast với error message rõ endpoint nào lỗi.
+- Dữ liệu smoke không để lại rác khi chạy mặc định.
 
-Kiem tra can chay:
+Kiểm tra cần chạy:
 
 ```bash
 PYTHONPYCACHEPREFIX=/tmp/qlvb-pycache PYTHONPATH=apps/api python3 -m py_compile apps/api/app/scripts/smoke_api_workflows.py
@@ -93,25 +93,25 @@ docker compose exec -T api python -m app.scripts.smoke_api_workflows
 git diff --check
 ```
 
-## Uu Tien 3 - Review Queue UX Polish
+## Ưu Tiên 3 - Review Queue UX Polish
 
-Trang thai: tuy chon, lam khi queue nhieu trang can thao tac nhanh hon.
+Trạng thái: tùy chọn, làm khi queue nhiều trang cần thao tác nhanh hơn.
 
-Muc tieu:
-- Cai thien thao tac admin tren queue dai ma khong lam phuc tap dashboard.
+Mục tiêu:
+- Cải thiện thao tác admin trên queue dài mà không làm phức tạp dashboard.
 
-Pham vi:
-- Danh gia UI hien tai `Truoc/Sau` co du dung khong.
-- Neu can, thay bang PrimeVue paginator hoac them current page/page count.
-- Giu filter queue hien co: tat ca, phu luc, unknown, confidence thap, document id.
-- Dam bao action `Da review` khong day admin ve sai page.
+Phạm vi:
+- Đánh giá UI hiện tại `Trước/Sau` có đủ dùng không.
+- Nếu cần, thay bằng PrimeVue paginator hoặc thêm current page/page count.
+- Giữ filter queue hiện có: tất cả, phụ lục, unknown, confidence thấp, document id.
+- Đảm bảo action `Đã review` không đẩy admin về sai page.
 
-Tieu chi chap nhan:
-- Admin biet dang o page nao va tong so item con lai.
-- Chuyen trang khong mat filter.
-- UI compact, khong tao card long nhau.
+Tiêu chí chấp nhận:
+- Admin biết đang ở page nào và tổng số item còn lại.
+- Chuyển trang không mất filter.
+- UI compact, không tạo card lồng nhau.
 
-Kiem tra can chay:
+Kiểm tra cần chạy:
 
 ```bash
 docker compose run --rm --no-deps web npm run build
@@ -119,98 +119,98 @@ python3 <review queue pagination smoke script>
 git diff --check
 ```
 
-## Phase 2 - Worker Reliability Va Operations
+## Phase 2 - Worker Reliability Và Operations
 
-Trang thai: chua bat dau.
+Trạng thái: chưa bắt đầu.
 
-Muc tieu:
-- Lam OCR worker an toan hon khi chay lau dai hoac chay nhieu worker.
+Mục tiêu:
+- Làm OCR worker an toàn hơn khi chạy lâu dài hoặc chạy nhiều worker.
 
-Ke hoach chi tiet:
-- Khao sat hien trang worker polling pending job va repository update job status.
-- Them co che claim atomic bang transaction/row lock de tranh hai worker xu ly cung job.
-- Chuan hoa `attempts`, retry policy, failed reason va job audit.
-- Them smoke hoac integration check voi hai worker/process neu kha thi.
-- Viet runbook ngan cho restart worker, job failed va reprocess.
+Kế hoạch chi tiết:
+- Khảo sát hiện trạng worker polling pending job và repository update job status.
+- Thêm cơ chế claim atomic bằng transaction/row lock để tránh hai worker xử lý cùng job.
+- Chuẩn hóa `attempts`, retry policy, failed reason và job audit.
+- Thêm smoke hoặc integration check với hai worker/process nếu khả thi.
+- Viết runbook ngắn cho restart worker, job failed và reprocess.
 
-Tieu chi chap nhan:
-- Hai worker song song khong xu ly trung mot OCR job.
-- Job failed co error ro va khong bi lap vo han.
-- Reprocess van tao job dung va detail page van polling dung status.
+Tiêu chí chấp nhận:
+- Hai worker song song không xử lý trùng một OCR job.
+- Job failed có error rõ và không bị lặp vô hạn.
+- Reprocess vẫn tạo job đúng và detail page vẫn polling đúng status.
 
-## Phase 3 - Search Quality Va RAG Foundation
+## Phase 3 - Search Quality Và RAG Foundation
 
-Trang thai: chua bat dau.
+Trạng thái: chưa bắt đầu.
 
-Muc tieu:
-- Tang chat luong retrieval va chuan bi RAG local co citation.
+Mục tiêu:
+- Tăng chất lượng retrieval và chuẩn bị RAG local có citation.
 
-Ke hoach chi tiet:
-- Trich xuat cac heuristic rerank hardcoded thanh module/rule rieng.
-- Tao bo benchmark query fixture cho vat tu, phu luc, dieu khoan, ngay ban hanh va don vi ban hanh.
-- Them command chay benchmark search local va report top-k.
-- Danh gia embedding local/rerank local neu can, khong dung cloud.
-- Thiet ke API RAG local-only sau khi benchmark search on dinh.
+Kế hoạch chi tiết:
+- Trích xuất các heuristic rerank hardcoded thành module/rule riêng.
+- Tạo bộ benchmark query fixture cho vật tư, phụ lục, điều khoản, ngày ban hành và đơn vị ban hành.
+- Thêm command chạy benchmark search local và report top-k.
+- Đánh giá embedding local/rerank local nếu cần, không dùng cloud.
+- Thiết kế API RAG local-only sau khi benchmark search ổn định.
 
-Tieu chi chap nhan:
-- Search core khong tron cac rule mau hardcoded kho maintain.
-- Benchmark co the chay lai va so sanh thay doi ranking.
-- Cau tra loi RAG neu them phai co citation chunk/document/source.
+Tiêu chí chấp nhận:
+- Search core không trộn các rule mẫu hardcoded khó maintain.
+- Benchmark có thể chạy lại và so sánh thay đổi ranking.
+- Câu trả lời RAG nếu thêm phải có citation chunk/document/source.
 
 ## Phase 4 - Domain Modules
 
-Trang thai: chua bat dau.
+Trạng thái: chưa bắt đầu.
 
-Muc tieu:
-- Mo rong tu document repository chung sang cac module nghiep vu cua phong vat tu.
+Mục tiêu:
+- Mở rộng từ document repository chung sang các module nghiệp vụ của phòng vật tư.
 
-Ke hoach chi tiet:
-- Chon mot module dau tien co gia tri cao nhat, vi du hop dong/phu luc hop dong hoac cong van den/di.
-- Dinh nghia metadata rieng nhung van lien ket document core.
-- Tao migration co UUID primary key, audit fields va soft delete.
-- Them backend theo `router -> service -> repository`.
-- Them frontend theo `page -> composable -> service -> API`.
-- Tai su dung component list/filter/detail neu co the.
+Kế hoạch chi tiết:
+- Chọn một module đầu tiên có giá trị cao nhất, ví dụ hợp đồng/phụ lục hợp đồng hoặc công văn đến/đi.
+- Định nghĩa metadata riêng nhưng vẫn liên kết document core.
+- Tạo migration có UUID primary key, audit fields và soft delete.
+- Thêm backend theo `router -> service -> repository`.
+- Thêm frontend theo `page -> composable -> service -> API`.
+- Tái sử dụng component list/filter/detail nếu có thể.
 
-Tieu chi chap nhan:
-- Module moi khong pha upload/OCR/search core.
-- Metadata module co the filter/search duoc.
-- UI co workflow nghiep vu ro, khong chi la landing page.
+Tiêu chí chấp nhận:
+- Module mới không phá upload/OCR/search core.
+- Metadata module có thể filter/search được.
+- UI có workflow nghiệp vụ rõ, không chỉ là landing page.
 
-## Phase 5 - Admin Configuration Va Governance
+## Phase 5 - Admin Configuration Và Governance
 
-Trang thai: chua bat dau.
+Trạng thái: chưa bắt đầu.
 
-Muc tieu:
-- De admin quan ly danh muc va cau hinh nhe khong can sua code.
+Mục tiêu:
+- Để admin quản lý danh mục và cấu hình nhẹ không cần sửa code.
 
-Ke hoach chi tiet:
-- Thiet ke danh muc can co: don vi/phong ban, loai nghiep vu, loai van ban.
-- Them CRUD admin co audit log.
-- Cap nhat frontend option lay tu API thay vi hardcode cho cac field phu hop.
-- Them trang status toi thieu cho OCR/model/Qdrant.
-- Neu can, mo rong permission nhung giu RBAC don gian.
+Kế hoạch chi tiết:
+- Thiết kế danh mục cần có: đơn vị/phòng ban, loại nghiệp vụ, loại văn bản.
+- Thêm CRUD admin có audit log.
+- Cập nhật frontend option lấy từ API thay vì hardcode cho các field phù hợp.
+- Thêm trang status tối thiểu cho OCR/model/Qdrant.
+- Nếu cần, mở rộng permission nhưng giữ RBAC đơn giản.
 
-Tieu chi chap nhan:
-- Admin thay doi danh muc co audit log.
-- UI form dung option tu API va van co fallback hop ly.
-- Khong bien admin config thanh framework phuc tap.
+Tiêu chí chấp nhận:
+- Admin thay đổi danh mục có audit log.
+- UI form dùng option từ API và vẫn có fallback hợp lý.
+- Không biến admin config thành framework phức tạp.
 
 ## Phase 6 - On-Prem Production Hardening
 
-Trang thai: chua bat dau.
+Trạng thái: chưa bắt đầu.
 
-Muc tieu:
-- Chuan bi van hanh noi bo on-prem co kiem soat.
+Mục tiêu:
+- Chuẩn bị vận hành nội bộ on-prem có kiểm soát.
 
-Ke hoach chi tiet:
-- Chuan hoa `.env`, secret, CORS va default admin password policy.
-- Tai lieu storage volumes cho PostgreSQL, Qdrant va uploads.
-- Viet backup/restore runbook.
-- Them health/readiness check can thiet.
-- Kiem tra upload limits, log policy va resource limits Docker Compose.
+Kế hoạch chi tiết:
+- Chuẩn hóa `.env`, secret, CORS và default admin password policy.
+- Tài liệu storage volumes cho PostgreSQL, Qdrant và uploads.
+- Viết backup/restore runbook.
+- Thêm health/readiness check cần thiết.
+- Kiểm tra upload limits, log policy và resource limits Docker Compose.
 
-Tieu chi chap nhan:
-- Cai dat moi khong dung secret/password mac dinh trong production noi bo.
-- Co tai lieu backup/restore va troubleshoot.
-- Health check phan biet service song voi service san sang xu ly workflow.
+Tiêu chí chấp nhận:
+- Cài đặt mới không dùng secret/password mặc định trong production nội bộ.
+- Có tài liệu backup/restore và troubleshoot.
+- Health check phân biệt service sống với service sẵn sàng xử lý workflow.

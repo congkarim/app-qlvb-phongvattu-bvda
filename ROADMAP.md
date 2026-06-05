@@ -1,156 +1,156 @@
-# Roadmap Phat Trien
+# Roadmap Phát Triển
 
-Cap nhat lan cuoi: 2026-06-05
+Cập nhật lần cuối: 2026-06-05
 
-## Nguyen Tac
+## Nguyên Tắc
 
-- Local/on-prem first, khong dung cloud service.
-- Docker Compose first cho moi workflow dev va smoke.
-- MVP first, chi mo rong khi giai quyet ro workflow nghiep vu.
-- Backend giu luong `router -> service -> repository`.
-- Frontend giu luong `page -> composable -> service -> API`.
-- Khong tu doi stack: FastAPI, PostgreSQL, Redis, Qdrant, PaddleOCR, OpenCV, Nuxt 3, TypeScript, PrimeVue, TailwindCSS, Pinia.
+- Local/on-prem first, không dùng cloud service.
+- Docker Compose first cho mọi workflow dev và smoke.
+- MVP first, chỉ mở rộng khi giải quyết rõ workflow nghiệp vụ.
+- Backend giữ luồng `router -> service -> repository`.
+- Frontend giữ luồng `page -> composable -> service -> API`.
+- Không tự đổi stack: FastAPI, PostgreSQL, Redis, Qdrant, PaddleOCR, OpenCV, Nuxt 3, TypeScript, PrimeVue, TailwindCSS, Pinia.
 
-## Trang Thai Hien Tai
+## Trạng Thái Hiện Tại
 
-MVP end-to-end da hoan thanh va dang chay duoc bang Docker Compose voi cac service `api`, `worker`, `web`, `postgres`, `redis`, `qdrant`.
+MVP end-to-end đã hoàn thành và đang chạy được bằng Docker Compose với các service `api`, `worker`, `web`, `postgres`, `redis`, `qdrant`.
 
-Da hoan thanh:
-- Auth local, seed admin, cookie token frontend va RBAC nhe cho admin/user.
-- Upload mot file, nhieu file cung van ban va zip cung van ban.
-- Quan ly metadata nghiep vu, metadata OCR tu dong va metadata manual review.
-- OCR/extract cho text, markdown, docx, xlsx, PDF co text nhung, PDF/image scan bang PaddleOCR/OpenCV va VietOCR.
-- Chunking van ban hanh chinh tieng Viet theo metadata phap ly, phu luc, confidence va flag `requires_review`.
-- Backfill chunk metadata va reindex Qdrant payload cho DB local/dev.
-- Semantic search co filter metadata nghiep vu va filter chunk nhu `section_role`, `requires_review`.
-- Document detail co preview source, OCR job audit, chunks filter va action danh dau chunk da review.
-- Dashboard co semantic search va admin review queue.
-- Review queue da co pagination `limit/offset`, total count, filter va action review ngay tren queue.
-- User audit UI cho admin xem audit log tung user.
-- Smoke appendix data script da co fixture that va cleanup mac dinh.
+Đã hoàn thành:
+- Auth local, seed admin, cookie token frontend và RBAC nhẹ cho admin/user.
+- Upload một file, nhiều file cùng văn bản và zip cùng văn bản.
+- Quản lý metadata nghiệp vụ, metadata OCR tự động và metadata manual review.
+- OCR/extract cho text, markdown, docx, xlsx, PDF có text nhúng, PDF/image scan bằng PaddleOCR/OpenCV và VietOCR.
+- Chunking văn bản hành chính tiếng Việt theo metadata pháp lý, phụ lục, confidence và flag `requires_review`.
+- Backfill chunk metadata và reindex Qdrant payload cho DB local/dev.
+- Semantic search có filter metadata nghiệp vụ và filter chunk như `section_role`, `requires_review`.
+- Document detail có preview source, OCR job audit, chunks filter và action đánh dấu chunk đã review.
+- Dashboard có semantic search và admin review queue.
+- Review queue đã có pagination `limit/offset`, total count, filter và action review ngay trên queue.
+- User audit UI cho admin xem audit log từng user.
+- Smoke appendix data script đã có fixture thật và cleanup mặc định.
 
-Gioi han con lai:
-- Danh sach `/documents` frontend van dung limit lon co dinh, chua co pagination count dung nghia.
-- Cac smoke HTTP cho auth/search/review queue con mot phan dang chay inline, chua gom thanh workflow tai su dung duoc.
-- Worker dang poll job pending truc tiep; can co co che claim/retry ro hon neu chay nhieu worker.
-- Search rerank co heuristic hardcoded theo cum tu mau; can tach thanh cau hinh/benchmark.
-- Chua co module nghiep vu rieng cho hop dong, cong van den/di, quyet dinh hoac phieu vat tu.
-- Chua co bo cong cu admin cau hinh danh muc, model status, backup/restore va ops hardening day du.
+Giới hạn còn lại:
+- Danh sách `/documents` frontend vẫn dùng limit lớn cố định, chưa có pagination count đúng nghĩa.
+- Các smoke HTTP cho auth/search/review queue còn một phần đang chạy inline, chưa gom thành workflow tái sử dụng được.
+- Worker đang poll job pending trực tiếp; cần có cơ chế claim/retry rõ hơn nếu chạy nhiều worker.
+- Search rerank có heuristic hardcoded theo cụm từ mẫu; cần tách thành cấu hình/benchmark.
+- Chưa có module nghiệp vụ riêng cho hợp đồng, công văn đến/đi, quyết định hoặc phiếu vật tư.
+- Chưa có bộ công cụ admin cấu hình danh mục, model status, backup/restore và ops hardening đầy đủ.
 
-## Lo Trinh Uu Tien
+## Lộ Trình Ưu Tiên
 
 ### Phase 0 - MVP Foundation
 
-Trang thai: hoan thanh.
+Trạng thái: hoàn thành.
 
-Muc tieu: dua he thong tu skeleton den workflow web end-to-end co the dung de upload, OCR, chunk, search, review va audit.
+Mục tiêu: đưa hệ thống từ skeleton đến workflow web end-to-end có thể dùng để upload, OCR, chunk, search, review và audit.
 
-Da thuc hien:
-- Khoi tao stack Docker Compose, backend FastAPI, frontend Nuxt 3 va data services.
-- Hoan thien auth/RBAC MVP.
-- Hoan thien document upload, source file, preview, reprocess va metadata.
-- Hoan thien OCR pipeline local va legal-aware chunking.
-- Hoan thien semantic search, Qdrant payload filters va review workflow.
-- Hoan thien review queue pagination polish ngay 2026-06-05.
+Đã thực hiện:
+- Khởi tạo stack Docker Compose, backend FastAPI, frontend Nuxt 3 và data services.
+- Hoàn thiện auth/RBAC MVP.
+- Hoàn thiện document upload, source file, preview, reprocess và metadata.
+- Hoàn thiện OCR pipeline local và legal-aware chunking.
+- Hoàn thiện semantic search, Qdrant payload filters và review workflow.
+- Hoàn thiện review queue pagination polish ngày 2026-06-05.
 
-Tieu chi hoan thanh: workflow admin local co the upload tai lieu, doi den searchable, search, mo document nguon, review chunk va xem audit log.
+Tiêu chí hoàn thành: workflow admin local có thể upload tài liệu, đợi đến searchable, search, mở document nguồn, review chunk và xem audit log.
 
 ### Phase 1 - Stabilize Core Workflows
 
-Trang thai: dang uu tien tiep theo.
+Trạng thái: đang ưu tiên tiếp theo.
 
-Muc tieu: lam cac workflow MVP on dinh hon khi du lieu tang len va bien smoke thanh kiem tra co the chay lai.
+Mục tiêu: làm các workflow MVP ổn định hơn khi dữ liệu tăng lên và biến smoke thành kiểm tra có thể chạy lại.
 
-Pham vi:
+Phạm vi:
 - Documents pagination polish cho `/documents`.
-- Smoke API auth wrapper cho review queue, semantic search va review action.
-- Review queue UX polish neu queue nhieu trang can thao tac nhanh hon.
-- Don dep cac smoke/script tam thanh script tai su dung duoc.
+- Smoke API auth wrapper cho review queue, semantic search và review action.
+- Review queue UX polish nếu queue nhiều trang cần thao tác nhanh hơn.
+- Dọn dẹp các smoke/script tạm thành script tái sử dụng được.
 
-Tieu chi hoan thanh:
-- Cac list lon co pagination on dinh, co total va khong trung item giua cac page.
-- Smoke workflow login admin/user co the chay lai bang command ro rang.
-- User/admin permission smoke bao phu cac endpoint nhay cam.
+Tiêu chí hoàn thành:
+- Các list lớn có pagination ổn định, có total và không trùng item giữa các page.
+- Smoke workflow login admin/user có thể chạy lại bằng command rõ ràng.
+- User/admin permission smoke bao phủ các endpoint nhạy cảm.
 
-### Phase 2 - Worker Reliability Va Operations
+### Phase 2 - Worker Reliability Và Operations
 
-Trang thai: chua bat dau.
+Trạng thái: chưa bắt đầu.
 
-Muc tieu: giam rui ro khi chay worker lau dai hoac nhieu worker trong moi truong on-prem.
+Mục tiêu: giảm rủi ro khi chạy worker lâu dài hoặc nhiều worker trong môi trường on-prem.
 
-Pham vi:
-- Claim OCR job atomic bang database transaction/row lock.
-- Chuan hoa retry, max attempts, failed reason va audit cho job.
-- Them health/readiness lien quan worker va hang doi.
-- Ghi tai lieu backup/restore PostgreSQL, Qdrant va uploaded source files.
+Phạm vi:
+- Claim OCR job atomic bằng database transaction/row lock.
+- Chuẩn hóa retry, max attempts, failed reason và audit cho job.
+- Thêm health/readiness liên quan worker và hàng đợi.
+- Ghi tài liệu backup/restore PostgreSQL, Qdrant và uploaded source files.
 
-Tieu chi hoan thanh:
-- Hai worker chay song song khong xu ly trung mot job.
-- Job loi duoc retry/co failed state ro rang.
-- Co smoke/command kiem tra worker claim va retry.
+Tiêu chí hoàn thành:
+- Hai worker chạy song song không xử lý trùng một job.
+- Job lỗi được retry/có failed state rõ ràng.
+- Có smoke/command kiểm tra worker claim và retry.
 
-### Phase 3 - Search Quality Va RAG Foundation
+### Phase 3 - Search Quality Và RAG Foundation
 
-Trang thai: chua bat dau.
+Trạng thái: chưa bắt đầu.
 
-Muc tieu: tang chat luong retrieval va tao nen tang RAG local co citation ma khong phu thuoc cloud.
+Mục tiêu: tăng chất lượng retrieval và tạo nền tảng RAG local có citation mà không phụ thuộc cloud.
 
-Pham vi:
-- Tach rerank heuristic khoi logic core, dua vao cau hinh/rule rieng.
-- Tao benchmark fixtures cho truy van vat tu, phu luc, dieu khoan, ngay ban hanh va don vi ban hanh.
-- Danh gia embedding local va rerank local neu can.
-- Thiet ke RAG answer endpoint local-only voi citation chunk/document/source page.
+Phạm vi:
+- Tách rerank heuristic khỏi logic core, đưa vào cấu hình/rule riêng.
+- Tạo benchmark fixtures cho truy vấn vật tư, phụ lục, điều khoản, ngày ban hành và đơn vị ban hành.
+- Đánh giá embedding local và rerank local nếu cần.
+- Thiết kế RAG answer endpoint local-only với citation chunk/document/source page.
 
-Tieu chi hoan thanh:
-- Co bo benchmark search lap lai duoc.
-- Search result giai thich duoc bang metadata/chunk citation.
-- RAG neu bat dau phai tra loi kem citation, khong thay the search MVP.
+Tiêu chí hoàn thành:
+- Có bộ benchmark search lặp lại được.
+- Search result giải thích được bằng metadata/chunk citation.
+- RAG nếu bắt đầu phải trả lời kèm citation, không thay thế search MVP.
 
 ### Phase 4 - Domain Modules
 
-Trang thai: chua bat dau.
+Trạng thái: chưa bắt đầu.
 
-Muc tieu: mo rong tu kho van ban chung sang cac module nghiep vu thuc te cua phong vat tu.
+Mục tiêu: mở rộng từ kho văn bản chung sang các module nghiệp vụ thực tế của phòng vật tư.
 
-Pham vi ung vien:
-- Hop dong va phu luc hop dong.
-- Cong van den/di.
-- Quyet dinh, thong bao, de nghi mua sam.
-- Phieu/de xuat vat tu neu can quan ly inventory workflow.
+Phạm vi ứng viên:
+- Hợp đồng và phụ lục hợp đồng.
+- Công văn đến/đi.
+- Quyết định, thông báo, đề nghị mua sắm.
+- Phiếu/đề xuất vật tư nếu cần quản lý inventory workflow.
 
-Tieu chi hoan thanh:
-- Moi module co metadata rieng, filter rieng va khong pha document/search core.
-- UI giu tai su dung component va service/composable hien co.
-- Migration co audit fields va soft delete theo quy tac du an.
+Tiêu chí hoàn thành:
+- Mỗi module có metadata riêng, filter riêng và không phá document/search core.
+- UI giữ tái sử dụng component và service/composable hiện có.
+- Migration có audit fields và soft delete theo quy tắc dự án.
 
-### Phase 5 - Admin Configuration Va Governance
+### Phase 5 - Admin Configuration Và Governance
 
-Trang thai: chua bat dau.
+Trạng thái: chưa bắt đầu.
 
-Muc tieu: de admin cau hinh he thong thay vi sua code cho cac danh muc va rule co ban.
+Mục tiêu: để admin cấu hình hệ thống thay vì sửa code cho các danh mục và rule cơ bản.
 
-Pham vi:
-- Quan ly danh muc don vi/phong ban, loai nghiep vu, loai van ban.
-- Trang trang thai model/OCR/Qdrant.
-- Cau hinh nhe cho threshold review, page size mac dinh va rule smoke/dev.
-- Mo rong permission neu workflow nghiep vu yeu cau.
+Phạm vi:
+- Quản lý danh mục đơn vị/phòng ban, loại nghiệp vụ, loại văn bản.
+- Trang trạng thái model/OCR/Qdrant.
+- Cấu hình nhẹ cho threshold review, page size mặc định và rule smoke/dev.
+- Mở rộng permission nếu workflow nghiệp vụ yêu cầu.
 
-Tieu chi hoan thanh:
-- Admin thay doi danh muc co audit log.
-- Frontend lay option tu API thay vi hardcode nhung khong lam qua phuc tap MVP.
+Tiêu chí hoàn thành:
+- Admin thay đổi danh mục có audit log.
+- Frontend lấy option từ API thay vì hardcode nhưng không làm quá phức tạp MVP.
 
 ### Phase 6 - On-Prem Production Hardening
 
-Trang thai: chua bat dau.
+Trạng thái: chưa bắt đầu.
 
-Muc tieu: chuan bi van hanh noi bo on-prem mot cach co kiem soat.
+Mục tiêu: chuẩn bị vận hành nội bộ on-prem một cách có kiểm soát.
 
-Pham vi:
-- Chuan hoa `.env`, secret, CORS, file upload limits va log policy.
-- Tai lieu backup/restore va migration runbook.
-- Resource limits Docker Compose va storage volumes.
-- Observability toi thieu: health, logs, job metrics co the xem duoc.
+Phạm vi:
+- Chuẩn hóa `.env`, secret, CORS, file upload limits và log policy.
+- Tài liệu backup/restore và migration runbook.
+- Resource limits Docker Compose và storage volumes.
+- Observability tối thiểu: health, logs, job metrics có thể xem được.
 
-Tieu chi hoan thanh:
-- Co runbook cai dat, nang cap, backup, restore va troubleshoot.
-- Cau hinh production noi bo khong dung default secret/admin password.
+Tiêu chí hoàn thành:
+- Có runbook cài đặt, nâng cấp, backup, restore và troubleshoot.
+- Cấu hình production nội bộ không dùng default secret/admin password.
