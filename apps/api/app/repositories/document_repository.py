@@ -766,6 +766,26 @@ class OCRJobRepository:
         )
         return self.db.scalar(stmt)
 
+    def claim_next_pending_job(self) -> OCRJob | None:
+        stmt = (
+            select(OCRJob)
+            .where(OCRJob.status == "pending", OCRJob.deleted_at.is_(None))
+            .order_by(OCRJob.created_at.asc())
+            .with_for_update(skip_locked=True)
+            .limit(1)
+        )
+        job = self.db.scalar(stmt)
+        if job is None:
+            return None
+
+        job.status = "ocr_running"
+        job.attempts += 1
+        job.started_at = datetime.now(timezone.utc)
+        job.error_message = None
+        self.db.add(job)
+        self.db.flush()
+        return job
+
     def get_job(self, job_id: str) -> OCRJob | None:
         return self.db.get(OCRJob, job_id)
 

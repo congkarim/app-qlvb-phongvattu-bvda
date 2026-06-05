@@ -21,7 +21,7 @@ Tài liệu này là checklist thực thi tuần tự bám theo `ROADMAP.md`. Kh
 
 Phase hiện tại: Phase 2 - Worker Reliability Và Operations.
 
-Mục tiêu tiếp theo phải làm: Phase 2 / Mục tiêu 2 - Atomic Claim OCR Job.
+Mục tiêu tiếp theo phải làm: Phase 2 / Mục tiêu 3 - Retry, Failed Reason Và Audit.
 
 Điều kiện chuyển sang mục tiêu kế tiếp:
 - Mục tiêu hiện tại pass tiêu chí chấp nhận.
@@ -252,7 +252,7 @@ Kết quả khảo sát:
 
 ### Mục Tiêu 2 - Atomic Claim OCR Job
 
-Trạng thái: chưa làm.
+Trạng thái: hoàn thành ngày 2026-06-05.
 
 Mục tiêu:
 - Đảm bảo nhiều worker song song không xử lý trùng một OCR job.
@@ -266,9 +266,31 @@ Tiêu chí chấp nhận:
 - Hai worker/process song song không claim cùng job.
 - Không làm mất pending job khi worker dừng giữa chừng.
 
+Kết quả:
+- Thêm `OCRJobRepository.claim_next_pending_job()` để select job `pending` cũ nhất bằng `FOR UPDATE SKIP LOCKED`.
+- Trong cùng transaction claim, job được đổi sang `ocr_running`, tăng `attempts`, set `started_at` và clear `error_message`.
+- `OCRWorker.run_once()` dùng claim method và commit claim trước khi xử lý OCR dài.
+- `process_job()` không còn tự claim job lại, chỉ tiếp tục success/error lifecycle hiện có.
+- Thêm script `python -m app.scripts.smoke_worker_claim_atomic` để kiểm tra hai session song song không claim cùng một job.
+
+Kiểm tra đã chạy:
+
+```bash
+PYTHONPYCACHEPREFIX=/tmp/qlvb-pycache PYTHONPATH=apps/api python3 -m py_compile apps/api/app/repositories/document_repository.py apps/api/app/workers/ocr_worker.py apps/api/app/scripts/smoke_worker_claim_atomic.py
+docker compose stop worker
+docker compose exec -T api python -m app.scripts.smoke_worker_claim_atomic
+git diff --check
+```
+
+Sau khi hoàn thành:
+- Đã đọc lại `ROADMAP.md`.
+- Đã cập nhật `PROJECT_STATUS.md` với kết quả và kiểm tra đã chạy.
+- Đã cập nhật mục tiêu này thành `hoàn thành`.
+- Đã chuyển con trỏ hiện tại sang `Phase 2 / Mục tiêu 3`.
+
 ### Mục Tiêu 3 - Retry, Failed Reason Và Audit
 
-Trạng thái: khóa.
+Trạng thái: chưa làm.
 
 Mục tiêu:
 - Chuẩn hóa retry, max attempts, failed reason và audit cho job lỗi.

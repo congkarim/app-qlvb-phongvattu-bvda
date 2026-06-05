@@ -28,11 +28,12 @@ MVP end-to-end đã hoàn thành và đang chạy được bằng Docker Compose
 - Review queue đã có pagination `limit/offset`, total count, page count, nhảy đầu/cuối, filter và action review ngay trên queue.
 - Danh sách `/documents` đã có pagination `limit/offset`, total count, sort ổn định và UI chuyển trang.
 - Smoke API workflow cho auth/search/review queue/review action đã gom thành script tái chạy được.
+- Worker đã claim OCR job atomic bằng database row lock để tránh nhiều worker xử lý trùng job.
 - User audit UI cho admin xem audit log từng user.
 - Smoke appendix data script đã có fixture thật và cleanup mặc định.
 
 Giới hạn còn lại:
-- Worker đang poll job pending trực tiếp; cần có cơ chế claim/retry rõ hơn nếu chạy nhiều worker.
+- Worker đã có atomic claim; còn cần retry, max attempts, failed reason và queue readiness rõ hơn nếu chạy lâu dài hoặc nhiều worker.
 - Search rerank có heuristic hardcoded theo cụm từ mẫu; cần tách thành cấu hình/benchmark.
 - Chưa có module nghiệp vụ riêng cho hợp đồng, công văn đến/đi, quyết định hoặc phiếu vật tư.
 - Chưa có bộ công cụ admin cấu hình danh mục, model status, backup/restore và ops hardening đầy đủ.
@@ -79,7 +80,7 @@ Trạng thái: đang ưu tiên tiếp theo.
 Mục tiêu: giảm rủi ro khi chạy worker lâu dài hoặc nhiều worker trong môi trường on-prem.
 
 Phạm vi:
-- Claim OCR job atomic bằng database transaction/row lock.
+- Claim OCR job atomic bằng database transaction/row lock đã hoàn thành ngày 2026-06-05.
 - Chuẩn hóa retry, max attempts, failed reason và audit cho job.
 - Thêm health/readiness liên quan worker và hàng đợi.
 - Ghi tài liệu backup/restore PostgreSQL, Qdrant và uploaded source files.

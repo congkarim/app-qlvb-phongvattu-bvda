@@ -35,20 +35,15 @@ class OCRWorker:
         self.qdrant = QdrantService()
 
     def run_once(self) -> bool:
-        job = self.ocr_jobs.get_next_pending_job()
+        job = self.ocr_jobs.claim_next_pending_job()
         if not job:
             return False
+        self.db.commit()
 
         self.process_job(job)
         return True
 
     def process_job(self, job: OCRJob) -> None:
-        job.status = "ocr_running"
-        job.attempts += 1
-        job.started_at = datetime.now(timezone.utc)
-        self.db.add(job)
-        self.db.commit()
-
         document: Document | None = None
         previous_document_status: str | None = None
         try:

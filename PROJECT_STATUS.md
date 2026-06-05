@@ -50,7 +50,7 @@ Backend skeleton:
   - `ocr_jobs`
 
 Worker:
-- Poll OCR job đang pending.
+- Claim OCR job pending bằng database row lock trước khi xử lý để tránh nhiều worker xử lý trùng job.
 - Trích xuất text trực tiếp cho `.txt`, `.md`, `.docx`, `.xlsx`, `.xls`.
 - PDF có text nhúng được trích xuất trực tiếp bằng `pypdfium2` để giữ Unicode tiếng Việt.
 - OCR thật cho PDF/image scan bằng PaddleOCR/OpenCV khi page không có text nhúng.
@@ -126,6 +126,23 @@ Workflow web đã hoàn thiện:
 ## Đã Kiểm Tra Thủ Công
 
 Các kiểm tra sau đã chạy thành công:
+
+Atomic claim OCR job kiểm tra ngày 2026-06-05:
+
+```bash
+PYTHONPYCACHEPREFIX=/tmp/qlvb-pycache PYTHONPATH=apps/api python3 -m py_compile apps/api/app/repositories/document_repository.py apps/api/app/workers/ocr_worker.py apps/api/app/scripts/smoke_worker_claim_atomic.py
+docker compose stop worker
+docker compose exec -T api python -m app.scripts.smoke_worker_claim_atomic
+git diff --check
+```
+
+Kết quả:
+- `OCRJobRepository.claim_next_pending_job()` claim job `pending` cũ nhất bằng `FOR UPDATE SKIP LOCKED`.
+- Trong cùng transaction claim, job được đổi sang `ocr_running`, tăng `attempts`, set `started_at` và clear `error_message`.
+- `OCRWorker.run_once()` dùng claim method, commit claim trước khi xử lý OCR dài, rồi `process_job()` tiếp tục lifecycle success/error hiện có.
+- Smoke hai DB session song song pass: session đầu claim được job, session thứ hai nhận `None`, job cuối cùng có `attempts=1` và `started_at`.
+- Worker service đã được dừng tạm để tránh ăn job smoke trong lúc kiểm tra; sau task cần start lại worker.
+- Retry policy, `max_attempts`, failed reason taxonomy và queue readiness vẫn là mục tiêu tiếp theo.
 
 Worker job lifecycle survey ngày 2026-06-05:
 
