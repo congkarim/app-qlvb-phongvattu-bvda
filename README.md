@@ -104,7 +104,7 @@ Metadata nghiệp vụ hiện hỗ trợ:
 - Metadata văn bản và metadata nghiệp vụ.
 - OCR job status.
 - OCR text.
-- Chunks.
+- Chunks, gồm filter xem nhanh tất cả chunk, chunk cần review, phụ lục và phụ lục cần review.
 
 Trang detail tự refresh trạng thái cho tới khi document chuyển sang `searchable`.
 
@@ -225,6 +225,7 @@ curl -X POST http://localhost:8000/api/v1/search/semantic \
 ```
 
 Các filter hiện có: `document_type`, `department_id`, `business_type`, `document_number`, `issued_date`, `doc_group`, `section_role`, `requires_review`. Dashboard cũng có các control filter tương ứng cho metadata đã rollout.
+Với phụ lục, dùng `section_role=appendix` hoặc chọn option `Phụ lục` trong Dashboard.
 
 ## Local OCR Tiếng Việt
 

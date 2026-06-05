@@ -116,13 +116,30 @@ Workflow web đã hoàn thiện:
 - `/documents/[id]` cho phép admin thêm source files, đổi thứ tự file và soft-delete source file; mỗi thay đổi tạo reprocess job async.
 - `/documents/[id]` có action reprocess dành cho admin, khóa nút khi document đang `ocr_pending`, `ocr_running`, `reprocess_pending`, `reprocess_running` hoặc `chunking`.
 - `/documents/[id]` hiển thị audit OCR/reprocess job gồm `job_type`, `status`, `reason`, attempts, error message và thời gian tạo/cập nhật.
+- `/documents/[id]` có filter trong card `Chunks` để xem tất cả chunk, chunk cần review, phụ lục và phụ lục cần review; hiển thị counter tổng chunk, `requires_review=true` và `section_role=appendix`.
 - `/documents` có refresh action, filter/search/sort, loading state, empty state và link sang detail.
-- `/dashboard` có validation search input, loading/empty/error state, filter semantic search theo metadata nghiệp vụ/chunk và result link sang document nguồn.
+- `/dashboard` có validation search input, loading/empty/error state, filter semantic search theo metadata nghiệp vụ/chunk, bao gồm option `section_role=appendix`, và result link sang document nguồn.
 - `/users` cho phép admin xem audit log theo từng user, gồm actor, action, thời gian và metadata thao tác quản trị.
 
 ## Đã Kiểm Tra Thủ Công
 
 Các kiểm tra sau đã chạy thành công:
+
+Review queue UI và appendix search filter kiểm tra ngày 2026-06-05:
+
+```bash
+PYTHONPYCACHEPREFIX=/tmp/qlvb-pycache PYTHONPATH=apps/api python3 -m py_compile apps/api/app/schemas/document.py apps/api/app/schemas/search.py apps/api/app/services/search_service.py apps/api/app/routers/search.py
+docker compose run --rm --no-deps web npm run build
+python3 <semantic search appendix filter smoke script>
+git diff --check
+```
+
+Kết quả:
+- Trang `/documents/[id]` có filter card `Chunks` cho tất cả, cần review, phụ lục và phụ lục cần review.
+- Card `Chunks` hiển thị counter tổng chunk, chunk cần review và chunk phụ lục; tag phụ lục dùng label `Phụ lục`.
+- Dashboard search có option `Phụ lục` cho filter `section_role=appendix`.
+- Semantic search smoke login admin và gọi `POST /api/v1/search/semantic` với `section_role=appendix`; API trả 200 và mọi result nếu có đều là appendix.
+- Frontend build pass; vẫn có warning chunk PrimeVue lớn như trước, không fail.
 
 User audit UI kiểm tra ngày 2026-06-05:
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { DocumentMetadataUpdateInput } from '~/types/document'
+import type { DocumentChunk, DocumentMetadataUpdateInput } from '~/types/document'
 import { formatDate, formatDateTime, formatFileSize } from '~/utils/format'
 
 const route = useRoute()
@@ -29,6 +29,7 @@ const reprocessReason = ref('')
 const selectedSourceFiles = ref<File[]>([])
 const lastDetailRefreshedAt = ref<Date | null>(null)
 const isEditingMetadata = ref(false)
+const chunkFilter = ref<'all' | 'review' | 'appendix' | 'appendix_review'>('all')
 const metadataForm = reactive<DocumentMetadataUpdateInput>({
   title: '',
   document_type: 'UNKNOWN',
@@ -102,6 +103,29 @@ const ocrText = computed(() => {
   return document.value?.pages.map((page) => page.text).join('\n\n') || ''
 })
 
+const allChunks = computed<DocumentChunk[]>(() => document.value?.chunks || [])
+
+const reviewChunkCount = computed(() => {
+  return allChunks.value.filter((chunk) => chunk.requires_review).length
+})
+
+const appendixChunkCount = computed(() => {
+  return allChunks.value.filter((chunk) => chunk.section_role === 'appendix').length
+})
+
+const filteredChunks = computed(() => {
+  if (chunkFilter.value === 'review') {
+    return allChunks.value.filter((chunk) => chunk.requires_review)
+  }
+  if (chunkFilter.value === 'appendix') {
+    return allChunks.value.filter((chunk) => chunk.section_role === 'appendix')
+  }
+  if (chunkFilter.value === 'appendix_review') {
+    return allChunks.value.filter((chunk) => chunk.section_role === 'appendix' && chunk.requires_review)
+  }
+  return allChunks.value
+})
+
 const lastDetailRefreshText = computed(() => {
   return lastDetailRefreshedAt.value ? formatDateTime(lastDetailRefreshedAt.value.toISOString()) : ''
 })
@@ -145,6 +169,13 @@ const documentTypeOptions = [
   { label: 'Phiếu chuyển', value: 'PC' },
   { label: 'Phiếu báo', value: 'PB' },
   { label: 'Thư công', value: 'TCg' }
+]
+
+const chunkFilterOptions = [
+  { label: 'Tất cả chunks', value: 'all' },
+  { label: 'Cần review', value: 'review' },
+  { label: 'Phụ lục', value: 'appendix' },
+  { label: 'Phụ lục cần review', value: 'appendix_review' }
 ]
 
 function isActiveJob(status: string): boolean {
@@ -230,6 +261,8 @@ function formatChunkRole(value?: string | null): string {
     clause: 'Khoản',
     point: 'Điểm',
     task: 'Nhiệm vụ',
+    appendix: 'Phụ lục',
+    recipient: 'Nơi nhận',
     table: 'Bảng',
     signature: 'Chữ ký',
     unknown: 'Không xác định'
@@ -934,14 +967,35 @@ onBeforeUnmount(() => {
       </Card>
 
       <Card>
-        <template #title>Chunks</template>
+        <template #title>
+          <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <span>Chunks</span>
+              <p class="mt-1 text-xs font-normal text-slate-500">
+                Tổng {{ allChunks.length }} · Cần review {{ reviewChunkCount }} · Phụ lục {{ appendixChunkCount }}
+              </p>
+            </div>
+            <select
+              v-model="chunkFilter"
+              class="w-full rounded border border-slate-300 px-3 py-2 text-sm sm:w-56"
+            >
+              <option v-for="option in chunkFilterOptions" :key="option.value" :value="option.value">
+                {{ option.label }}
+              </option>
+            </select>
+          </div>
+        </template>
         <template #content>
-          <div v-if="document.chunks.length" class="space-y-3">
-            <article v-for="chunk in document.chunks" :key="chunk.id" class="border-b border-slate-200 pb-3">
+          <div v-if="allChunks.length && filteredChunks.length" class="space-y-3">
+            <article v-for="chunk in filteredChunks" :key="chunk.id" class="border-b border-slate-200 pb-3">
               <div class="flex flex-wrap items-center gap-2 text-xs">
                 <span class="text-slate-500">#{{ chunk.chunk_index }}</span>
                 <Tag v-if="chunk.doc_group" :value="`Nhóm ${chunk.doc_group}`" severity="info" />
-                <Tag v-if="chunk.section_role" :value="formatChunkRole(chunk.section_role)" severity="secondary" />
+                <Tag
+                  v-if="chunk.section_role"
+                  :value="formatChunkRole(chunk.section_role)"
+                  :severity="chunk.section_role === 'appendix' ? 'success' : 'secondary'"
+                />
                 <Tag v-if="chunk.requires_review" value="Cần review" severity="warn" />
                 <span v-if="chunk.chunk_confidence !== null && chunk.chunk_confidence !== undefined" class="text-slate-500">
                   {{ formatConfidence(chunk.chunk_confidence) }}
@@ -954,6 +1008,7 @@ onBeforeUnmount(() => {
               <p class="mt-1 text-sm text-slate-700">{{ chunk.text }}</p>
             </article>
           </div>
+          <p v-else-if="allChunks.length" class="text-sm text-slate-600">Không có chunk phù hợp với bộ lọc.</p>
           <p v-else class="text-sm text-slate-600">Chưa có chunk.</p>
         </template>
       </Card>

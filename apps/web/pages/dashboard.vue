@@ -37,6 +37,7 @@ const sectionRoleOptions = [
   { label: 'Khoản', value: 'clause' },
   { label: 'Điểm', value: 'point' },
   { label: 'Nhiệm vụ', value: 'task' },
+  { label: 'Phụ lục', value: 'appendix' },
   { label: 'Nơi nhận', value: 'recipient' },
   { label: 'Chữ ký', value: 'signature' },
   { label: 'Không xác định', value: 'unknown' }
