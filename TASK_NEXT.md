@@ -21,7 +21,7 @@ Tài liệu này là checklist thực thi tuần tự bám theo `ROADMAP.md`. Kh
 
 Phase hiện tại: Phase 3 - Search Quality Và RAG Foundation.
 
-Mục tiêu tiếp theo phải làm: Phase 3 / Mục tiêu 1 - Tách Rerank Heuristic.
+Mục tiêu tiếp theo phải làm: Phase 3 / Mục tiêu 2 - Search Benchmark Fixtures.
 
 Điều kiện chuyển sang mục tiêu kế tiếp:
 - Mục tiêu hiện tại pass tiêu chí chấp nhận.
@@ -386,7 +386,7 @@ Mục tiêu phase: tăng chất lượng retrieval và tạo nền tảng RAG lo
 
 ### Mục Tiêu 1 - Tách Rerank Heuristic
 
-Trạng thái: chưa làm.
+Trạng thái: hoàn thành ngày 2026-06-05.
 
 Mục tiêu:
 - Tách rerank heuristic hardcoded khỏi logic core.
@@ -400,9 +400,30 @@ Tiêu chí chấp nhận:
 - Search core không trộn rule mẫu khó maintain.
 - Rule có thể chỉnh mà không phải sửa nhiều lớp service.
 
+Kết quả:
+- Thêm `SearchRerankService` và `SearchRerankConfig` để chứa rerank scoring, keyword phrase scoring và weak-match detection.
+- `SearchService` không còn chứa điều kiện mẫu như `pham vi dieu chinh`, `luat dau thau`; search core chỉ orchestration embedding/Qdrant/keyword candidates/dedup/response.
+- Các rule boost/penalty được gom thành dataclass config riêng: phrase boost, prefix boost, missing phrase penalty và keyword phrase candidates.
+- Thêm unit test `apps/api/app/services/tests/test_search_rerank_service.py` cho normalize tiếng Việt, keyword phrase, prefix boost, config disable rule và weak-match detection.
+
+Kiểm tra đã chạy:
+
+```bash
+PYTHONPYCACHEPREFIX=/tmp/qlvb-pycache PYTHONPATH=apps/api python3 -m py_compile apps/api/app/services/search_service.py apps/api/app/services/search_rerank_service.py apps/api/app/services/tests/test_search_rerank_service.py
+PYTHONPYCACHEPREFIX=/tmp/qlvb-pycache PYTHONPATH=apps/api python3 -m unittest apps.api.app.services.tests.test_search_rerank_service
+docker compose exec -T api python -m app.scripts.smoke_api_workflows
+git diff --check
+```
+
+Sau khi hoàn thành:
+- Đã đọc lại `ROADMAP.md`.
+- Đã cập nhật `PROJECT_STATUS.md` với kết quả và kiểm tra đã chạy.
+- Đã cập nhật mục tiêu này thành `hoàn thành`.
+- Đã chuyển con trỏ hiện tại sang `Phase 3 / Mục tiêu 2`.
+
 ### Mục Tiêu 2 - Search Benchmark Fixtures
 
-Trạng thái: khóa.
+Trạng thái: chưa làm.
 
 Mục tiêu:
 - Tạo benchmark fixtures cho truy vấn vật tư, phụ lục, điều khoản, ngày ban hành và đơn vị ban hành.

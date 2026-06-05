@@ -31,12 +31,13 @@ MVP end-to-end đã hoàn thành và đang chạy được bằng Docker Compose
 - Worker đã claim OCR job atomic bằng database row lock để tránh nhiều worker xử lý trùng job.
 - Worker đã có retry policy MVP với `max_attempts`, `failed_reason`, `next_run_at` và audit UI rõ hơn.
 - Worker ops đã có endpoint queue status, smoke tổng hợp và runbook restart/failed job/backup/restore.
+- Search rerank heuristic đã được tách khỏi search core sang config/service riêng.
 - User audit UI cho admin xem audit log từng user.
 - Smoke appendix data script đã có fixture thật và cleanup mặc định.
 
 Giới hạn còn lại:
 - Worker ops MVP đã có; lease timeout hoặc auto recovery cho job đang `ocr_running` sau khi worker crash vẫn để Phase 6 hardening nếu cần.
-- Search rerank có heuristic hardcoded theo cụm từ mẫu; cần tách thành cấu hình/benchmark.
+- Search rerank đã tách khỏi core; còn cần benchmark fixtures để đánh giá ranking lặp lại được.
 - Chưa có module nghiệp vụ riêng cho hợp đồng, công văn đến/đi, quyết định hoặc phiếu vật tư.
 - Chưa có bộ công cụ admin cấu hình danh mục, model status, backup/restore và ops hardening đầy đủ.
 
@@ -99,7 +100,7 @@ Trạng thái: đang ưu tiên tiếp theo.
 Mục tiêu: tăng chất lượng retrieval và tạo nền tảng RAG local có citation mà không phụ thuộc cloud.
 
 Phạm vi:
-- Tách rerank heuristic khỏi logic core, đưa vào cấu hình/rule riêng.
+- Tách rerank heuristic khỏi logic core, đưa vào cấu hình/rule riêng đã hoàn thành ngày 2026-06-05.
 - Tạo benchmark fixtures cho truy vấn vật tư, phụ lục, điều khoản, ngày ban hành và đơn vị ban hành.
 - Đánh giá embedding local và rerank local nếu cần.
 - Thiết kế RAG answer endpoint local-only với citation chunk/document/source page.

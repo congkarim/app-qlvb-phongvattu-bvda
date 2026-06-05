@@ -125,12 +125,31 @@ Workflow web đã hoàn thiện:
 - `/dashboard` có card `Review queue` chỉ dành cho admin để xem chunks `requires_review=true`, lọc theo phụ lục/document/confidence thấp, xem tổng số item, khoảng item, page/page count, nhảy đầu/cuối, chuyển trang bằng `offset`, mở document detail và đánh dấu chunk đã review ngay từ queue.
 - `/users` cho phép admin xem audit log theo từng user, gồm actor, action, thời gian và metadata thao tác quản trị.
 
+Search:
+- Search rerank đã được tách khỏi `SearchService` sang `SearchRerankService` với config rule riêng để dễ chỉnh mà không trộn vào orchestration search.
+
 Ops/runbook:
 - `docs/WORKER_OPS_RUNBOOK.md` ghi command kiểm tra worker queue, chạy worker smoke, restart worker, xử lý job failed, reprocess, backup/restore PostgreSQL, Qdrant và uploaded source files.
 
 ## Đã Kiểm Tra Thủ Công
 
 Các kiểm tra sau đã chạy thành công:
+
+Tách rerank heuristic kiểm tra ngày 2026-06-05:
+
+```bash
+PYTHONPYCACHEPREFIX=/tmp/qlvb-pycache PYTHONPATH=apps/api python3 -m py_compile apps/api/app/services/search_service.py apps/api/app/services/search_rerank_service.py apps/api/app/services/tests/test_search_rerank_service.py
+PYTHONPYCACHEPREFIX=/tmp/qlvb-pycache PYTHONPATH=apps/api python3 -m unittest apps.api.app.services.tests.test_search_rerank_service
+docker compose exec -T api python -m app.scripts.smoke_api_workflows
+git diff --check
+```
+
+Kết quả:
+- `SearchService` không còn chứa các điều kiện rerank hardcoded như `pham vi dieu chinh`, `luat dau thau`; service chỉ orchestration embedding, Qdrant, keyword candidates, dedup và response.
+- Thêm `SearchRerankService` và `SearchRerankConfig` để gom term boost, phrase boost, prefix boost, missing phrase penalty, keyword phrase candidates và weak-match logic.
+- Các rule mẫu hiện nằm trong cấu trúc config riêng, có thể chỉnh hoặc disable khi có benchmark mà không sửa nhiều lớp search core.
+- Unit test search rerank pass, bao phủ normalize tiếng Việt, keyword phrase, prefix boost, config disable rule và weak-match detection.
+- Smoke API workflow pass, xác nhận semantic search và filter `section_role=appendix` vẫn hoạt động.
 
 Worker operations smoke và runbook kiểm tra ngày 2026-06-05:
 
