@@ -310,15 +310,27 @@ class DocumentService:
         section_role: str | None = None,
         document_id: str | None = None,
         max_confidence: float | None = None,
-    ) -> list[dict]:
+    ) -> dict:
+        normalized_section_role = self._normalize_title(section_role)
+        normalized_document_id = self._normalize_title(document_id)
         chunks = self.documents.list_review_queue_chunks(
             limit=limit,
             offset=offset,
-            section_role=self._normalize_title(section_role),
-            document_id=self._normalize_title(document_id),
+            section_role=normalized_section_role,
+            document_id=normalized_document_id,
             max_confidence=max_confidence,
         )
-        return [self._review_queue_chunk_payload(chunk) for chunk in chunks]
+        total = self.documents.count_review_queue_chunks(
+            section_role=normalized_section_role,
+            document_id=normalized_document_id,
+            max_confidence=max_confidence,
+        )
+        return {
+            "items": [self._review_queue_chunk_payload(chunk) for chunk in chunks],
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+        }
 
     def get_source_file_for_download(self, document_id: str, document_file_id: str):
         if not self._is_uuid(document_id) or not self._is_uuid(document_file_id):

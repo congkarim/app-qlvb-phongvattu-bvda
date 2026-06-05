@@ -122,7 +122,7 @@ Admin có thể vào `Users` để tạo tài khoản thường, đổi role, re
 quản lý vật tư
 ```
 
-Admin có thể xem thêm card `Review queue` trong Dashboard để lọc chunks cần review theo phụ lục, document id hoặc confidence thấp, rồi mở document nguồn hoặc bấm `Đã review`.
+Admin có thể xem thêm card `Review queue` trong Dashboard để lọc chunks cần review theo phụ lục, document id hoặc confidence thấp, xem tổng số item, chuyển trang bằng `Trước/Sau`, rồi mở document nguồn hoặc bấm `Đã review`.
 
 7. Click kết quả search để mở lại document nguồn.
 

@@ -9,6 +9,7 @@ import type {
   ReprocessDocumentResponse,
   ReviewQueueChunk,
   ReviewQueueFilters,
+  ReviewQueueResponse,
   SourceFilePreview,
   SourceFileMutationResponse,
   UploadResponse
@@ -19,6 +20,9 @@ export function useDocuments() {
   const documents = ref<DocumentItem[]>([])
   const document = ref<DocumentDetail | null>(null)
   const reviewQueue = ref<ReviewQueueChunk[]>([])
+  const reviewQueueTotal = ref(0)
+  const reviewQueueLimit = ref(20)
+  const reviewQueueOffset = ref(0)
   const uploadResult = ref<UploadResponse | null>(null)
   const multiFileUploadResult = ref<MultiFileUploadResponse | null>(null)
   const loading = ref(false)
@@ -57,16 +61,23 @@ export function useDocuments() {
     }
   }
 
-  async function fetchReviewQueue(filters: ReviewQueueFilters = {}): Promise<ReviewQueueChunk[]> {
+  async function fetchReviewQueue(filters: ReviewQueueFilters = {}): Promise<ReviewQueueResponse | null> {
     reviewQueueLoading.value = true
     error.value = ''
     try {
-      reviewQueue.value = await service.listReviewQueue(filters)
-      return reviewQueue.value
+      const result = await service.listReviewQueue(filters)
+      reviewQueue.value = result.items
+      reviewQueueTotal.value = result.total
+      reviewQueueLimit.value = result.limit
+      reviewQueueOffset.value = result.offset
+      return result
     } catch {
       error.value = 'Không tải được review queue'
       reviewQueue.value = []
-      return []
+      reviewQueueTotal.value = 0
+      reviewQueueLimit.value = filters.limit || 20
+      reviewQueueOffset.value = filters.offset || 0
+      return null
     } finally {
       reviewQueueLoading.value = false
     }
@@ -341,6 +352,9 @@ export function useDocuments() {
     documents,
     document,
     reviewQueue,
+    reviewQueueTotal,
+    reviewQueueLimit,
+    reviewQueueOffset,
     uploadResult,
     multiFileUploadResult,
     loading,

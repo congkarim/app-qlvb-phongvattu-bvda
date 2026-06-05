@@ -8,8 +8,8 @@ import type {
   DocumentMetadataUpdateInput,
   MultiFileUploadResponse,
   ReprocessDocumentResponse,
-  ReviewQueueChunk,
   ReviewQueueFilters,
+  ReviewQueueResponse,
   SourceFileMutationResponse,
   UploadResponse
 } from '~/types/document'
@@ -41,7 +41,7 @@ export function createDocumentService() {
         }
       }
       const query = params.toString()
-      return api<ReviewQueueChunk[]>(`/documents/chunks/review-queue${query ? `?${query}` : ''}`)
+      return api<ReviewQueueResponse>(`/documents/chunks/review-queue${query ? `?${query}` : ''}`)
     },
     async downloadSourceFile(id: string, file: DocumentFile) {
       const config = useRuntimeConfig()

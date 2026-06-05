@@ -6,6 +6,7 @@ const authStore = useAuthStore()
 const { results, loading, error: searchError, hasSearched, search } = useSemanticSearch()
 const {
   reviewQueue,
+  reviewQueueTotal,
   reviewQueueLoading,
   chunkReviewLoading,
   error: reviewQueueError,
@@ -78,17 +79,42 @@ const confidenceOptions: Array<{ label: string; value: number | null }> = [
   { label: 'Cần xem <= 80%', value: 0.8 }
 ]
 
+const reviewQueuePageStart = computed(() => (reviewQueueTotal.value ? reviewQueueFilters.offset + 1 : 0))
+const reviewQueuePageEnd = computed(() => Math.min(reviewQueueFilters.offset + reviewQueue.value.length, reviewQueueTotal.value))
+const canGoPreviousReviewPage = computed(() => reviewQueueFilters.offset > 0)
+const canGoNextReviewPage = computed(() => reviewQueueFilters.offset + reviewQueue.value.length < reviewQueueTotal.value)
+
 async function submitSearch() {
   await search(query.value, filters)
 }
 
-async function submitReviewQueue() {
-  await fetchReviewQueue(normalizeReviewQueueFilters())
+async function submitReviewQueue(options: { resetOffset?: boolean } = {}) {
+  if (options.resetOffset) reviewQueueFilters.offset = 0
+  const result = await fetchReviewQueue(normalizeReviewQueueFilters())
+  if (
+    result &&
+    result.items.length === 0 &&
+    result.total > 0 &&
+    reviewQueueFilters.offset > 0
+  ) {
+    reviewQueueFilters.offset = Math.max(0, reviewQueueFilters.offset - (reviewQueueFilters.limit || 20))
+    await fetchReviewQueue(normalizeReviewQueueFilters())
+  }
 }
 
 async function submitMarkQueueChunkReviewed(chunk: ReviewQueueChunk) {
   const result = await markChunkReviewed(chunk.document_id, chunk.id)
   if (!result) return
+  await submitReviewQueue()
+}
+
+async function goReviewQueuePage(direction: 'previous' | 'next') {
+  const limit = reviewQueueFilters.limit || 20
+  if (direction === 'previous') {
+    reviewQueueFilters.offset = Math.max(0, reviewQueueFilters.offset - limit)
+  } else if (canGoNextReviewPage.value) {
+    reviewQueueFilters.offset += limit
+  }
   await submitReviewQueue()
 }
 
@@ -166,7 +192,10 @@ onMounted(async () => {
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <span>Review queue</span>
-            <p class="mt-1 text-xs font-normal text-slate-500">{{ reviewQueue.length }} chunks cần review</p>
+            <p class="mt-1 text-xs font-normal text-slate-500">
+              {{ reviewQueueTotal }} chunks cần review
+              <span v-if="reviewQueueTotal"> · {{ reviewQueuePageStart }}-{{ reviewQueuePageEnd }}</span>
+            </p>
           </div>
           <Button
             label="Refresh"
@@ -174,12 +203,12 @@ onMounted(async () => {
             severity="secondary"
             size="small"
             :loading="reviewQueueLoading"
-            @click="submitReviewQueue"
+            @click="submitReviewQueue()"
           />
         </div>
       </template>
       <template #content>
-        <form class="grid gap-3 md:grid-cols-5" @submit.prevent="submitReviewQueue">
+        <form class="grid gap-3 md:grid-cols-5" @submit.prevent="submitReviewQueue({ resetOffset: true })">
           <select v-model="reviewQueueFilters.section_role" class="rounded border border-slate-300 px-3 py-2 text-sm">
             <option v-for="option in reviewQueueRoleOptions" :key="option.value" :value="option.value">
               {{ option.label }}
@@ -205,6 +234,33 @@ onMounted(async () => {
         <Message v-if="reviewQueueError" class="mt-4" severity="error">{{ reviewQueueError }}</Message>
         <p v-else-if="reviewQueueLoading" class="mt-4 text-sm text-slate-600">Đang tải review queue...</p>
         <p v-else-if="!reviewQueue.length" class="mt-4 text-sm text-slate-600">Không có chunk cần review.</p>
+        <div
+          v-if="reviewQueueTotal"
+          class="mt-4 flex flex-col gap-3 border-y border-slate-200 py-3 text-sm text-slate-600 sm:flex-row sm:items-center sm:justify-between"
+        >
+          <span>Hiển thị {{ reviewQueuePageStart }}-{{ reviewQueuePageEnd }} / {{ reviewQueueTotal }}</span>
+          <div class="flex gap-2">
+            <Button
+              type="button"
+              label="Trước"
+              icon="pi pi-chevron-left"
+              severity="secondary"
+              size="small"
+              :disabled="reviewQueueLoading || !canGoPreviousReviewPage"
+              @click="goReviewQueuePage('previous')"
+            />
+            <Button
+              type="button"
+              label="Sau"
+              icon="pi pi-chevron-right"
+              icon-pos="right"
+              severity="secondary"
+              size="small"
+              :disabled="reviewQueueLoading || !canGoNextReviewPage"
+              @click="goReviewQueuePage('next')"
+            />
+          </div>
+        </div>
         <div class="mt-5 space-y-3">
           <article v-for="chunk in reviewQueue" :key="chunk.id" class="border-b border-slate-200 pb-3">
             <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">

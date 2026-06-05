@@ -120,12 +120,32 @@ Workflow web đã hoàn thiện:
 - `/documents/[id]` cho phép admin đánh dấu chunk `requires_review=true` là đã review; thao tác ghi audit log `document_chunk.reviewed` và cập nhật payload Qdrant để search filter đồng bộ.
 - `/documents` có refresh action, filter/search/sort, loading state, empty state và link sang detail.
 - `/dashboard` có validation search input, loading/empty/error state, filter semantic search theo metadata nghiệp vụ/chunk, bao gồm option `section_role=appendix`, và result link sang document nguồn.
-- `/dashboard` có card `Review queue` chỉ dành cho admin để xem chunks `requires_review=true`, lọc theo phụ lục/document/confidence thấp, mở document detail và đánh dấu chunk đã review ngay từ queue.
+- `/dashboard` có card `Review queue` chỉ dành cho admin để xem chunks `requires_review=true`, lọc theo phụ lục/document/confidence thấp, xem tổng số item, chuyển trang bằng `offset`, mở document detail và đánh dấu chunk đã review ngay từ queue.
 - `/users` cho phép admin xem audit log theo từng user, gồm actor, action, thời gian và metadata thao tác quản trị.
 
 ## Đã Kiểm Tra Thủ Công
 
 Các kiểm tra sau đã chạy thành công:
+
+Review queue pagination polish kiểm tra ngày 2026-06-05:
+
+```bash
+PYTHONPYCACHEPREFIX=/tmp/qlvb-pycache PYTHONPATH=apps/api python3 -m py_compile apps/api/app/schemas/document.py apps/api/app/repositories/document_repository.py apps/api/app/services/document_service.py apps/api/app/routers/documents.py apps/api/app/scripts/smoke_appendix_data.py
+docker compose run --rm --no-deps web npm run build
+docker compose exec -T api python -m app.scripts.smoke_appendix_data
+python3 <review queue pagination smoke script>
+python3 <review queue user forbidden smoke script>
+git diff --check
+```
+
+Kết quả:
+- Endpoint admin-only `GET /api/v1/documents/chunks/review-queue` trả response phân trang `items`, `total`, `limit`, `offset`.
+- Repository có count matching cùng filter `section_role`, `document_id`, `max_confidence`; query list có sort ổn định bằng confidence, `updated_at` và `id` để tránh trùng item giữa các page.
+- Frontend Dashboard hiển thị tổng số review queue, khoảng item hiện tại, nút `Trước/Sau`, giữ filter khi chuyển trang và reset về trang đầu khi lọc lại.
+- Sau khi admin bấm `Đã review`, queue refresh page hiện tại; nếu page rỗng sau thao tác thì tự lùi về page trước.
+- Smoke HTTP pass: `limit=5&offset=0` và `limit=5&offset=5` không trùng item khi total đủ lớn; response có đủ `items/total/limit/offset`; filter appendix vẫn chỉ trả appendix nếu có dữ liệu.
+- Smoke phân quyền pass: user thường `queue-page-smoke-1780659295@example.local` gọi review queue nhận `403`.
+- Frontend build pass; vẫn có warning chunk PrimeVue lớn như trước, không fail.
 
 Appendix data smoke kiểm tra ngày 2026-06-05:
 

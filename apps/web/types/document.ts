@@ -184,6 +184,13 @@ export interface ReviewQueueChunk {
   updated_at: string
 }
 
+export interface ReviewQueueResponse {
+  items: ReviewQueueChunk[]
+  total: number
+  limit: number
+  offset: number
+}
+
 export interface ReviewQueueFilters {
   limit?: number
   offset?: number

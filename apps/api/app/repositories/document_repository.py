@@ -2,7 +2,7 @@ import re
 from datetime import date, datetime, timezone
 from typing import Any
 
-from sqlalchemy import asc, desc, nullsfirst, or_, select
+from sqlalchemy import asc, desc, func, nullsfirst, or_, select
 from sqlalchemy.orm import Session, selectinload, with_loader_criteria
 
 from app.models.document import Document, DocumentChunk, DocumentFile, DocumentPage, OCRJob
@@ -377,15 +377,51 @@ class DocumentRepository:
         stmt = (
             select(DocumentChunk)
             .join(Document)
-            .where(
-                DocumentChunk.deleted_at.is_(None),
-                DocumentChunk.requires_review.is_(True),
-                Document.deleted_at.is_(None),
-            )
             .options(selectinload(DocumentChunk.document))
-            .order_by(nullsfirst(DocumentChunk.chunk_confidence.asc()), DocumentChunk.updated_at.desc())
+            .order_by(
+                nullsfirst(DocumentChunk.chunk_confidence.asc()),
+                DocumentChunk.updated_at.desc(),
+                DocumentChunk.id.asc(),
+            )
             .limit(limit)
             .offset(offset)
+        )
+        stmt = self._apply_review_queue_filters(
+            stmt,
+            section_role=section_role,
+            document_id=document_id,
+            max_confidence=max_confidence,
+        )
+        return list(self.db.scalars(stmt))
+
+    def count_review_queue_chunks(
+        self,
+        *,
+        section_role: str | None = None,
+        document_id: str | None = None,
+        max_confidence: float | None = None,
+    ) -> int:
+        stmt = select(func.count()).select_from(DocumentChunk).join(Document)
+        stmt = self._apply_review_queue_filters(
+            stmt,
+            section_role=section_role,
+            document_id=document_id,
+            max_confidence=max_confidence,
+        )
+        return int(self.db.scalar(stmt) or 0)
+
+    def _apply_review_queue_filters(
+        self,
+        stmt,
+        *,
+        section_role: str | None,
+        document_id: str | None,
+        max_confidence: float | None,
+    ):
+        stmt = stmt.where(
+            DocumentChunk.deleted_at.is_(None),
+            DocumentChunk.requires_review.is_(True),
+            Document.deleted_at.is_(None),
         )
         if section_role is not None:
             stmt = stmt.where(DocumentChunk.section_role == section_role)
@@ -398,7 +434,7 @@ class DocumentRepository:
                     DocumentChunk.chunk_confidence.is_(None),
                 )
             )
-        return list(self.db.scalars(stmt))
+        return stmt
 
     def list_documents_for_chunk_metadata_backfill(
         self,

@@ -96,13 +96,14 @@ def run_smoke(*, keep_data: bool) -> dict[str, str]:
         ]
         _assert(bool(active_appendix_chunks), "Document detail does not include an appendix chunk")
 
-        queue_items = DocumentService(db).list_review_queue_chunks(
+        queue_response = DocumentService(db).list_review_queue_chunks(
             limit=10,
             offset=0,
             section_role="appendix",
             document_id=document.id,
             max_confidence=None,
         )
+        queue_items = queue_response["items"]
         _assert(any(item["id"] == appendix_chunk.id for item in queue_items), "Review queue did not return appendix smoke chunk")
 
         search_results = SearchService(db).semantic_search(
@@ -119,13 +120,14 @@ def run_smoke(*, keep_data: bool) -> dict[str, str]:
         reviewed_chunk = DocumentService(db).mark_chunk_reviewed(document_id=document.id, chunk_id=appendix_chunk.id)
         _assert(reviewed_chunk.requires_review is False, "Review action did not clear requires_review")
 
-        queue_after_review = DocumentService(db).list_review_queue_chunks(
+        queue_after_review_response = DocumentService(db).list_review_queue_chunks(
             limit=10,
             offset=0,
             section_role="appendix",
             document_id=document.id,
             max_confidence=None,
         )
+        queue_after_review = queue_after_review_response["items"]
         _assert(
             all(item["id"] != appendix_chunk.id for item in queue_after_review),
             "Reviewed appendix chunk still appears in review queue",

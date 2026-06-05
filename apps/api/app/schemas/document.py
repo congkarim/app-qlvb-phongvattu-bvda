@@ -112,6 +112,13 @@ class ReviewQueueChunkRead(BaseModel):
     updated_at: datetime
 
 
+class ReviewQueueResponse(BaseModel):
+    items: list[ReviewQueueChunkRead]
+    total: int
+    limit: int
+    offset: int
+
+
 class DocumentDetailRead(DocumentRead):
     files: list[DocumentFileRead] = []
     pages: list[DocumentPageRead] = []
