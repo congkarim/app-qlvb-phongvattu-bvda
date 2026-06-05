@@ -127,6 +127,24 @@ Workflow web đã hoàn thiện:
 
 Các kiểm tra sau đã chạy thành công:
 
+Smoke API auth wrapper kiểm tra ngày 2026-06-05:
+
+```bash
+PYTHONPYCACHEPREFIX=/tmp/qlvb-pycache PYTHONPATH=apps/api python3 -m py_compile apps/api/app/scripts/smoke_api_workflows.py
+docker compose up -d api postgres redis qdrant
+docker compose exec -T api python -m app.scripts.smoke_api_workflows
+git diff --check
+```
+
+Kết quả:
+- Thêm script `python -m app.scripts.smoke_api_workflows` chạy HTTP smoke tái sử dụng được cho auth, review queue, semantic search và review action.
+- Script login admin local và user thường tạm bằng API `/api/v1/auth/login`.
+- Script seed document/chunk smoke tối thiểu qua DB, index Qdrant payload thật và cleanup mặc định sau khi chạy.
+- Admin gọi review queue thành công; user thường gọi review queue nhận `403`.
+- Semantic search cơ bản và filter `section_role=appendix` trả dữ liệu smoke đúng filter.
+- User thường gọi action review chunk nhận `403`; admin gọi action thành công, DB và Qdrant payload đều cập nhật `requires_review=false`.
+- Sau review, queue appendix và search `requires_review=true` không còn trả chunk đã review.
+
 Documents pagination polish kiểm tra ngày 2026-06-05:
 
 ```bash

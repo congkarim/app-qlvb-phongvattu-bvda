@@ -21,7 +21,7 @@ Tài liệu này là checklist thực thi tuần tự bám theo `ROADMAP.md`. Kh
 
 Phase hiện tại: Phase 1 - Stabilize Core Workflows.
 
-Mục tiêu tiếp theo phải làm: Phase 1 / Mục tiêu 2 - Smoke API Auth Wrapper.
+Mục tiêu tiếp theo phải làm: Phase 1 / Mục tiêu 3 - Review Queue UX Polish.
 
 Điều kiện chuyển sang mục tiêu kế tiếp:
 - Mục tiêu hiện tại pass tiêu chí chấp nhận.
@@ -119,7 +119,7 @@ Sau khi hoàn thành:
 
 ### Mục Tiêu 2 - Smoke API Auth Wrapper
 
-Trạng thái: chưa làm.
+Trạng thái: hoàn thành ngày 2026-06-05.
 
 Mục tiêu:
 - Chuyển các smoke HTTP inline thành script tái chạy được, có login admin/user và cleanup rõ ràng.
@@ -141,6 +141,14 @@ Tiêu chí chấp nhận:
 - Dữ liệu smoke không để lại rác khi chạy mặc định.
 - Permission smoke bao phủ admin/user cho review queue và review action.
 
+Kết quả:
+- Thêm script `python -m app.scripts.smoke_api_workflows`.
+- Script login admin/user qua HTTP API.
+- Script seed document/chunk smoke tối thiểu, index Qdrant payload và cleanup mặc định.
+- Admin review queue pass; user thường review queue nhận `403`.
+- Semantic search cơ bản và filter `section_role=appendix` pass.
+- Admin review action cập nhật DB và Qdrant payload; user thường review action nhận `403`.
+
 Kiểm tra cần chạy:
 
 ```bash
@@ -150,14 +158,14 @@ git diff --check
 ```
 
 Sau khi hoàn thành:
-- Đọc lại `ROADMAP.md`.
-- Cập nhật `PROJECT_STATUS.md` với kết quả và kiểm tra đã chạy.
-- Cập nhật mục tiêu này thành `hoàn thành`.
-- Chuyển con trỏ hiện tại sang `Phase 1 / Mục tiêu 3`.
+- Đã đọc lại `ROADMAP.md`.
+- Đã cập nhật `PROJECT_STATUS.md` với kết quả và kiểm tra đã chạy.
+- Đã cập nhật mục tiêu này thành `hoàn thành`.
+- Đã chuyển con trỏ hiện tại sang `Phase 1 / Mục tiêu 3`.
 
 ### Mục Tiêu 3 - Review Queue UX Polish
 
-Trạng thái: chờ Mục tiêu 2.
+Trạng thái: chưa làm.
 
 Mục tiêu:
 - Cải thiện thao tác admin trên queue dài nếu UI hiện tại chưa đủ rõ khi có nhiều trang.
