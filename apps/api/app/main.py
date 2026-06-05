@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import get_settings
 from app.db.session import SessionLocal
-from app.routers import auth, documents, health, search, users
+from app.routers import auth, documents, health, ops, search, users
 from app.services.auth_service import AuthService
 
 
@@ -41,3 +41,4 @@ app.include_router(auth.router, prefix=settings.api_prefix)
 app.include_router(documents.router, prefix=settings.api_prefix)
 app.include_router(search.router, prefix=settings.api_prefix)
 app.include_router(users.router, prefix=settings.api_prefix)
+app.include_router(ops.router, prefix=settings.api_prefix)

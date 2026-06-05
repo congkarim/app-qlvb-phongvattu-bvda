@@ -825,3 +825,34 @@ class OCRJobRepository:
             .limit(1)
         )
         return self.db.scalar(stmt) is not None
+
+    def count_jobs_by_status(self, status: str) -> int:
+        stmt = select(func.count()).select_from(OCRJob).where(OCRJob.status == status, OCRJob.deleted_at.is_(None))
+        return int(self.db.scalar(stmt) or 0)
+
+    def count_pending_jobs_ready(self) -> int:
+        now = datetime.now(timezone.utc)
+        stmt = (
+            select(func.count())
+            .select_from(OCRJob)
+            .where(
+                OCRJob.status == "pending",
+                OCRJob.deleted_at.is_(None),
+                or_(OCRJob.next_run_at.is_(None), OCRJob.next_run_at <= now),
+            )
+        )
+        return int(self.db.scalar(stmt) or 0)
+
+    def count_pending_jobs_delayed(self) -> int:
+        now = datetime.now(timezone.utc)
+        stmt = (
+            select(func.count())
+            .select_from(OCRJob)
+            .where(
+                OCRJob.status == "pending",
+                OCRJob.deleted_at.is_(None),
+                OCRJob.next_run_at.is_not(None),
+                OCRJob.next_run_at > now,
+            )
+        )
+        return int(self.db.scalar(stmt) or 0)

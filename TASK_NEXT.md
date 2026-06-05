@@ -19,9 +19,9 @@ Tài liệu này là checklist thực thi tuần tự bám theo `ROADMAP.md`. Kh
 
 ## Con Trỏ Hiện Tại
 
-Phase hiện tại: Phase 2 - Worker Reliability Và Operations.
+Phase hiện tại: Phase 3 - Search Quality Và RAG Foundation.
 
-Mục tiêu tiếp theo phải làm: Phase 2 / Mục tiêu 4 - Worker Smoke Và Ops Runbook.
+Mục tiêu tiếp theo phải làm: Phase 3 / Mục tiêu 1 - Tách Rerank Heuristic.
 
 Điều kiện chuyển sang mục tiêu kế tiếp:
 - Mục tiêu hiện tại pass tiêu chí chấp nhận.
@@ -207,7 +207,7 @@ Sau khi hoàn thành:
 
 ## Phase 2 - Worker Reliability Và Operations
 
-Trạng thái: đang làm.
+Trạng thái: hoàn thành ngày 2026-06-05.
 
 Mục tiêu phase: giảm rủi ro khi chạy worker lâu dài hoặc nhiều worker trong môi trường on-prem.
 
@@ -336,7 +336,7 @@ Sau khi hoàn thành:
 
 ### Mục Tiêu 4 - Worker Smoke Và Ops Runbook
 
-Trạng thái: chưa làm.
+Trạng thái: hoàn thành ngày 2026-06-05.
 
 Mục tiêu:
 - Có command kiểm tra worker claim/retry và hướng dẫn vận hành cơ bản.
@@ -350,6 +350,28 @@ Tiêu chí chấp nhận:
 - Có smoke/command kiểm tra worker claim hoặc retry.
 - Có tài liệu thao tác khi job lỗi.
 
+Kết quả:
+- Thêm endpoint admin-only `GET /api/v1/ops/worker-queue` theo `router -> service -> repository`.
+- Endpoint trả counters: `pending_ready`, `pending_delayed`, `running`, `failed`, `completed`, `active`.
+- Thêm script `python -m app.scripts.smoke_worker_operations` để chạy lại atomic claim smoke, retry policy smoke và kiểm tra endpoint ops.
+- Thêm `docs/WORKER_OPS_RUNBOOK.md` cho kiểm tra queue, smoke worker, restart worker, xem log, xử lý job failed/reprocess và backup/restore PostgreSQL, Qdrant, uploaded source files.
+- Cập nhật `README.md` link tới runbook.
+
+Kiểm tra đã chạy:
+
+```bash
+PYTHONPYCACHEPREFIX=/tmp/qlvb-pycache PYTHONPATH=apps/api python3 -m py_compile apps/api/app/main.py apps/api/app/repositories/document_repository.py apps/api/app/schemas/ops.py apps/api/app/services/ops_service.py apps/api/app/routers/ops.py apps/api/app/scripts/smoke_worker_operations.py
+docker compose stop worker
+docker compose exec -T api python -m app.scripts.smoke_worker_operations
+git diff --check
+```
+
+Sau khi hoàn thành:
+- Đã đọc lại `ROADMAP.md`.
+- Đã cập nhật `PROJECT_STATUS.md` với kết quả và kiểm tra đã chạy.
+- Đã cập nhật mục tiêu này thành `hoàn thành`.
+- Phase 2 đã đạt điều kiện hoàn thành, đã đánh dấu Phase 2 `hoàn thành` và mở khóa Phase 3.
+
 Điều kiện hoàn thành Phase 2:
 - Hai worker chạy song song không xử lý trùng một job.
 - Job lỗi được retry/có failed state rõ ràng.
@@ -358,13 +380,13 @@ Tiêu chí chấp nhận:
 
 ## Phase 3 - Search Quality Và RAG Foundation
 
-Trạng thái: khóa đến khi Phase 2 hoàn thành.
+Trạng thái: đang làm.
 
 Mục tiêu phase: tăng chất lượng retrieval và tạo nền tảng RAG local có citation, không phụ thuộc cloud.
 
 ### Mục Tiêu 1 - Tách Rerank Heuristic
 
-Trạng thái: khóa.
+Trạng thái: chưa làm.
 
 Mục tiêu:
 - Tách rerank heuristic hardcoded khỏi logic core.

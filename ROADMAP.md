@@ -30,11 +30,12 @@ MVP end-to-end đã hoàn thành và đang chạy được bằng Docker Compose
 - Smoke API workflow cho auth/search/review queue/review action đã gom thành script tái chạy được.
 - Worker đã claim OCR job atomic bằng database row lock để tránh nhiều worker xử lý trùng job.
 - Worker đã có retry policy MVP với `max_attempts`, `failed_reason`, `next_run_at` và audit UI rõ hơn.
+- Worker ops đã có endpoint queue status, smoke tổng hợp và runbook restart/failed job/backup/restore.
 - User audit UI cho admin xem audit log từng user.
 - Smoke appendix data script đã có fixture thật và cleanup mặc định.
 
 Giới hạn còn lại:
-- Worker đã có atomic claim và retry policy MVP; còn cần worker/queue readiness, ops runbook và backup/restore rõ hơn.
+- Worker ops MVP đã có; lease timeout hoặc auto recovery cho job đang `ocr_running` sau khi worker crash vẫn để Phase 6 hardening nếu cần.
 - Search rerank có heuristic hardcoded theo cụm từ mẫu; cần tách thành cấu hình/benchmark.
 - Chưa có module nghiệp vụ riêng cho hợp đồng, công văn đến/đi, quyết định hoặc phiếu vật tư.
 - Chưa có bộ công cụ admin cấu hình danh mục, model status, backup/restore và ops hardening đầy đủ.
@@ -76,15 +77,15 @@ Tiêu chí hoàn thành:
 
 ### Phase 2 - Worker Reliability Và Operations
 
-Trạng thái: đang ưu tiên tiếp theo.
+Trạng thái: hoàn thành ngày 2026-06-05.
 
 Mục tiêu: giảm rủi ro khi chạy worker lâu dài hoặc nhiều worker trong môi trường on-prem.
 
 Phạm vi:
 - Claim OCR job atomic bằng database transaction/row lock đã hoàn thành ngày 2026-06-05.
 - Chuẩn hóa retry, max attempts, failed reason và audit cho job đã hoàn thành ngày 2026-06-05.
-- Thêm health/readiness liên quan worker và hàng đợi.
-- Ghi tài liệu backup/restore PostgreSQL, Qdrant và uploaded source files.
+- Thêm health/readiness liên quan worker và hàng đợi đã hoàn thành ngày 2026-06-05 bằng endpoint `/api/v1/ops/worker-queue`.
+- Ghi tài liệu backup/restore PostgreSQL, Qdrant và uploaded source files đã hoàn thành ngày 2026-06-05.
 
 Tiêu chí hoàn thành:
 - Hai worker chạy song song không xử lý trùng một job.
@@ -93,7 +94,7 @@ Tiêu chí hoàn thành:
 
 ### Phase 3 - Search Quality Và RAG Foundation
 
-Trạng thái: chưa bắt đầu.
+Trạng thái: đang ưu tiên tiếp theo.
 
 Mục tiêu: tăng chất lượng retrieval và tạo nền tảng RAG local có citation mà không phụ thuộc cloud.
 

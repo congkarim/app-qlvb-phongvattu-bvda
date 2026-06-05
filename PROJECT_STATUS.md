@@ -52,6 +52,7 @@ Backend skeleton:
 Worker:
 - Claim OCR job pending bằng database row lock trước khi xử lý để tránh nhiều worker xử lý trùng job.
 - OCR job có retry policy MVP: lỗi recoverable retry tối đa theo `max_attempts`, lỗi input/config rõ ràng final failed không retry, có `failed_reason` và `next_run_at`.
+- Admin có endpoint `/api/v1/ops/worker-queue` để xem queue counters tối thiểu: `pending_ready`, `pending_delayed`, `running`, `failed`, `completed`, `active`.
 - Trích xuất text trực tiếp cho `.txt`, `.md`, `.docx`, `.xlsx`, `.xls`.
 - PDF có text nhúng được trích xuất trực tiếp bằng `pypdfium2` để giữ Unicode tiếng Việt.
 - OCR thật cho PDF/image scan bằng PaddleOCR/OpenCV khi page không có text nhúng.
@@ -124,9 +125,29 @@ Workflow web đã hoàn thiện:
 - `/dashboard` có card `Review queue` chỉ dành cho admin để xem chunks `requires_review=true`, lọc theo phụ lục/document/confidence thấp, xem tổng số item, khoảng item, page/page count, nhảy đầu/cuối, chuyển trang bằng `offset`, mở document detail và đánh dấu chunk đã review ngay từ queue.
 - `/users` cho phép admin xem audit log theo từng user, gồm actor, action, thời gian và metadata thao tác quản trị.
 
+Ops/runbook:
+- `docs/WORKER_OPS_RUNBOOK.md` ghi command kiểm tra worker queue, chạy worker smoke, restart worker, xử lý job failed, reprocess, backup/restore PostgreSQL, Qdrant và uploaded source files.
+
 ## Đã Kiểm Tra Thủ Công
 
 Các kiểm tra sau đã chạy thành công:
+
+Worker operations smoke và runbook kiểm tra ngày 2026-06-05:
+
+```bash
+PYTHONPYCACHEPREFIX=/tmp/qlvb-pycache PYTHONPATH=apps/api python3 -m py_compile apps/api/app/main.py apps/api/app/repositories/document_repository.py apps/api/app/schemas/ops.py apps/api/app/services/ops_service.py apps/api/app/routers/ops.py apps/api/app/scripts/smoke_worker_operations.py
+docker compose stop worker
+docker compose exec -T api python -m app.scripts.smoke_worker_operations
+git diff --check
+```
+
+Kết quả:
+- Thêm endpoint admin-only `GET /api/v1/ops/worker-queue` theo kiến trúc `router -> service -> repository`.
+- Endpoint trả queue counters tối thiểu và không expose nội dung document/job: `pending_ready`, `pending_delayed`, `running`, `failed`, `completed`, `active`.
+- Thêm script `python -m app.scripts.smoke_worker_operations` chạy lại smoke atomic claim, retry policy và kiểm tra endpoint ops.
+- Smoke operations pass: atomic claim không trùng job, retry dừng đúng `max_attempts`, endpoint ops trả counters cho admin và request chưa đăng nhập nhận `401`.
+- Thêm `docs/WORKER_OPS_RUNBOOK.md` cho restart worker, xem log, xử lý job failed/reprocess, backup/restore PostgreSQL, Qdrant và uploaded source files.
+- Phase 2 đã đạt tiêu chí: không xử lý trùng job khi nhiều worker, job lỗi có retry/failed state rõ, có smoke/command kiểm tra worker claim và retry.
 
 Worker retry policy kiểm tra ngày 2026-06-05:
 

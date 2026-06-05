@@ -50,6 +50,12 @@ API:
 curl http://localhost:8000/health
 ```
 
+Worker/queue ops runbook:
+
+```text
+docs/WORKER_OPS_RUNBOOK.md
+```
+
 Login admin local:
 
 ```bash
