@@ -157,6 +157,13 @@ export interface DocumentListFilters {
   offset?: number
 }
 
+export interface DocumentListResponse {
+  items: DocumentItem[]
+  total: number
+  limit: number
+  offset: number
+}
+
 export interface ReprocessDocumentResponse {
   document: DocumentItem
   ocr_job: OCRJob

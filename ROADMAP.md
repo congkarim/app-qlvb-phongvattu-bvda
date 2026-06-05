@@ -26,11 +26,11 @@ MVP end-to-end đã hoàn thành và đang chạy được bằng Docker Compose
 - Document detail có preview source, OCR job audit, chunks filter và action đánh dấu chunk đã review.
 - Dashboard có semantic search và admin review queue.
 - Review queue đã có pagination `limit/offset`, total count, filter và action review ngay trên queue.
+- Danh sách `/documents` đã có pagination `limit/offset`, total count, sort ổn định và UI chuyển trang.
 - User audit UI cho admin xem audit log từng user.
 - Smoke appendix data script đã có fixture thật và cleanup mặc định.
 
 Giới hạn còn lại:
-- Danh sách `/documents` frontend vẫn dùng limit lớn cố định, chưa có pagination count đúng nghĩa.
 - Các smoke HTTP cho auth/search/review queue còn một phần đang chạy inline, chưa gom thành workflow tái sử dụng được.
 - Worker đang poll job pending trực tiếp; cần có cơ chế claim/retry rõ hơn nếu chạy nhiều worker.
 - Search rerank có heuristic hardcoded theo cụm từ mẫu; cần tách thành cấu hình/benchmark.
@@ -62,7 +62,7 @@ Trạng thái: đang ưu tiên tiếp theo.
 Mục tiêu: làm các workflow MVP ổn định hơn khi dữ liệu tăng lên và biến smoke thành kiểm tra có thể chạy lại.
 
 Phạm vi:
-- Documents pagination polish cho `/documents`.
+- Documents pagination polish cho `/documents` đã hoàn thành ngày 2026-06-05.
 - Smoke API auth wrapper cho review queue, semantic search và review action.
 - Review queue UX polish nếu queue nhiều trang cần thao tác nhanh hơn.
 - Dọn dẹp các smoke/script tạm thành script tái sử dụng được.

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { DocumentListFilters } from '~/types/document'
 
-const { documents, loading, error, fetchDocuments } = useDocuments()
+const { documents, documentsTotal, documentsLimit, documentsOffset, loading, error, fetchDocuments } = useDocuments()
 const filters = reactive<
   Required<Pick<DocumentListFilters, 'q' | 'status' | 'document_type' | 'business_type' | 'sort_by' | 'sort_dir'>>
 >({
@@ -55,6 +55,11 @@ const sortOptions = [
   { label: 'Loại nghiệp vụ', value: 'business_type' }
 ]
 
+const currentStart = computed(() => (documentsTotal.value === 0 ? 0 : documentsOffset.value + 1))
+const currentEnd = computed(() => Math.min(documentsOffset.value + documents.value.length, documentsTotal.value))
+const canGoPrevious = computed(() => documentsOffset.value > 0)
+const canGoNext = computed(() => documentsOffset.value + documentsLimit.value < documentsTotal.value)
+
 function currentFilters(): DocumentListFilters {
   return {
     q: filters.q,
@@ -63,11 +68,13 @@ function currentFilters(): DocumentListFilters {
     business_type: filters.business_type,
     sort_by: filters.sort_by,
     sort_dir: filters.sort_dir,
-    limit: 100
+    limit: documentsLimit.value,
+    offset: documentsOffset.value
   }
 }
 
-async function loadDocuments() {
+async function loadDocuments(resetPage = false) {
+  if (resetPage) documentsOffset.value = 0
   await fetchDocuments(currentFilters())
 }
 
@@ -78,6 +85,18 @@ function resetFilters() {
   filters.business_type = ''
   filters.sort_by = 'created_at'
   filters.sort_dir = 'desc'
+  void loadDocuments(true)
+}
+
+function goToPreviousPage() {
+  if (!canGoPrevious.value) return
+  documentsOffset.value = Math.max(0, documentsOffset.value - documentsLimit.value)
+  void loadDocuments()
+}
+
+function goToNextPage() {
+  if (!canGoNext.value) return
+  documentsOffset.value += documentsLimit.value
   void loadDocuments()
 }
 
@@ -92,7 +111,7 @@ onMounted(loadDocuments)
         <p class="mt-1 text-sm text-slate-600">Danh sách văn bản đã upload.</p>
       </div>
       <div class="flex gap-2">
-        <Button label="Refresh" icon="pi pi-refresh" severity="secondary" :loading="loading" @click="loadDocuments" />
+        <Button label="Refresh" icon="pi pi-refresh" severity="secondary" :loading="loading" @click="() => loadDocuments()" />
         <NuxtLink to="/upload">
           <Button label="Upload" icon="pi pi-upload" />
         </NuxtLink>
@@ -106,7 +125,7 @@ onMounted(loadDocuments)
             v-model="filters.q"
             class="md:col-span-2"
             placeholder="Tìm theo tên, số văn bản, đơn vị hoặc filename"
-            @keyup.enter="loadDocuments"
+            @keyup.enter="loadDocuments(true)"
           />
           <select v-model="filters.status" class="rounded border border-slate-300 px-3 py-2 text-sm">
             <option v-for="option in statusOptions" :key="option.value" :value="option.value">
@@ -134,13 +153,37 @@ onMounted(loadDocuments)
           </select>
         </div>
         <div class="mt-3 flex flex-wrap gap-2">
-          <Button label="Lọc" icon="pi pi-filter" :loading="loading" @click="loadDocuments" />
+          <Button label="Lọc" icon="pi pi-filter" :loading="loading" @click="loadDocuments(true)" />
           <Button label="Xóa lọc" icon="pi pi-times" severity="secondary" :disabled="loading" @click="resetFilters" />
         </div>
       </template>
     </Card>
 
     <Message v-if="error" severity="error">{{ error }}</Message>
+    <div class="flex flex-col gap-3 rounded border border-slate-200 bg-white px-4 py-3 md:flex-row md:items-center md:justify-between">
+      <p class="text-sm text-slate-600">
+        Hiển thị {{ currentStart }}-{{ currentEnd }} / {{ documentsTotal }} văn bản
+      </p>
+      <div class="flex gap-2">
+        <Button
+          label="Trước"
+          icon="pi pi-chevron-left"
+          severity="secondary"
+          size="small"
+          :disabled="loading || !canGoPrevious"
+          @click="goToPreviousPage"
+        />
+        <Button
+          label="Sau"
+          icon="pi pi-chevron-right"
+          icon-pos="right"
+          severity="secondary"
+          size="small"
+          :disabled="loading || !canGoNext"
+          @click="goToNextPage"
+        />
+      </div>
+    </div>
     <BaseDataTable :rows="documents" :loading="loading" />
   </section>
 </template>

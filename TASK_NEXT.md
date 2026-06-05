@@ -21,7 +21,7 @@ Tài liệu này là checklist thực thi tuần tự bám theo `ROADMAP.md`. Kh
 
 Phase hiện tại: Phase 1 - Stabilize Core Workflows.
 
-Mục tiêu tiếp theo phải làm: Phase 1 / Mục tiêu 1 - Documents pagination polish.
+Mục tiêu tiếp theo phải làm: Phase 1 / Mục tiêu 2 - Smoke API Auth Wrapper.
 
 Điều kiện chuyển sang mục tiêu kế tiếp:
 - Mục tiêu hiện tại pass tiêu chí chấp nhận.
@@ -66,7 +66,7 @@ Mục tiêu phase: làm các workflow MVP ổn định hơn khi dữ liệu tăn
 
 ### Mục Tiêu 1 - Documents Pagination Polish
 
-Trạng thái: chưa làm.
+Trạng thái: hoàn thành ngày 2026-06-05.
 
 Mục tiêu:
 - Thay limit cố định trên `/documents` bằng pagination có total count để danh sách văn bản dùng được khi dữ liệu tăng.
@@ -95,6 +95,13 @@ Tiêu chí chấp nhận:
 - UI không gọi API trực tiếp trong component ngoài service/composable hiện có.
 - Không phá document detail, upload, search dashboard.
 
+Kết quả:
+- Backend `GET /api/v1/documents` trả `items`, `total`, `limit`, `offset`.
+- Repository dùng chung filter helper cho list/count và sort ổn định bằng `Document.id`.
+- Frontend `/documents` hiển thị tổng số, khoảng item hiện tại và nút `Trước/Sau`.
+- Search/filter/sort reset về page đầu; refresh giữ page hiện tại.
+- Thêm script `python -m app.scripts.smoke_documents_pagination`.
+
 Kiểm tra cần chạy:
 
 ```bash
@@ -105,14 +112,14 @@ git diff --check
 ```
 
 Sau khi hoàn thành:
-- Đọc lại `ROADMAP.md`.
-- Cập nhật `PROJECT_STATUS.md` với kết quả và kiểm tra đã chạy.
-- Cập nhật mục tiêu này thành `hoàn thành`.
-- Chuyển con trỏ hiện tại sang `Phase 1 / Mục tiêu 2`.
+- Đã đọc lại `ROADMAP.md`.
+- Đã cập nhật `PROJECT_STATUS.md` với kết quả và kiểm tra đã chạy.
+- Đã cập nhật mục tiêu này thành `hoàn thành`.
+- Đã chuyển con trỏ hiện tại sang `Phase 1 / Mục tiêu 2`.
 
 ### Mục Tiêu 2 - Smoke API Auth Wrapper
 
-Trạng thái: chờ Mục tiêu 1.
+Trạng thái: chưa làm.
 
 Mục tiêu:
 - Chuyển các smoke HTTP inline thành script tái chạy được, có login admin/user và cleanup rõ ràng.

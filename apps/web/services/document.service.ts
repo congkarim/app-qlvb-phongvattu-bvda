@@ -4,6 +4,7 @@ import type {
   DocumentFile,
   DocumentItem,
   DocumentListFilters,
+  DocumentListResponse,
   DocumentMetadataInput,
   DocumentMetadataUpdateInput,
   MultiFileUploadResponse,
@@ -28,7 +29,7 @@ export function createDocumentService() {
         }
       }
       const query = params.toString()
-      return api<DocumentItem[]>(`/documents${query ? `?${query}` : ''}`)
+      return api<DocumentListResponse>(`/documents${query ? `?${query}` : ''}`)
     },
     get(id: string) {
       return api<DocumentDetail>(`/documents/${id}`)

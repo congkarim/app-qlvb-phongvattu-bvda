@@ -41,22 +41,18 @@ class DocumentRepository:
         self.db.flush()
         return document
 
-    def list_documents(
+    def _document_list_conditions(
         self,
-        limit: int = 50,
-        offset: int = 0,
         *,
         query: str | None = None,
         status: str | None = None,
         document_type: str | None = None,
         business_type: str | None = None,
-        sort_by: str = "created_at",
-        sort_dir: str = "desc",
-    ) -> list[Document]:
-        stmt = select(Document).where(Document.deleted_at.is_(None))
+    ):
+        conditions = [Document.deleted_at.is_(None)]
         if query:
             pattern = f"%{query}%"
-            stmt = stmt.where(
+            conditions.append(
                 or_(
                     Document.title.ilike(pattern),
                     Document.original_filename.ilike(pattern),
@@ -69,11 +65,33 @@ class DocumentRepository:
                 )
             )
         if status:
-            stmt = stmt.where(Document.status == status)
+            conditions.append(Document.status == status)
         if document_type:
-            stmt = stmt.where(Document.document_type == document_type)
+            conditions.append(Document.document_type == document_type)
         if business_type:
-            stmt = stmt.where(Document.business_type == business_type)
+            conditions.append(Document.business_type == business_type)
+        return conditions
+
+    def list_documents(
+        self,
+        limit: int = 50,
+        offset: int = 0,
+        *,
+        query: str | None = None,
+        status: str | None = None,
+        document_type: str | None = None,
+        business_type: str | None = None,
+        sort_by: str = "created_at",
+        sort_dir: str = "desc",
+    ) -> list[Document]:
+        stmt = select(Document).where(
+            *self._document_list_conditions(
+                query=query,
+                status=status,
+                document_type=document_type,
+                business_type=business_type,
+            )
+        )
 
         sortable_columns = {
             "created_at": Document.created_at,
@@ -86,8 +104,30 @@ class DocumentRepository:
         }
         sort_column = sortable_columns.get(sort_by, Document.created_at)
         direction = asc if sort_dir == "asc" else desc
-        stmt = stmt.order_by(direction(sort_column), Document.created_at.desc()).limit(limit).offset(offset)
+        if sort_by == "created_at":
+            stmt = stmt.order_by(direction(sort_column), direction(Document.id))
+        else:
+            stmt = stmt.order_by(direction(sort_column), Document.created_at.desc(), Document.id.desc())
+        stmt = stmt.limit(limit).offset(offset)
         return list(self.db.scalars(stmt))
+
+    def count_documents(
+        self,
+        *,
+        query: str | None = None,
+        status: str | None = None,
+        document_type: str | None = None,
+        business_type: str | None = None,
+    ) -> int:
+        stmt = select(func.count(Document.id)).where(
+            *self._document_list_conditions(
+                query=query,
+                status=status,
+                document_type=document_type,
+                business_type=business_type,
+            )
+        )
+        return int(self.db.scalar(stmt) or 0)
 
     def get_document(self, document_id: str) -> Document | None:
         stmt = (

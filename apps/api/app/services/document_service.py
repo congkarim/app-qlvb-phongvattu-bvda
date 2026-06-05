@@ -288,16 +288,32 @@ class DocumentService:
         sort_by: str = "created_at",
         sort_dir: str = "desc",
     ):
-        return self.documents.list_documents(
+        normalized_query = self._normalize_title(query)
+        normalized_status = self._normalize_title(status)
+        normalized_document_type = self._normalize_title(document_type)
+        normalized_business_type = self._normalize_title(business_type)
+        items = self.documents.list_documents(
             limit=limit,
             offset=offset,
-            query=self._normalize_title(query),
-            status=self._normalize_title(status),
-            document_type=self._normalize_title(document_type),
-            business_type=self._normalize_title(business_type),
+            query=normalized_query,
+            status=normalized_status,
+            document_type=normalized_document_type,
+            business_type=normalized_business_type,
             sort_by=sort_by,
             sort_dir=sort_dir,
         )
+        total = self.documents.count_documents(
+            query=normalized_query,
+            status=normalized_status,
+            document_type=normalized_document_type,
+            business_type=normalized_business_type,
+        )
+        return {
+            "items": items,
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+        }
 
     def get_document(self, document_id: str):
         return self.documents.get_document(document_id)

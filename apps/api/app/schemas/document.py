@@ -119,6 +119,13 @@ class ReviewQueueResponse(BaseModel):
     offset: int
 
 
+class DocumentListResponse(BaseModel):
+    items: list[DocumentRead]
+    total: int
+    limit: int
+    offset: int
+
+
 class DocumentDetailRead(DocumentRead):
     files: list[DocumentFileRead] = []
     pages: list[DocumentPageRead] = []

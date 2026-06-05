@@ -18,6 +18,9 @@ import { createDocumentService } from '~/services/document.service'
 
 export function useDocuments() {
   const documents = ref<DocumentItem[]>([])
+  const documentsTotal = ref(0)
+  const documentsLimit = ref(20)
+  const documentsOffset = ref(0)
   const document = ref<DocumentDetail | null>(null)
   const reviewQueue = ref<ReviewQueueChunk[]>([])
   const reviewQueueTotal = ref(0)
@@ -41,9 +44,17 @@ export function useDocuments() {
     if (!options.silent) loading.value = true
     error.value = ''
     try {
-      documents.value = await service.list(filters)
+      const result = await service.list(filters)
+      documents.value = result.items
+      documentsTotal.value = result.total
+      documentsLimit.value = result.limit
+      documentsOffset.value = result.offset
     } catch {
       error.value = 'Không tải được danh sách văn bản'
+      documents.value = []
+      documentsTotal.value = 0
+      documentsLimit.value = filters.limit || 20
+      documentsOffset.value = filters.offset || 0
     } finally {
       if (!options.silent) loading.value = false
     }
@@ -350,6 +361,9 @@ export function useDocuments() {
 
   return {
     documents,
+    documentsTotal,
+    documentsLimit,
+    documentsOffset,
     document,
     reviewQueue,
     reviewQueueTotal,

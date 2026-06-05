@@ -118,7 +118,7 @@ Workflow web đã hoàn thiện:
 - `/documents/[id]` hiển thị audit OCR/reprocess job gồm `job_type`, `status`, `reason`, attempts, error message và thời gian tạo/cập nhật.
 - `/documents/[id]` có filter trong card `Chunks` để xem tất cả chunk, chunk cần review, phụ lục và phụ lục cần review; hiển thị counter tổng chunk, `requires_review=true` và `section_role=appendix`.
 - `/documents/[id]` cho phép admin đánh dấu chunk `requires_review=true` là đã review; thao tác ghi audit log `document_chunk.reviewed` và cập nhật payload Qdrant để search filter đồng bộ.
-- `/documents` có refresh action, filter/search/sort, loading state, empty state và link sang detail.
+- `/documents` có refresh action, filter/search/sort, pagination `limit/offset` có total count, loading state, empty state và link sang detail.
 - `/dashboard` có validation search input, loading/empty/error state, filter semantic search theo metadata nghiệp vụ/chunk, bao gồm option `section_role=appendix`, và result link sang document nguồn.
 - `/dashboard` có card `Review queue` chỉ dành cho admin để xem chunks `requires_review=true`, lọc theo phụ lục/document/confidence thấp, xem tổng số item, chuyển trang bằng `offset`, mở document detail và đánh dấu chunk đã review ngay từ queue.
 - `/users` cho phép admin xem audit log theo từng user, gồm actor, action, thời gian và metadata thao tác quản trị.
@@ -126,6 +126,25 @@ Workflow web đã hoàn thiện:
 ## Đã Kiểm Tra Thủ Công
 
 Các kiểm tra sau đã chạy thành công:
+
+Documents pagination polish kiểm tra ngày 2026-06-05:
+
+```bash
+PYTHONPYCACHEPREFIX=/tmp/qlvb-pycache PYTHONPATH=apps/api python3 -m py_compile apps/api/app/schemas/document.py apps/api/app/repositories/document_repository.py apps/api/app/services/document_service.py apps/api/app/routers/documents.py apps/api/app/scripts/smoke_documents_pagination.py
+docker compose run --rm --no-deps web npm run build
+docker compose up -d api postgres redis qdrant
+docker compose exec -T api python -m app.scripts.smoke_documents_pagination
+git diff --check
+```
+
+Kết quả:
+- Backend `GET /api/v1/documents` trả response phân trang `items`, `total`, `limit`, `offset`.
+- Repository có count matching cùng filter với list: search text, status, document type và business type.
+- Query danh sách có sort ổn định với tie-breaker `Document.id` để hạn chế trùng item giữa các page.
+- Frontend `/documents` dùng response phân trang qua service/composable, hiển thị tổng số, khoảng item hiện tại và nút `Trước/Sau`.
+- Khi đổi search/filter/sort, UI reset offset về `0`; refresh giữ nguyên page hiện tại.
+- Smoke pagination pass với 3 document tạm: page 1/page 2 không trùng item, total đúng, filter/search/sort còn hoạt động và dữ liệu smoke được cleanup mềm.
+- Frontend build pass; vẫn có warning chunk PrimeVue lớn như trước, không fail.
 
 Chuẩn hóa kế hoạch thực thi kiểm tra ngày 2026-06-05:
 

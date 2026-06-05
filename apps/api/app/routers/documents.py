@@ -10,6 +10,7 @@ from app.models.user import User
 from app.schemas.document import (
     DocumentDetailRead,
     DocumentChunkRead,
+    DocumentListResponse,
     DocumentMetadataUpdateRequest,
     DocumentRead,
     MultiFileUploadResponse,
@@ -119,7 +120,7 @@ def upload_zip_document(
     return MultiFileUploadResponse(document=document, files=document_files, ocr_job=ocr_job)
 
 
-@router.get("", response_model=list[DocumentRead])
+@router.get("", response_model=DocumentListResponse)
 def list_documents(
     limit: int = Query(default=50, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
@@ -130,7 +131,7 @@ def list_documents(
     sort_by: str = Query(default="created_at", pattern="^(created_at|updated_at|issued_date|title|status|document_type|business_type)$"),
     sort_dir: str = Query(default="desc", pattern="^(asc|desc)$"),
     db: Session = Depends(get_db),
-) -> list[DocumentRead]:
+) -> DocumentListResponse:
     return DocumentService(db).list_documents(
         limit=limit,
         offset=offset,
