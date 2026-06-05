@@ -1,4 +1,5 @@
 import type {
+  DocumentChunk,
   DocumentDetail,
   DocumentFile,
   DocumentItem,
@@ -110,6 +111,11 @@ export function createDocumentService() {
         body: {
           reason: reason.trim() || null
         }
+      })
+    },
+    markChunkReviewed(id: string, chunkId: string) {
+      return api<DocumentChunk>(`/documents/${id}/chunks/${chunkId}/reviewed`, {
+        method: 'PATCH'
       })
     }
   }

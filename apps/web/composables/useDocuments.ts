@@ -24,6 +24,7 @@ export function useDocuments() {
   const sourceFileLoading = ref(false)
   const sourceFileViewLoading = ref('')
   const sourceFilePreviewLoading = ref('')
+  const chunkReviewLoading = ref('')
   const sourceFilePreview = ref<SourceFilePreview | null>(null)
   const error = ref('')
   const service = createDocumentService()
@@ -250,6 +251,26 @@ export function useDocuments() {
     }
   }
 
+  async function markChunkReviewed(id: string, chunkId: string): Promise<boolean> {
+    chunkReviewLoading.value = chunkId
+    error.value = ''
+    try {
+      const reviewedChunk = await service.markChunkReviewed(id, chunkId)
+      if (document.value?.id === id) {
+        document.value = {
+          ...document.value,
+          chunks: document.value.chunks.map((chunk) => (chunk.id === reviewedChunk.id ? reviewedChunk : chunk))
+        }
+      }
+      return true
+    } catch {
+      error.value = 'Không đánh dấu được chunk đã review'
+      return false
+    } finally {
+      chunkReviewLoading.value = ''
+    }
+  }
+
   function clearUploadResult() {
     uploadResult.value = null
     multiFileUploadResult.value = null
@@ -308,6 +329,7 @@ export function useDocuments() {
     sourceFileLoading,
     sourceFileViewLoading,
     sourceFilePreviewLoading,
+    chunkReviewLoading,
     sourceFilePreview,
     error,
     fetchDocuments,
@@ -323,6 +345,7 @@ export function useDocuments() {
     reorderSourceFiles,
     deleteSourceFile,
     reprocessDocument,
+    markChunkReviewed,
     clearUploadResult
   }
 }

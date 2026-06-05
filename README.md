@@ -112,7 +112,7 @@ Trong card `Metadata`, có thể bấm `Sửa metadata` để chỉnh tên văn 
 
 Trong card `Tệp nguồn`, bấm `Xem trước` để preview inline PDF, ảnh hoặc text cạnh metadata/OCR text. Bấm `Mở` để mở tab mới với định dạng browser hỗ trợ; DOCX/XLSX hoặc định dạng không preview được sẽ download.
 
-Các thao tác reprocess, thêm source file, đổi thứ tự source file và xóa source file chỉ dành cho admin.
+Các thao tác reprocess, thêm source file, đổi thứ tự source file, xóa source file và đánh dấu chunk đã review chỉ dành cho admin.
 
 Admin có thể vào `Users` để tạo tài khoản thường, đổi role, reset password, phân trang danh sách, xem audit log theo user và vô hiệu hóa hoặc xóa mềm user.
 

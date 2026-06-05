@@ -9,6 +9,7 @@ from app.dependencies import get_current_user, require_admin
 from app.models.user import User
 from app.schemas.document import (
     DocumentDetailRead,
+    DocumentChunkRead,
     DocumentMetadataUpdateRequest,
     DocumentRead,
     MultiFileUploadResponse,
@@ -20,6 +21,7 @@ from app.schemas.document import (
 )
 from app.services.document_service import (
     DocumentBusyError,
+    DocumentChunkNotFoundError,
     DocumentFileNotFoundError,
     DocumentFileOperationError,
     DocumentNotFoundError,
@@ -292,3 +294,20 @@ def reprocess_document(
     except DocumentBusyError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc))
     return ReprocessDocumentResponse(document=document, ocr_job=ocr_job)
+
+
+@router.patch("/{document_id}/chunks/{chunk_id}/reviewed", response_model=DocumentChunkRead)
+def mark_document_chunk_reviewed(
+    document_id: str,
+    chunk_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+) -> DocumentChunkRead:
+    try:
+        return DocumentService(db).mark_chunk_reviewed(
+            document_id=document_id,
+            chunk_id=chunk_id,
+            actor=current_user,
+        )
+    except DocumentChunkNotFoundError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document chunk not found")

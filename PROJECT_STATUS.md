@@ -117,6 +117,7 @@ Workflow web đã hoàn thiện:
 - `/documents/[id]` có action reprocess dành cho admin, khóa nút khi document đang `ocr_pending`, `ocr_running`, `reprocess_pending`, `reprocess_running` hoặc `chunking`.
 - `/documents/[id]` hiển thị audit OCR/reprocess job gồm `job_type`, `status`, `reason`, attempts, error message và thời gian tạo/cập nhật.
 - `/documents/[id]` có filter trong card `Chunks` để xem tất cả chunk, chunk cần review, phụ lục và phụ lục cần review; hiển thị counter tổng chunk, `requires_review=true` và `section_role=appendix`.
+- `/documents/[id]` cho phép admin đánh dấu chunk `requires_review=true` là đã review; thao tác ghi audit log `document_chunk.reviewed` và cập nhật payload Qdrant để search filter đồng bộ.
 - `/documents` có refresh action, filter/search/sort, loading state, empty state và link sang detail.
 - `/dashboard` có validation search input, loading/empty/error state, filter semantic search theo metadata nghiệp vụ/chunk, bao gồm option `section_role=appendix`, và result link sang document nguồn.
 - `/users` cho phép admin xem audit log theo từng user, gồm actor, action, thời gian và metadata thao tác quản trị.
@@ -124,6 +125,24 @@ Workflow web đã hoàn thiện:
 ## Đã Kiểm Tra Thủ Công
 
 Các kiểm tra sau đã chạy thành công:
+
+Review action cho chunk kiểm tra ngày 2026-06-05:
+
+```bash
+PYTHONPYCACHEPREFIX=/tmp/qlvb-pycache PYTHONPATH=apps/api python3 -m py_compile apps/api/app/repositories/document_repository.py apps/api/app/services/qdrant_service.py apps/api/app/services/document_service.py apps/api/app/routers/documents.py apps/api/app/schemas/document.py
+docker compose run --rm --no-deps web npm run build
+python3 <review chunk smoke script>
+python3 <review chunk user forbidden smoke script>
+git diff --check
+```
+
+Kết quả:
+- Thêm endpoint admin-only `PATCH /api/v1/documents/{document_id}/chunks/{chunk_id}/reviewed`.
+- Endpoint cập nhật `document_chunks.requires_review=false`, ghi audit log `document_chunk.reviewed` trên document và cập nhật Qdrant payload bằng `set_payload`.
+- Trang `/documents/[id]` hiển thị nút `Đã review` cho admin trên chunk đang cần review; sau thao tác refresh detail và giữ filter hiện tại.
+- Smoke review pass với document `419a80f8-dc60-4148-a62d-c55a6acf6bc9`, chunk `eaed75ab-b7e9-43e8-9ee7-0a005250a413`: response/detail đều `requires_review=false`, audit log xuất hiện và search `requires_review=true` không còn trả chunk này.
+- Smoke phân quyền pass: user thường `review-smoke-e49755296dac@example.com` gọi endpoint nhận 403.
+- Frontend build pass; vẫn có warning chunk PrimeVue lớn như trước, không fail.
 
 Review queue UI và appendix search filter kiểm tra ngày 2026-06-05:
 

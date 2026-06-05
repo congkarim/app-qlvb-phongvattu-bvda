@@ -1,4 +1,4 @@
-# Task Vừa Hoàn Thành: Review Queue UI và Appendix Search Filter
+# Task Vừa Hoàn Thành: Review Action cho Chunk
 
 Trạng thái: hoàn thành.
 
@@ -6,26 +6,25 @@ Ngày cập nhật: 2026-06-05
 
 ## Phạm Vi Đã Thực Hiện
 
-Đã thêm UI lọc nhanh chunk cần review/phụ lục trên document detail và thêm option lọc phụ lục rõ ràng trong Dashboard search. Không đổi stack, không thêm migration và không thêm endpoint mới vì schema/search API hiện tại đã đủ metadata.
+Đã thêm thao tác admin để đánh dấu chunk `requires_review=true` là đã review ngay trong trang chi tiết document. Không đổi stack, không thêm migration và không thêm queue mới.
 
 ## Kết Quả Chính
 
-Frontend:
-- Cập nhật `/documents/[id]` trong `apps/web/pages/documents/[...id].vue`.
-- Card `Chunks` có filter:
-  - `Tất cả chunks`
-  - `Cần review`
-  - `Phụ lục`
-  - `Phụ lục cần review`
-- Card `Chunks` hiển thị counter tổng chunk, chunk `requires_review=true` và chunk `section_role=appendix`.
-- Chunk phụ lục hiển thị label `Phụ lục`; chunk cần kiểm tra hiển thị tag `Cần review`.
-- Khi filter không có kết quả, UI hiển thị empty state riêng mà không làm mất dữ liệu chunk gốc.
-- Cập nhật `/dashboard` để thêm option `Phụ lục` cho filter `section_role=appendix`.
+Backend:
+- Thêm endpoint admin-only `PATCH /api/v1/documents/{document_id}/chunks/{chunk_id}/reviewed`.
+- Giữ kiến trúc `router -> service -> repository`:
+  - Router chỉ validate auth/admin và map lỗi HTTP.
+  - Service xử lý nghiệp vụ review, audit log và sync Qdrant.
+  - Repository lấy chunk active theo document và cập nhật `requires_review=false`.
+- Ghi audit log `document_chunk.reviewed` trên entity `document`, nên log xuất hiện trong document detail hiện có.
+- Cập nhật Qdrant payload bằng `set_payload`, tránh re-embedding vì text/vector không đổi.
+- Nếu Qdrant sync lỗi, service không commit DB để tránh lệch trạng thái search filter.
 
-Backend/search:
-- Xác nhận `DocumentChunkRead` và semantic search schema đã có `section_role`, `section_path`, `chunk_confidence`, `requires_review`.
-- Không cần sửa API vì search filter `section_role=appendix` đã đi qua service hiện có.
-- Smoke API kiểm tra `section_role=appendix` ở dạng empty-safe: API phải trả 200 và mọi result nếu có đều là appendix.
+Frontend:
+- Cập nhật document service/composable để gọi endpoint review chunk qua đúng luồng `page -> composable -> service -> API`.
+- Trong `/documents/[id]`, admin thấy nút `Đã review` trên chunk đang có `requires_review=true`.
+- Khi thao tác thành công, detail được refresh và filter chunk hiện tại vẫn được giữ.
+- User thường không thấy nút review.
 
 Docs:
 - Cập nhật `README.md`.
@@ -35,54 +34,63 @@ Docs:
 ## Đã Kiểm Tra
 
 ```bash
-PYTHONPYCACHEPREFIX=/tmp/qlvb-pycache PYTHONPATH=apps/api python3 -m py_compile apps/api/app/schemas/document.py apps/api/app/schemas/search.py apps/api/app/services/search_service.py apps/api/app/routers/search.py
+PYTHONPYCACHEPREFIX=/tmp/qlvb-pycache PYTHONPATH=apps/api python3 -m py_compile apps/api/app/repositories/document_repository.py apps/api/app/services/qdrant_service.py apps/api/app/services/document_service.py apps/api/app/routers/documents.py apps/api/app/schemas/document.py
 docker compose run --rm --no-deps web npm run build
-python3 <semantic search appendix filter smoke script>
+python3 <review chunk smoke script>
+python3 <review chunk user forbidden smoke script>
 git diff --check
 ```
 
 Kết quả:
-- Backend compile pass cho schemas/search service/router liên quan.
+- Backend compile pass.
 - Frontend build pass; vẫn có warning chunk PrimeVue lớn như trước, không fail.
-- Semantic search smoke login admin và gọi `POST /api/v1/search/semantic` với `section_role=appendix`; API trả 200 và filter hợp lệ.
+- Review smoke pass với document `419a80f8-dc60-4148-a62d-c55a6acf6bc9`, chunk `eaed75ab-b7e9-43e8-9ee7-0a005250a413`.
+- Sau review, response/detail đều có `requires_review=false`.
+- Audit log `document_chunk.reviewed` xuất hiện trong document detail.
+- Search `requires_review=true` không còn trả chunk vừa review.
+- User thường `review-smoke-e49755296dac@example.com` gọi endpoint nhận 403.
 - Diff check pass.
 
 ## Task Tiếp Theo Đề Xuất
 
-1. Review action:
-   - Thêm action admin để đánh dấu một chunk đã review và tắt `requires_review`.
-   - Ghi audit log cho thao tác review chunk.
-   - Cập nhật Qdrant payload sau khi trạng thái review thay đổi để search filter đồng bộ.
-
-2. Review queue dashboard:
-   - Thêm view dashboard chuyên cho chunks `requires_review=true` khi số lượng review lớn hơn MVP hiện tại.
+1. Review queue dashboard:
+   - Thêm view trong Dashboard để admin xem nhiều chunks `requires_review=true` theo danh sách tập trung.
    - Hỗ trợ lọc theo `section_role=appendix`, document, confidence thấp và ngày xử lý.
+   - Cho phép mở document detail hoặc đánh dấu reviewed từ queue nếu API hiện có đủ dùng.
 
-## Kế Hoạch Chi Tiết: Review Action cho Chunk
+2. Appendix data smoke:
+   - Tạo hoặc upload fixture có phụ lục thật để smoke `section_role=appendix` không còn empty-safe.
+   - Kiểm tra phụ lục OCR yếu xuất hiện trong review queue và search appendix filter.
+
+## Kế Hoạch Chi Tiết: Review Queue Dashboard
 
 ### Mục Tiêu
 
-Cho admin xử lý hàng đợi review ngay trên document detail: khi một chunk đã được kiểm tra, admin có thể đánh dấu đã review để không còn xuất hiện trong filter `Cần review`.
+Tạo điểm xem tập trung cho admin khi số lượng chunk cần review lớn, thay vì phải mở từng document detail để lọc chunk.
 
 ### Phạm Vi MVP
 
 Backend:
-- Thêm endpoint admin-only để cập nhật trạng thái review của chunk.
-- Giữ kiến trúc `router -> service -> repository`.
-- Chỉ cho phép thao tác với chunk active, không hard delete.
-- Cập nhật `document_chunks.requires_review=false`.
-- Ghi audit log `document_chunk.reviewed` hoặc action tương đương.
-- Cập nhật payload Qdrant cho chunk sau khi đổi trạng thái, hoặc re-upsert vector nếu service hiện tại yêu cầu.
+- Ưu tiên dùng semantic search hiện có với filter `requires_review=true`.
+- Nếu cần danh sách không phụ thuộc query search, thêm endpoint list chunks review theo metadata:
+  - `GET /api/v1/documents/chunks/review-queue`
+  - Query: `limit`, `offset`, `section_role`, `document_id`, `max_confidence`.
+  - Response gồm chunk metadata, document title, document id và excerpt text ngắn.
+- Giữ router-service-repository, không đưa query DB vào router.
 
 Frontend:
-- Trong `/documents/[id]`, với chunk `requires_review=true`, hiển thị nút admin `Đã review`.
-- Khi bấm thành công, refresh document detail và giữ filter hiện tại.
-- Không gọi API trực tiếp trong page nếu đã có pattern service/composable; thêm method vào service/composable documents.
+- Trong `/dashboard`, thêm tab hoặc block `Review queue` chỉ hiện cho admin.
+- Filter tối thiểu:
+  - Tất cả review.
+  - Phụ lục.
+  - Confidence thấp.
+- Mỗi item hiển thị document title, chunk index, role/path, confidence, text preview và action mở document.
+- Có thể thêm action `Đã review` trực tiếp nếu tái dùng endpoint hiện tại rõ ràng và không làm UI rối.
 
 ### Acceptance Criteria
 
-- Admin có thể tắt `requires_review` cho một chunk.
-- User thường không thấy hoặc không gọi được action này.
-- Audit log document ghi nhận chunk đã review.
-- Search filter `requires_review=true` không còn trả chunk đã review sau khi payload đồng bộ.
-- Backend compile/test pass, frontend build pass và smoke API pass.
+- Admin có thể xem danh sách chunk cần review từ Dashboard.
+- User thường không thấy review queue.
+- Có filter phụ lục trong queue.
+- Có link mở document detail đúng document/chunk context tối thiểu.
+- Backend/frontend checks pass và docs được cập nhật.

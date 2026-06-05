@@ -12,6 +12,7 @@ const {
   sourceFileLoading,
   sourceFileViewLoading,
   sourceFilePreviewLoading,
+  chunkReviewLoading,
   sourceFilePreview,
   error,
   fetchDocument,
@@ -22,7 +23,8 @@ const {
   previewSourceFile,
   clearSourceFilePreview,
   reorderSourceFiles,
-  deleteSourceFile
+  deleteSourceFile,
+  markChunkReviewed
 } = useDocuments()
 let pollTimer: ReturnType<typeof setInterval> | undefined
 const reprocessReason = ref('')
@@ -217,6 +219,7 @@ function formatAuditAction(action: string): string {
   if (action === 'document.source_file_deleted') return 'Xóa tệp nguồn'
   if (action === 'document.metadata_auto_extracted') return 'Tự trích xuất metadata'
   if (action === 'document.metadata_updated') return 'Cập nhật metadata'
+  if (action === 'document_chunk.reviewed') return 'Đã review chunk'
   return action
 }
 
@@ -359,6 +362,14 @@ async function submitDeleteSourceFile(fileId: string, filename: string) {
   const result = await deleteSourceFile(document.value.id, fileId)
   if (!result) return
   await refreshAfterSourceFileMutation()
+}
+
+async function submitMarkChunkReviewed(chunk: DocumentChunk) {
+  if (!document.value || !authStore.isAdmin || !chunk.requires_review) return
+  const result = await markChunkReviewed(document.value.id, chunk.id)
+  if (!result) return
+  await fetchDocument(documentId.value, { silent: true })
+  markDetailRefreshed()
 }
 
 async function submitOpenSourceFile(fileId: string) {
@@ -1000,6 +1011,16 @@ onBeforeUnmount(() => {
                 <span v-if="chunk.chunk_confidence !== null && chunk.chunk_confidence !== undefined" class="text-slate-500">
                   {{ formatConfidence(chunk.chunk_confidence) }}
                 </span>
+                <Button
+                  v-if="authStore.isAdmin && chunk.requires_review"
+                  label="Đã review"
+                  icon="pi pi-check"
+                  severity="secondary"
+                  size="small"
+                  :loading="chunkReviewLoading === chunk.id"
+                  :disabled="Boolean(chunkReviewLoading)"
+                  @click="submitMarkChunkReviewed(chunk)"
+                />
               </div>
               <p class="mt-1 break-words text-xs text-slate-500">
                 {{ formatChunkPath(chunk.section_path) }}

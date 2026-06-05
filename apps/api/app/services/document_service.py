@@ -12,7 +12,9 @@ from app.core.config import get_settings
 from app.models.user import User
 from app.repositories.audit_log_repository import AuditLogRepository
 from app.repositories.document_repository import DocumentRepository, OCRJobRepository
+from app.services.chunk_payload import build_qdrant_payload
 from app.services.document_classifier_service import DOCUMENT_TYPE_LABELS
+from app.services.qdrant_service import QdrantService
 
 
 class DocumentNotFoundError(ValueError):
@@ -31,6 +33,10 @@ class DocumentFileOperationError(ValueError):
     pass
 
 
+class DocumentChunkNotFoundError(ValueError):
+    pass
+
+
 class DocumentSourceFileMissingError(FileNotFoundError):
     pass
 
@@ -41,6 +47,7 @@ class DocumentService:
         self.audit_logs = AuditLogRepository(db)
         self.documents = DocumentRepository(db)
         self.ocr_jobs = OCRJobRepository(db)
+        self.qdrant = QdrantService()
         self.settings = get_settings()
 
     def upload(
@@ -406,6 +413,38 @@ class DocumentService:
         self.db.refresh(document)
         self.db.refresh(ocr_job)
         return document, ocr_job
+
+    def mark_chunk_reviewed(self, document_id: str, chunk_id: str, *, actor: User | None = None):
+        chunk = self.documents.get_chunk_for_document(document_id=document_id, chunk_id=chunk_id)
+        if chunk is None:
+            raise DocumentChunkNotFoundError(f"Document chunk not found: {chunk_id}")
+
+        was_requires_review = chunk.requires_review
+        chunk = self.documents.mark_chunk_reviewed(chunk)
+        if was_requires_review:
+            self.audit_logs.create(
+                action="document_chunk.reviewed",
+                entity_type="document",
+                entity_id=chunk.document_id,
+                actor_user_id=actor.id if actor else None,
+                metadata={
+                    "chunk_id": chunk.id,
+                    "chunk_index": chunk.chunk_index,
+                    "section_role": chunk.section_role,
+                    "section_path": chunk.section_path or [],
+                    "previous_requires_review": True,
+                    "current_requires_review": False,
+                },
+            )
+
+        point_id = chunk.qdrant_point_id or chunk.id
+        self.qdrant.set_payload(
+            point_id=point_id,
+            payload=build_qdrant_payload(chunk.document, chunk),
+        )
+        self.db.commit()
+        self.db.refresh(chunk)
+        return chunk
 
     def add_source_files(
         self,

@@ -344,6 +344,27 @@ class DocumentRepository:
         )
         return list(self.db.scalars(stmt))
 
+    def get_chunk_for_document(self, *, document_id: str, chunk_id: str) -> DocumentChunk | None:
+        stmt = (
+            select(DocumentChunk)
+            .join(Document)
+            .where(
+                Document.id == document_id,
+                Document.deleted_at.is_(None),
+                DocumentChunk.id == chunk_id,
+                DocumentChunk.document_id == document_id,
+                DocumentChunk.deleted_at.is_(None),
+            )
+            .options(selectinload(DocumentChunk.document))
+        )
+        return self.db.scalar(stmt)
+
+    def mark_chunk_reviewed(self, chunk: DocumentChunk) -> DocumentChunk:
+        chunk.requires_review = False
+        self.db.add(chunk)
+        self.db.flush()
+        return chunk
+
     def list_documents_for_chunk_metadata_backfill(
         self,
         *,

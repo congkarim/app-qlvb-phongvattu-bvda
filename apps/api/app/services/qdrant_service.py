@@ -41,6 +41,14 @@ class QdrantService:
             points_selector=PointIdsList(points=point_ids),
         )
 
+    def set_payload(self, *, point_id: str, payload: dict[str, Any]) -> None:
+        self.ensure_collection()
+        self.client.set_payload(
+            collection_name=self.settings.qdrant_collection,
+            payload=payload,
+            points=[point_id],
+        )
+
     def search(self, *, vector: list[float], limit: int, filters: dict[str, Any | None]) -> list:
         self.ensure_collection()
         conditions = [
