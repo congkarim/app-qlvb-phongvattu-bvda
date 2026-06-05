@@ -44,3 +44,20 @@ export interface UserUpdateInput {
 export interface UserResetPasswordInput {
   password: string
 }
+
+export interface UserAuditActor {
+  id: string
+  email: string
+  full_name: string
+}
+
+export interface UserAuditLog {
+  id: string
+  actor_user_id?: string | null
+  actor?: UserAuditActor | null
+  action: string
+  entity_type: string
+  entity_id: string
+  metadata: Record<string, unknown>
+  created_at: string
+}

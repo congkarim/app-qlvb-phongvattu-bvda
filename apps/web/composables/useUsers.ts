@@ -1,4 +1,4 @@
-import type { UserCreateInput, UserItem, UserListFilters, UserResetPasswordInput, UserUpdateInput } from '~/types/user'
+import type { UserAuditLog, UserCreateInput, UserItem, UserListFilters, UserResetPasswordInput, UserUpdateInput } from '~/types/user'
 import { createUserService } from '~/services/user.service'
 
 export function useUsers() {
@@ -8,7 +8,9 @@ export function useUsers() {
   const offset = ref(0)
   const loading = ref(false)
   const mutationLoading = ref(false)
+  const auditLoading = ref(false)
   const error = ref('')
+  const auditError = ref('')
   const service = createUserService()
 
   async function fetchUsers(filters: UserListFilters = {}) {
@@ -54,6 +56,19 @@ export function useUsers() {
       return null
     } finally {
       mutationLoading.value = false
+    }
+  }
+
+  async function fetchUserAuditLogs(id: string): Promise<UserAuditLog[]> {
+    auditLoading.value = true
+    auditError.value = ''
+    try {
+      return await service.listAuditLogs(id)
+    } catch {
+      auditError.value = 'Không tải được audit log người dùng'
+      return []
+    } finally {
+      auditLoading.value = false
     }
   }
 
@@ -109,8 +124,11 @@ export function useUsers() {
     offset,
     loading,
     mutationLoading,
+    auditLoading,
     error,
+    auditError,
     fetchUsers,
+    fetchUserAuditLogs,
     createUser,
     updateUser,
     setUserActive,

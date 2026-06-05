@@ -1,4 +1,12 @@
-import type { UserCreateInput, UserItem, UserListFilters, UserListResponse, UserResetPasswordInput, UserUpdateInput } from '~/types/user'
+import type {
+  UserAuditLog,
+  UserCreateInput,
+  UserItem,
+  UserListFilters,
+  UserListResponse,
+  UserResetPasswordInput,
+  UserUpdateInput
+} from '~/types/user'
 import { useApiClient } from './api'
 
 export function createUserService() {
@@ -26,6 +34,9 @@ export function createUserService() {
         method: 'PATCH',
         body: normalizeUpdateInput(input)
       })
+    },
+    listAuditLogs(id: string, limit = 50) {
+      return api<UserAuditLog[]>(`/users/${id}/audit-logs?limit=${limit}`)
     },
     activate(id: string) {
       return api<UserItem>(`/users/${id}/activate`, {

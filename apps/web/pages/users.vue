@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { UserCreateInput, UserItem, UserListFilters, UserRole, UserUpdateInput } from '~/types/user'
+import type { UserAuditLog, UserCreateInput, UserItem, UserListFilters, UserRole, UserUpdateInput } from '~/types/user'
 import { formatDateTime } from '~/utils/format'
 
 const authStore = useAuthStore()
@@ -10,8 +10,11 @@ const {
   offset,
   loading,
   mutationLoading,
+  auditLoading,
   error,
+  auditError,
   fetchUsers,
+  fetchUserAuditLogs,
   createUser,
   updateUser,
   setUserActive,
@@ -38,6 +41,8 @@ const createForm = reactive<UserCreateInput>({
 const editForms = reactive<Record<string, UserUpdateInput>>({})
 const resetPasswordForms = reactive<Record<string, string>>({})
 const editingUserId = ref('')
+const selectedAuditUserId = ref('')
+const selectedAuditLogs = ref<UserAuditLog[]>([])
 const pageSize = ref(20)
 const currentOffset = ref(0)
 
@@ -75,6 +80,7 @@ const currentPage = computed(() => Math.floor(offset.value / Math.max(limit.valu
 const totalPages = computed(() => Math.max(Math.ceil(total.value / Math.max(limit.value, 1)), 1))
 const canGoPrevious = computed(() => offset.value > 0)
 const canGoNext = computed(() => offset.value + limit.value < total.value)
+const selectedAuditUser = computed(() => users.value.find((user) => user.id === selectedAuditUserId.value) || null)
 
 function currentFilters(): UserListFilters {
   return {
@@ -91,6 +97,10 @@ function currentFilters(): UserListFilters {
 async function loadUsers(nextOffset = currentOffset.value) {
   currentOffset.value = Math.max(nextOffset, 0)
   await fetchUsers(currentFilters())
+  if (selectedAuditUserId.value && !users.value.some((user) => user.id === selectedAuditUserId.value)) {
+    selectedAuditUserId.value = ''
+    selectedAuditLogs.value = []
+  }
 }
 
 function resetFilters() {
@@ -146,6 +156,11 @@ async function submitResetPassword(user: UserItem) {
   if (updated) resetPasswordForms[user.id] = ''
 }
 
+async function showUserAudit(user: UserItem) {
+  selectedAuditUserId.value = user.id
+  selectedAuditLogs.value = await fetchUserAuditLogs(user.id)
+}
+
 async function confirmDelete(user: UserItem) {
   if (!window.confirm(`Xóa người dùng ${user.email}?`)) return
   const deleted = await deleteUser(user.id)
@@ -167,6 +182,22 @@ function roleSeverity(role: string) {
   return role === 'admin' ? 'danger' : 'secondary'
 }
 
+function formatAuditAction(action: string): string {
+  if (action === 'user.created') return 'Tạo user'
+  if (action === 'user.updated') return 'Cập nhật user'
+  if (action === 'user.activated') return 'Kích hoạt user'
+  if (action === 'user.deactivated') return 'Vô hiệu hóa user'
+  if (action === 'user.password_reset') return 'Reset mật khẩu'
+  if (action === 'user.deleted') return 'Xóa user'
+  return action
+}
+
+function formatAuditMetadataValue(value: unknown): string {
+  if (value === null || value === undefined || value === '') return '-'
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') return String(value)
+  return JSON.stringify(value)
+}
+
 onMounted(loadUsers)
 </script>
 
@@ -182,6 +213,7 @@ onMounted(loadUsers)
 
     <Message v-if="!authStore.isAdmin" severity="warn">Chỉ admin được quản lý người dùng.</Message>
     <Message v-if="error" severity="error">{{ error }}</Message>
+    <Message v-if="auditError" severity="error">{{ auditError }}</Message>
 
     <Card>
       <template #title>Tạo người dùng</template>
@@ -313,6 +345,14 @@ onMounted(loadUsers)
           <div v-else class="flex flex-wrap gap-2">
             <Button label="Sửa" size="small" severity="secondary" :disabled="mutationLoading" @click="startEdit(data)" />
             <Button
+              label="Audit"
+              size="small"
+              severity="secondary"
+              :loading="auditLoading && selectedAuditUserId === data.id"
+              :disabled="auditLoading && selectedAuditUserId !== data.id"
+              @click="showUserAudit(data)"
+            />
+            <Button
               :label="data.is_active ? 'Vô hiệu hóa' : 'Kích hoạt'"
               size="small"
               severity="secondary"
@@ -349,5 +389,35 @@ onMounted(loadUsers)
         <div class="py-6 text-center text-sm text-slate-600">Chưa có người dùng phù hợp.</div>
       </template>
     </DataTable>
+
+    <Card v-if="selectedAuditUser">
+      <template #title>Audit log: {{ selectedAuditUser.email }}</template>
+      <template #content>
+        <div v-if="selectedAuditLogs.length" class="space-y-3 text-sm">
+          <article v-for="event in selectedAuditLogs" :key="event.id" class="rounded border border-slate-200 p-3">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div class="flex flex-wrap items-center gap-2">
+                <Tag :value="formatAuditAction(event.action)" severity="info" />
+                <span class="text-slate-700">
+                  {{ event.actor?.full_name || event.actor?.email || 'Không xác định' }}
+                </span>
+              </div>
+              <span class="text-xs text-slate-500">{{ formatDateTime(event.created_at) }}</span>
+            </div>
+            <dl class="mt-3 grid gap-2 sm:grid-cols-2">
+              <div>
+                <dt class="text-slate-500">Event ID</dt>
+                <dd class="break-all font-medium">{{ event.id }}</dd>
+              </div>
+              <div v-for="(value, key) in event.metadata" :key="key">
+                <dt class="text-slate-500">{{ key }}</dt>
+                <dd class="break-words font-medium">{{ formatAuditMetadataValue(value) }}</dd>
+              </div>
+            </dl>
+          </article>
+        </div>
+        <p v-else class="text-sm text-slate-600">Chưa có audit log cho user này.</p>
+      </template>
+    </Card>
   </section>
 </template>

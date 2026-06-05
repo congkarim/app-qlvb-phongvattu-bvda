@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 
 from app.core.security import hash_password
+from app.models.audit_log import AuditLog
 from app.models.user import User
 from app.repositories.audit_log_repository import AuditLogRepository
 from app.repositories.user_repository import UserRepository
@@ -49,6 +50,10 @@ class UserService:
         )
         total = self.users.count_users(query=query, role=role, is_active=is_active)
         return users, total
+
+    def list_user_audit_logs(self, *, user_id: str, limit: int) -> list[AuditLog]:
+        self._get_user(user_id)
+        return self.audit_logs.list_for_entity(entity_type="user", entity_id=user_id, limit=limit)
 
     def create_user(
         self,

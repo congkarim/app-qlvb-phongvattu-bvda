@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.dependencies import require_admin
 from app.models.user import User
+from app.schemas.audit import AuditLogRead
 from app.schemas.user import UserCreateRequest, UserListResponse, UserRead, UserResetPasswordRequest, UserUpdateRequest
 from app.services.user_service import (
     UserAlreadyExistsError,
@@ -37,6 +38,18 @@ def list_users(
         sort_dir=sort_dir,
     )
     return UserListResponse(items=items, total=total, limit=limit, offset=offset)
+
+
+@router.get("/{user_id}/audit-logs", response_model=list[AuditLogRead])
+def list_user_audit_logs(
+    user_id: str,
+    limit: int = Query(default=50, ge=1, le=100),
+    db: Session = Depends(get_db),
+) -> list[AuditLogRead]:
+    try:
+        return UserService(db).list_user_audit_logs(user_id=user_id, limit=limit)
+    except UserNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
 
 
 @router.post("", response_model=UserRead, status_code=status.HTTP_201_CREATED)

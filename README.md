@@ -114,7 +114,7 @@ Trong card `Tệp nguồn`, bấm `Xem trước` để preview inline PDF, ảnh
 
 Các thao tác reprocess, thêm source file, đổi thứ tự source file và xóa source file chỉ dành cho admin.
 
-Admin có thể vào `Users` để tạo tài khoản thường, đổi role, reset password, phân trang danh sách và vô hiệu hóa hoặc xóa mềm user.
+Admin có thể vào `Users` để tạo tài khoản thường, đổi role, reset password, phân trang danh sách, xem audit log theo user và vô hiệu hóa hoặc xóa mềm user.
 
 6. Vào `Dashboard`, search:
 

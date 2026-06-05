@@ -1,6 +1,6 @@
 # Trạng Thái Dự Án
 
-Cập nhật lần cuối: 2026-06-04
+Cập nhật lần cuối: 2026-06-05
 
 ## Giai Đoạn Hiện Tại
 
@@ -116,10 +116,24 @@ Workflow web đã hoàn thiện:
 - `/documents/[id]` hiển thị audit OCR/reprocess job gồm `job_type`, `status`, `reason`, attempts, error message và thời gian tạo/cập nhật.
 - `/documents` có refresh action, filter/search/sort, loading state, empty state và link sang detail.
 - `/dashboard` có validation search input, loading/empty/error state và result link sang document nguồn.
+- `/users` cho phép admin xem audit log theo từng user, gồm actor, action, thời gian và metadata thao tác quản trị.
 
 ## Đã Kiểm Tra Thủ Công
 
 Các kiểm tra sau đã chạy thành công:
+
+User audit UI kiểm tra ngày 2026-06-05:
+
+```bash
+PYTHONPYCACHEPREFIX=/tmp/qlvb-pycache PYTHONPATH=apps/api python3 -m py_compile apps/api/app/schemas/audit.py apps/api/app/schemas/document.py apps/api/app/services/user_service.py apps/api/app/routers/users.py
+docker compose run --rm --no-deps web npm run build
+```
+
+Kết quả:
+- Backend compile pass cho schema audit dùng chung, user service và user router.
+- Frontend build pass; vẫn có warning chunk PrimeVue lớn như trước, không fail.
+- Thêm endpoint admin-only `GET /api/v1/users/{user_id}/audit-logs`.
+- Trang `/users` có nút `Audit` để tải và hiển thị audit log của từng user.
 
 ```bash
 docker compose up --build
