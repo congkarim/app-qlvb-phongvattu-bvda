@@ -120,12 +120,30 @@ Workflow web đã hoàn thiện:
 - `/documents/[id]` cho phép admin đánh dấu chunk `requires_review=true` là đã review; thao tác ghi audit log `document_chunk.reviewed` và cập nhật payload Qdrant để search filter đồng bộ.
 - `/documents` có refresh action, filter/search/sort, pagination `limit/offset` có total count, loading state, empty state và link sang detail.
 - `/dashboard` có validation search input, loading/empty/error state, filter semantic search theo metadata nghiệp vụ/chunk, bao gồm option `section_role=appendix`, và result link sang document nguồn.
-- `/dashboard` có card `Review queue` chỉ dành cho admin để xem chunks `requires_review=true`, lọc theo phụ lục/document/confidence thấp, xem tổng số item, chuyển trang bằng `offset`, mở document detail và đánh dấu chunk đã review ngay từ queue.
+- `/dashboard` có card `Review queue` chỉ dành cho admin để xem chunks `requires_review=true`, lọc theo phụ lục/document/confidence thấp, xem tổng số item, khoảng item, page/page count, nhảy đầu/cuối, chuyển trang bằng `offset`, mở document detail và đánh dấu chunk đã review ngay từ queue.
 - `/users` cho phép admin xem audit log theo từng user, gồm actor, action, thời gian và metadata thao tác quản trị.
 
 ## Đã Kiểm Tra Thủ Công
 
 Các kiểm tra sau đã chạy thành công:
+
+Review queue UX polish kiểm tra ngày 2026-06-05:
+
+```bash
+PYTHONPYCACHEPREFIX=/tmp/qlvb-pycache PYTHONPATH=apps/api python3 -m py_compile apps/api/app/scripts/smoke_review_queue_pagination.py
+docker compose run --rm --no-deps web npm run build
+docker compose up -d api postgres redis qdrant
+docker compose exec -T api python -m app.scripts.smoke_review_queue_pagination
+git diff --check
+```
+
+Kết quả:
+- Dashboard review queue hiển thị `Trang X/Y` cạnh khoảng item và tổng số item.
+- Pager có nút nhảy trang đầu/cuối dạng icon, cùng nút `Trước/Sau` hiện có.
+- Offset/limit trong UI được đồng bộ theo response API để chuyển trang và refresh ổn định hơn.
+- Action `Đã review` vẫn refresh page hiện tại; nếu page rỗng sau thao tác thì tự lùi page.
+- Thêm script `python -m app.scripts.smoke_review_queue_pagination` seed 7 chunk cần review, kiểm tra page 1/page 2 không trùng item, filter phụ lục và filter confidence thấp, rồi cleanup mặc định.
+- Frontend build pass; vẫn có warning chunk PrimeVue lớn như trước, không fail.
 
 Smoke API auth wrapper kiểm tra ngày 2026-06-05:
 

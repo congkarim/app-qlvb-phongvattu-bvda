@@ -7,6 +7,8 @@ const { results, loading, error: searchError, hasSearched, search } = useSemanti
 const {
   reviewQueue,
   reviewQueueTotal,
+  reviewQueueLimit,
+  reviewQueueOffset,
   reviewQueueLoading,
   chunkReviewLoading,
   error: reviewQueueError,
@@ -79,10 +81,12 @@ const confidenceOptions: Array<{ label: string; value: number | null }> = [
   { label: 'Cần xem <= 80%', value: 0.8 }
 ]
 
-const reviewQueuePageStart = computed(() => (reviewQueueTotal.value ? reviewQueueFilters.offset + 1 : 0))
-const reviewQueuePageEnd = computed(() => Math.min(reviewQueueFilters.offset + reviewQueue.value.length, reviewQueueTotal.value))
-const canGoPreviousReviewPage = computed(() => reviewQueueFilters.offset > 0)
-const canGoNextReviewPage = computed(() => reviewQueueFilters.offset + reviewQueue.value.length < reviewQueueTotal.value)
+const reviewQueuePageStart = computed(() => (reviewQueueTotal.value ? reviewQueueOffset.value + 1 : 0))
+const reviewQueuePageEnd = computed(() => Math.min(reviewQueueOffset.value + reviewQueue.value.length, reviewQueueTotal.value))
+const reviewQueueCurrentPage = computed(() => Math.floor((reviewQueueOffset.value || 0) / (reviewQueueLimit.value || 20)) + 1)
+const reviewQueuePageCount = computed(() => Math.max(1, Math.ceil(reviewQueueTotal.value / (reviewQueueLimit.value || 20))))
+const canGoPreviousReviewPage = computed(() => reviewQueueOffset.value > 0)
+const canGoNextReviewPage = computed(() => reviewQueueOffset.value + reviewQueueLimit.value < reviewQueueTotal.value)
 
 async function submitSearch() {
   await search(query.value, filters)
@@ -91,6 +95,10 @@ async function submitSearch() {
 async function submitReviewQueue(options: { resetOffset?: boolean } = {}) {
   if (options.resetOffset) reviewQueueFilters.offset = 0
   const result = await fetchReviewQueue(normalizeReviewQueueFilters())
+  if (result) {
+    reviewQueueFilters.limit = result.limit
+    reviewQueueFilters.offset = result.offset
+  }
   if (
     result &&
     result.items.length === 0 &&
@@ -98,7 +106,11 @@ async function submitReviewQueue(options: { resetOffset?: boolean } = {}) {
     reviewQueueFilters.offset > 0
   ) {
     reviewQueueFilters.offset = Math.max(0, reviewQueueFilters.offset - (reviewQueueFilters.limit || 20))
-    await fetchReviewQueue(normalizeReviewQueueFilters())
+    const retryResult = await fetchReviewQueue(normalizeReviewQueueFilters())
+    if (retryResult) {
+      reviewQueueFilters.limit = retryResult.limit
+      reviewQueueFilters.offset = retryResult.offset
+    }
   }
 }
 
@@ -115,6 +127,14 @@ async function goReviewQueuePage(direction: 'previous' | 'next') {
   } else if (canGoNextReviewPage.value) {
     reviewQueueFilters.offset += limit
   }
+  await submitReviewQueue()
+}
+
+async function goReviewQueueBoundary(direction: 'first' | 'last') {
+  const limit = reviewQueueFilters.limit || 20
+  reviewQueueFilters.offset = direction === 'first'
+    ? 0
+    : Math.max(0, (reviewQueuePageCount.value - 1) * limit)
   await submitReviewQueue()
 }
 
@@ -238,8 +258,17 @@ onMounted(async () => {
           v-if="reviewQueueTotal"
           class="mt-4 flex flex-col gap-3 border-y border-slate-200 py-3 text-sm text-slate-600 sm:flex-row sm:items-center sm:justify-between"
         >
-          <span>Hiển thị {{ reviewQueuePageStart }}-{{ reviewQueuePageEnd }} / {{ reviewQueueTotal }}</span>
-          <div class="flex gap-2">
+          <span>Hiển thị {{ reviewQueuePageStart }}-{{ reviewQueuePageEnd }} / {{ reviewQueueTotal }} · Trang {{ reviewQueueCurrentPage }}/{{ reviewQueuePageCount }}</span>
+          <div class="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              icon="pi pi-angle-double-left"
+              severity="secondary"
+              size="small"
+              aria-label="Trang đầu"
+              :disabled="reviewQueueLoading || !canGoPreviousReviewPage"
+              @click="goReviewQueueBoundary('first')"
+            />
             <Button
               type="button"
               label="Trước"
@@ -258,6 +287,15 @@ onMounted(async () => {
               size="small"
               :disabled="reviewQueueLoading || !canGoNextReviewPage"
               @click="goReviewQueuePage('next')"
+            />
+            <Button
+              type="button"
+              icon="pi pi-angle-double-right"
+              severity="secondary"
+              size="small"
+              aria-label="Trang cuối"
+              :disabled="reviewQueueLoading || !canGoNextReviewPage"
+              @click="goReviewQueueBoundary('last')"
             />
           </div>
         </div>

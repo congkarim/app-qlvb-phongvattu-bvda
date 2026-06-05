@@ -19,9 +19,9 @@ Tài liệu này là checklist thực thi tuần tự bám theo `ROADMAP.md`. Kh
 
 ## Con Trỏ Hiện Tại
 
-Phase hiện tại: Phase 1 - Stabilize Core Workflows.
+Phase hiện tại: Phase 2 - Worker Reliability Và Operations.
 
-Mục tiêu tiếp theo phải làm: Phase 1 / Mục tiêu 3 - Review Queue UX Polish.
+Mục tiêu tiếp theo phải làm: Phase 2 / Mục tiêu 1 - Khảo Sát Worker Và Job Lifecycle.
 
 Điều kiện chuyển sang mục tiêu kế tiếp:
 - Mục tiêu hiện tại pass tiêu chí chấp nhận.
@@ -53,7 +53,7 @@ Ghi chú thực thi:
 
 ## Phase 1 - Stabilize Core Workflows
 
-Trạng thái: đang làm.
+Trạng thái: hoàn thành ngày 2026-06-05.
 
 Mục tiêu phase: làm các workflow MVP ổn định hơn khi dữ liệu tăng lên và biến smoke thành kiểm tra có thể chạy lại.
 
@@ -165,7 +165,7 @@ Sau khi hoàn thành:
 
 ### Mục Tiêu 3 - Review Queue UX Polish
 
-Trạng thái: chưa làm.
+Trạng thái: hoàn thành ngày 2026-06-05.
 
 Mục tiêu:
 - Cải thiện thao tác admin trên queue dài nếu UI hiện tại chưa đủ rõ khi có nhiều trang.
@@ -184,6 +184,13 @@ Tiêu chí chấp nhận:
 - Action review xong refresh đúng page hoặc lùi page hợp lý khi page rỗng.
 - UI compact, không thêm text hướng dẫn dư thừa trong app.
 
+Kết quả:
+- Dashboard review queue hiển thị khoảng item, tổng số item và `Trang X/Y`.
+- Thêm nút nhảy trang đầu/cuối dạng icon, giữ nút `Trước/Sau`.
+- Offset/limit được đồng bộ theo response API.
+- Action `Đã review` vẫn refresh page hiện tại hoặc lùi page khi page rỗng.
+- Thêm script `python -m app.scripts.smoke_review_queue_pagination`.
+
 Kiểm tra cần chạy:
 
 ```bash
@@ -193,14 +200,14 @@ git diff --check
 ```
 
 Sau khi hoàn thành:
-- Đọc lại `ROADMAP.md`.
-- Cập nhật `PROJECT_STATUS.md` với kết quả và kiểm tra đã chạy.
-- Cập nhật mục tiêu này thành `hoàn thành`.
-- Nếu mọi điều kiện Phase 1 đã đạt, đánh dấu Phase 1 `hoàn thành` và mở khóa Phase 2.
+- Đã đọc lại `ROADMAP.md`.
+- Đã cập nhật `PROJECT_STATUS.md` với kết quả và kiểm tra đã chạy.
+- Đã cập nhật mục tiêu này thành `hoàn thành`.
+- Phase 1 đã đạt điều kiện hoàn thành, đã đánh dấu Phase 1 `hoàn thành` và mở khóa Phase 2.
 
 ## Phase 2 - Worker Reliability Và Operations
 
-Trạng thái: khóa đến khi Phase 1 hoàn thành.
+Trạng thái: đang làm.
 
 Mục tiêu phase: giảm rủi ro khi chạy worker lâu dài hoặc nhiều worker trong môi trường on-prem.
 
@@ -211,7 +218,7 @@ Mục tiêu phase: giảm rủi ro khi chạy worker lâu dài hoặc nhiều wo
 
 ### Mục Tiêu 1 - Khảo Sát Worker Và Job Lifecycle
 
-Trạng thái: khóa.
+Trạng thái: chưa làm.
 
 Mục tiêu:
 - Hiểu rõ worker hiện đang poll pending job, update status, retry và ghi lỗi như thế nào.
