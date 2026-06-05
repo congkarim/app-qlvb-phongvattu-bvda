@@ -393,6 +393,8 @@ class DocumentRepository:
         for chunk in self.list_chunks_for_document(document_id):
             chunk_payload = payload_by_index.get(chunk.chunk_index)
             if chunk_payload is None:
+                self._apply_fallback_chunk_metadata(chunk)
+                self.db.add(chunk)
                 skipped += 1
                 continue
             self._apply_chunk_metadata(chunk, chunk_payload)
@@ -504,6 +506,14 @@ class DocumentRepository:
         chunk.section_path = [str(item) for item in section_path] if isinstance(section_path, list) else None
         chunk.chunk_confidence = _optional_float(metadata.get("confidence"))
         chunk.requires_review = bool(metadata.get("requires_review", False))
+
+    def _apply_fallback_chunk_metadata(self, chunk: DocumentChunk) -> None:
+        chunk.doc_group = chunk.doc_group or "E"
+        chunk.chunk_level = chunk.chunk_level or "paragraph"
+        chunk.section_role = chunk.section_role or "unknown"
+        chunk.section_path = chunk.section_path or ([chunk.section_title] if chunk.section_title else [])
+        chunk.chunk_confidence = chunk.chunk_confidence if chunk.chunk_confidence is not None else 0.0
+        chunk.requires_review = True
 
 
 def _clean_optional_string(value: Any, max_length: int) -> str | None:

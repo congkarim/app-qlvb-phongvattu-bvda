@@ -4,6 +4,7 @@ import argparse
 
 from app.db.session import SessionLocal
 from app.repositories.document_repository import DocumentRepository
+from app.services.chunk_payload import build_qdrant_payload
 from app.services.embedding_service import EmbeddingService
 from app.services.qdrant_service import QdrantService
 
@@ -38,17 +39,7 @@ def reindex_embeddings(*, batch_size: int, limit: int | None, dry_run: bool) -> 
                 qdrant.upsert_chunk(
                     point_id=point_id,
                     vector=vector,
-                    payload={
-                        "document_id": document.id,
-                        "chunk_id": chunk.id,
-                        "text": chunk.text,
-                        "title": document.title,
-                        "document_type": document.document_type,
-                        "department_id": document.department_id,
-                        "page_from": chunk.page_from,
-                        "page_to": chunk.page_to,
-                        "content_hash": chunk.content_hash,
-                    },
+                    payload=build_qdrant_payload(document, chunk),
                 )
                 documents.update_chunk_qdrant_point_id(chunk, point_id)
 

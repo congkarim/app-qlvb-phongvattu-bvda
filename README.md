@@ -347,10 +347,18 @@ docker compose exec -T api python -m app.scripts.backfill_chunk_metadata --dry-r
 docker compose exec -T api python -m app.scripts.backfill_chunk_metadata --batch-size 20
 ```
 
+Nếu document cũ có số chunk hiện hữu lệch số chunk sinh lại từ OCR pages, các chunk dư được gán metadata fallback `doc_group=E`, `section_role=unknown` và `requires_review=true`.
+
 Backfill một document cụ thể:
 
 ```bash
 docker compose exec -T api python -m app.scripts.backfill_chunk_metadata --document-id <document_id>
+```
+
+Sau backfill, reindex Qdrant để payload search có metadata chunk mới:
+
+```bash
+docker compose exec -T api python -m app.scripts.reindex_embeddings
 ```
 
 Rollback tạm thời về chunking cũ:

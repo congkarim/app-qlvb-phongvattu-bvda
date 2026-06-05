@@ -52,7 +52,7 @@ class UserService:
         return users, total
 
     def list_user_audit_logs(self, *, user_id: str, limit: int) -> list[AuditLog]:
-        self._get_user(user_id)
+        self._get_user(user_id, include_deleted=True)
         return self.audit_logs.list_for_entity(entity_type="user", entity_id=user_id, limit=limit)
 
     def create_user(
@@ -173,8 +173,8 @@ class UserService:
         self.db.refresh(user)
         return user
 
-    def _get_user(self, user_id: str) -> User:
-        user = self.users.get_by_id(user_id)
+    def _get_user(self, user_id: str, *, include_deleted: bool = False) -> User:
+        user = self.users.get_by_id(user_id, include_deleted=include_deleted)
         if user is None:
             raise UserNotFoundError("User not found")
         return user

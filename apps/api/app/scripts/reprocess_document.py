@@ -6,6 +6,7 @@ from pathlib import Path
 from app.db.session import SessionLocal
 from app.models.document import Document
 from app.repositories.document_repository import DocumentRepository
+from app.services.chunk_payload import build_qdrant_payload
 from app.services.chunking_service import ChunkingService
 from app.services.document_content_service import DocumentContentService, DocumentPageContent
 from app.services.embedding_service import EmbeddingService
@@ -76,17 +77,7 @@ def reprocess_document(*, document_id: str, dry_run: bool, batch_size: int) -> d
                 qdrant.upsert_chunk(
                     point_id=point_id,
                     vector=vector,
-                    payload={
-                        "document_id": document.id,
-                        "chunk_id": chunk.id,
-                        "text": chunk.text,
-                        "title": document_for_chunk.title,
-                        "document_type": document_for_chunk.document_type,
-                        "department_id": document_for_chunk.department_id,
-                        "page_from": chunk.page_from,
-                        "page_to": chunk.page_to,
-                        "content_hash": chunk.content_hash,
-                    },
+                    payload=build_qdrant_payload(document_for_chunk, chunk),
                 )
                 documents.update_chunk_qdrant_point_id(chunk, point_id)
 

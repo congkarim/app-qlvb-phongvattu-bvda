@@ -67,6 +67,7 @@ Worker:
   - Worker mặc định dùng module mới qua `CHUNKING_BACKEND=ocr_chunking`; có thể rollback tạm thời bằng `CHUNKING_BACKEND=legacy`.
   - Migration `0008_document_chunk_metadata` bổ sung `doc_group`, `chunk_level`, `section_role`, `section_path`, `chunk_confidence`, `requires_review` vào `document_chunks`.
   - Metadata chi tiết hơn như fallback/entities vẫn được đưa vào Qdrant payload.
+  - Backfill metadata chunk đã chạy trên DB local/dev, không còn active chunk thiếu metadata. Chunk dư khi số chunk sinh lại lệch số chunk cũ được đánh fallback `requires_review=true`.
 - Tạo embedding qua backend cấu hình được: fake deterministic cho dev hoặc local `sentence-transformers`.
 - Upsert vector vào Qdrant.
 - Chuyển document sang trạng thái `searchable`.
@@ -134,6 +135,30 @@ Kết quả:
 - Frontend build pass; vẫn có warning chunk PrimeVue lớn như trước, không fail.
 - Thêm endpoint admin-only `GET /api/v1/users/{user_id}/audit-logs`.
 - Trang `/users` có nút `Audit` để tải và hiển thị audit log của từng user.
+
+User audit smoke và chunk metadata rollout kiểm tra ngày 2026-06-05:
+
+```bash
+python3 <user audit smoke script>
+docker compose exec -T api python -m app.scripts.backfill_chunk_metadata --dry-run
+docker compose exec -T api python -m app.scripts.backfill_chunk_metadata
+docker compose exec -T api python -m app.scripts.backfill_chunk_metadata --dry-run
+docker compose exec -T api python -m app.scripts.reindex_embeddings --dry-run
+docker compose exec -T api python -m app.scripts.reindex_embeddings
+docker compose exec -T postgres psql -U legal -d legal_doc_ai -c "<chunk metadata count query>"
+docker compose exec -T api python <qdrant payload check script>
+```
+
+Kết quả:
+- User audit smoke pass cho user tạm `audit-smoke-92eb7147bf@example.com`: tạo, cập nhật, reset mật khẩu, xóa mềm và `GET /api/v1/users/{user_id}/audit-logs` trả đủ `user.created`, `user.updated`, `user.password_reset`, `user.deleted`.
+- Sửa audit endpoint để vẫn xem được audit log của user đã soft-delete.
+- Sửa backfill để chunk dư khi mismatch nhận fallback metadata và `requires_review=true`, tránh bị quét lặp.
+- Backfill dry-run ban đầu: 13 documents, 459 chunks dự kiến cập nhật, 7 documents mismatch.
+- Backfill thật hoàn tất; lần chạy cuối xử lý 2 documents còn thiếu, cập nhật 127 chunks và đánh fallback 141 chunks.
+- Backfill dry-run sau rollout: `scanned_documents=0`, `missing_metadata=0`.
+- Reindex Qdrant thật: `indexed: 600 chunks`.
+- DB xác nhận `active_chunks=600`, `missing_metadata=0`, `requires_review=232`.
+- Qdrant payload mẫu có `doc_group=A`, `chunk_level=subsection`, `section_role=clause`, `section_path`, `chunk_confidence=0.9`, `requires_review=false`.
 
 ```bash
 docker compose up --build
