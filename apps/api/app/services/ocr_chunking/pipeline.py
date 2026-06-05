@@ -21,6 +21,14 @@ from app.services.ocr_chunking.normalizer import normalize_for_detection, normal
 from app.services.ocr_chunking.schemas import Chunk, FallbackInfo, OCRBlock, OCRDocument
 
 DEFAULT_BBOX = (0.0, 0.0, 0.0, 0.0)
+APPENDIX_HEADING_RE = re.compile(
+    r"^\s*phu\s+luc(?:\s+(?P<number>[ivxlcdm]+|\d{1,3}|[a-z]))?(?:\s*[:.\-–]\s*(?P<title>.*))?\s*$",
+    re.IGNORECASE,
+)
+APPENDIX_ATTACHMENT_RE = re.compile(
+    r"\b(?:ban\s+hanh\s+kem\s+theo|kem\s+theo\s+(?:quyet\s+dinh|cong\s+van|thong\s+tu|nghi\s+dinh)\s+so)\b",
+    re.IGNORECASE,
+)
 
 
 class _Line:
@@ -43,6 +51,7 @@ class _Section:
         point_number: str | None = None,
         source_anchor: str = "",
         path: list[str] | None = None,
+        requires_review: bool = False,
     ):
         self.role = role
         self.title = title
@@ -53,6 +62,7 @@ class _Section:
         self.point_number = point_number
         self.source_anchor = source_anchor
         self.path = path or ([title] if title else [])
+        self.requires_review = requires_review
 
 
 def chunk_document(input: OCRDocument) -> list[Chunk]:
@@ -161,6 +171,17 @@ def _split_group_a(lines: list[_Line]) -> list[_Section]:
     for line in lines:
         article = ARTICLE_RE.match(line.text)
         chapter = CHAPTER_RE.match(line.text)
+        appendix = _appendix_anchor(line)
+        if appendix is not None:
+            start(
+                "appendix",
+                appendix[0],
+                line,
+                [appendix[0]],
+            )
+            if appendix[1]:
+                current.append(_Line(appendix[1], line.page, line.bbox, line.confidence))
+            continue
         if chapter:
             start("chapter", line.text, line, [f"Chương {chapter.group('number')}"])
             flush("section")
@@ -176,7 +197,8 @@ def _split_group_a(lines: list[_Line]) -> list[_Section]:
             continue
         if article:
             current_article = article.group("number")
-            start("article", line.text, line, [*current_path[:1], f"Điều {current_article}"])
+            path = [*current_path[:1], f"Điều {current_article}"] if _in_appendix_context(current_path) else [f"Điều {current_article}"]
+            start("article", line.text, line, path)
             continue
         if SIGNATURE_RE.search(line.text):
             start("signature", line.text, line, ["Chữ ký/Nơi nhận"])
@@ -271,18 +293,32 @@ def _split_group_c(lines: list[_Line], doc_type: str) -> list[_Section]:
     current: list[_Line] = []
     current_role = "header"
     current_title = "Header"
+    current_path: list[str] = []
     for line in lines:
+        appendix = _appendix_anchor(line)
+        if appendix is not None:
+            if current:
+                sections.append(_Section(current_role, current_title, current, path=current_path[:] or [current_title]))
+                current = []
+            current_role = "appendix"
+            current_title = appendix[0]
+            current_path = [appendix[0]]
+            current.append(line)
+            if appendix[1]:
+                current.append(_Line(appendix[1], line.page, line.bbox, line.confidence))
+            continue
         role = _role_group_c(line.text)
         starts_section = role != "content" and (not current or role != current_role)
         if starts_section and current:
-            sections.append(_Section(current_role, current_title, current, path=[current_title]))
+            sections.append(_Section(current_role, current_title, current, path=current_path[:] or [current_title]))
             current = []
         if starts_section:
             current_role = role
             current_title = line.text
+            current_path = [line.text]
         current.append(line)
     if current:
-        sections.append(_Section(current_role, current_title, current, path=[current_title]))
+        sections.append(_Section(current_role, current_title, current, path=current_path[:] or [current_title]))
     return sections
 
 
@@ -297,19 +333,49 @@ def _split_unknown(lines: list[_Line], fallback: FallbackInfo) -> list[_Section]
     sections: list[_Section] = []
     current: list[_Line] = []
     current_page = lines[0].page if lines else 1
+    current_role = "page_chunk"
+    current_title = f"Trang {current_page}"
+    current_path = [current_title]
+
+    def flush() -> None:
+        nonlocal current
+        if not current:
+            return
+        role = current_role
+        title = current_title
+        path = current_path[:]
+        if role == "page_chunk":
+            role = "table_candidate_chunk" if any(TABLE_HINT_RE.search(line.text) for line in current) else "paragraph_chunk"
+        sections.append(_Section(role, title, current, level="paragraph", path=path))
+        current = []
+
     for line in lines:
-        if line.page != current_page and current:
-            sections.append(_Section("page_chunk", f"Trang {current_page}", current, level="paragraph", path=[f"Trang {current_page}"]))
-            current = []
+        appendix = _appendix_anchor(line)
+        if appendix is not None:
+            flush()
             current_page = line.page
+            current_role = "appendix"
+            current_title = appendix[0]
+            current_path = [appendix[0]]
+            current = [line]
+            if appendix[1]:
+                current.append(_Line(appendix[1], line.page, line.bbox, line.confidence))
+            continue
+        if line.page != current_page and current:
+            flush()
+            current_page = line.page
+            if current_role != "appendix":
+                current_role = "page_chunk"
+                current_title = f"Trang {current_page}"
+                current_path = [current_title]
         current.append(line)
-    if current:
-        role = "table_candidate_chunk" if any(TABLE_HINT_RE.search(line.text) for line in current) else "paragraph_chunk"
-        sections.append(_Section(role, f"Trang {current_page}", current, level="paragraph", path=[f"Trang {current_page}"]))
+    flush()
     return sections
 
 
 def _role_group_b(text: str, doc_type: str) -> str:
+    if _appendix_anchor_text(text) is not None:
+        return "appendix"
     if re.search(r"\bKính gửi\b", text, flags=re.IGNORECASE):
         return "recipient"
     if re.search(r"\b(?:Mục đích|Yêu cầu)\b", text, flags=re.IGNORECASE):
@@ -324,14 +390,14 @@ def _role_group_b(text: str, doc_type: str) -> str:
         return "recommendation"
     if SIGNATURE_RE.search(text):
         return "signature"
-    if APPENDIX_RE.search(text):
-        return "appendix"
     if TABLE_HINT_RE.search(text):
         return "table"
     return "content" if doc_type != "CV" else "context"
 
 
 def _role_group_c(text: str) -> str:
+    if _appendix_anchor_text(text) is not None:
+        return "appendix"
     if re.search(r"\b(?:Hôm nay|vào hồi|Tại)\b", text, flags=re.IGNORECASE):
         return "time_location"
     if re.search(r"\b(?:Thành phần|Đại diện)\b", text, flags=re.IGNORECASE):
@@ -437,7 +503,8 @@ def _build_chunk(
     avg_ocr = _avg_conf(line.confidence for line in lines) or ocr_confidence or 0.0
     layout = layout_confidence if layout_confidence is not None else 0.0
     confidence = round(min(avg_ocr or 0.75, classification_confidence, layout or 1.0), 2)
-    requires_review = fallback_info.used_fallback or avg_ocr < 0.65 or classification_confidence < 0.65
+    requires_review = section.requires_review or fallback_info.used_fallback or avg_ocr < 0.65 or classification_confidence < 0.65
+    appendix_context = _section_is_appendix_context(section)
     return Chunk(
         chunk_id=_chunk_id(doc_id, section.role, text),
         doc_id=doc_id,
@@ -464,7 +531,7 @@ def _build_chunk(
         parent_chunk_id=parent_chunk_id,
         contains_table=section.role in {"table", "table_items"} or bool(TABLE_HINT_RE.search(text)),
         contains_signature=section.role in {"signature", "signature_parties"} or bool(SIGNATURE_RE.search(text)),
-        contains_appendix=section.role == "appendix" or bool(APPENDIX_RE.search(text)),
+        contains_appendix=appendix_context,
         requires_review=requires_review,
         entities=extract_entities(text),
         fallback_info=fallback_info,
@@ -505,6 +572,58 @@ def _public_role(role: str) -> str:
         "table_items": "table",
     }
     return aliases.get(role, role)
+
+
+def _appendix_anchor(line: _Line) -> tuple[str, str | None] | None:
+    return _appendix_anchor_text(line.text)
+
+
+def _appendix_anchor_text(text: str) -> tuple[str, str | None] | None:
+    stripped = " ".join((text or "").strip().split())
+    if not stripped:
+        return None
+    plain = normalize_for_detection(stripped)
+    match = APPENDIX_HEADING_RE.match(plain)
+    if match and _looks_like_appendix_heading(stripped, plain):
+        title = _appendix_title(stripped, match.group("number"))
+        suffix = (match.group("title") or "").strip()
+        return title, suffix or None
+    if (
+        "phu luc" in plain
+        and APPENDIX_ATTACHMENT_RE.search(plain)
+        and len(plain.split()) <= 24
+        and not _starts_like_body_clause(stripped)
+    ):
+        return stripped[:512], None
+    return None
+
+
+def _looks_like_appendix_heading(original: str, plain: str) -> bool:
+    words = plain.split()
+    if len(words) <= 6:
+        return True
+    if original.isupper() and len(words) <= 12:
+        return True
+    return False
+
+
+def _appendix_title(original: str, number: str | None) -> str:
+    prefix_match = re.match(r"^\s*(phụ\s+lục(?:\s+[^\s:.\-–]+)?)", original, flags=re.IGNORECASE)
+    if prefix_match:
+        return prefix_match.group(1).strip()[:512]
+    return f"Phụ lục {number.upper()}"[:512] if number else "Phụ lục"
+
+
+def _starts_like_body_clause(text: str) -> bool:
+    return bool(ARTICLE_RE.match(text) or CLAUSE_RE.match(text) or POINT_RE.match(text) or ROMAN_SECTION_RE.match(text))
+
+
+def _in_appendix_context(path: list[str]) -> bool:
+    return bool(path) and normalize_for_detection(path[0]).startswith("phu luc")
+
+
+def _section_is_appendix_context(section: _Section) -> bool:
+    return section.role == "appendix" or _in_appendix_context(section.path)
 
 
 def _avg_conf(values: object) -> float | None:

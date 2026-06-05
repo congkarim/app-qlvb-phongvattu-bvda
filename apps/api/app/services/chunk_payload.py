@@ -1,10 +1,14 @@
 from app.core.config import get_settings
 from app.models.document import Document, DocumentChunk
+from app.services.ocr_chunking.normalizer import normalize_for_detection
 
 
 def build_qdrant_payload(document: Document, chunk: DocumentChunk) -> dict:
     settings = get_settings()
     section_path = chunk.section_path if isinstance(chunk.section_path, list) else []
+    contains_appendix = chunk.section_role == "appendix" or (
+        bool(section_path) and normalize_for_detection(str(section_path[0])).startswith("phu luc")
+    )
     return {
         "document_id": document.id,
         "chunk_id": chunk.id,
@@ -29,5 +33,6 @@ def build_qdrant_payload(document: Document, chunk: DocumentChunk) -> dict:
         "section_title": chunk.section_title,
         "section_path": section_path,
         "chunk_confidence": chunk.chunk_confidence,
+        "contains_appendix": contains_appendix,
         "requires_review": chunk.requires_review,
     }

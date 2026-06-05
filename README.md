@@ -348,7 +348,9 @@ Worker mặc định dùng module `ocr_chunking` để chunk OCR text theo thể
 CHUNKING_BACKEND=ocr_chunking
 ```
 
-Module này detect `doc_type`, map sang nhóm A/B/C/D/E, giữ cấu trúc như `Điều`, `Khoản`, mục La Mã, bảng và chữ ký khi tạo chunk. Bảng `document_chunks` lưu `doc_group`, `chunk_level`, `section_role`, `section_path`, `chunk_confidence` và `requires_review` để UI hiển thị được cấu trúc chunk. Metadata chi tiết hơn như `fallback_info` và entities tiếp tục nằm trong Qdrant payload.
+Module này detect `doc_type`, map sang nhóm A/B/C/D/E, giữ cấu trúc như `Điều`, `Khoản`, mục La Mã, phụ lục, bảng và chữ ký khi tạo chunk. Bảng `document_chunks` lưu `doc_group`, `chunk_level`, `section_role`, `section_path`, `chunk_confidence` và `requires_review` để UI hiển thị được cấu trúc chunk. Metadata chi tiết hơn như `fallback_info`, `contains_appendix` và entities tiếp tục nằm trong Qdrant payload.
+
+Phụ lục được nhận diện rule-based từ heading như `PHỤ LỤC`, `PHỤ LỤC I`, `PHỤ LỤC 01` hoặc dòng đính kèm độc lập. Câu thân bài chỉ nhắc tới phụ lục không bị tách thành section phụ lục. Trường hợp OCR/layout yếu sẽ được đánh `requires_review=true`.
 
 Backfill metadata chunk cho document cũ từ OCR pages đã lưu, không thay text chunk hay embedding hiện có:
 

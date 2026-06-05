@@ -111,6 +111,134 @@ class OCRChunkingTests(unittest.TestCase):
         self.assertEqual({chunk.doc_group for chunk in chunks}, {"C"})
         self.assertTrue(any(chunk.section_role == "article" and chunk.article_number == "2" for chunk in chunks))
         self.assertTrue(any(chunk.entities.amount == "10.000.000 đồng" for chunk in chunks))
+        self.assertFalse(any(chunk.section_role == "appendix" for chunk in chunks))
+
+    def test_group_a_detects_appendix_after_signature(self) -> None:
+        document = OCRDocument(
+            doc_id="doc-qd-appendix-1",
+            pages=[
+                OCRPage(
+                    page_number=1,
+                    confidence=0.91,
+                    text=(
+                        "ỦY BAN NHÂN DÂN\n"
+                        "Số: 02/QĐ-UBND\n"
+                        "QUYẾT ĐỊNH\n"
+                        "Điều 1. Ban hành danh mục vật tư.\n"
+                        "Điều 2. Tổ chức thực hiện.\n"
+                        "Nơi nhận: Như Điều 2;\n"
+                        "GIÁM ĐỐC\n"
+                    ),
+                ),
+                OCRPage(
+                    page_number=2,
+                    confidence=0.9,
+                    text=(
+                        "PHỤ LỤC I\n"
+                        "DANH MỤC VẬT TƯ BAN HÀNH KÈM THEO QUYẾT ĐỊNH SỐ 02/QĐ-UBND\n"
+                        "STT   Tên vật tư   Số lượng\n"
+                        "1     Thép tấm     20\n"
+                    ),
+                ),
+            ],
+            layout_confidence=0.86,
+        )
+
+        chunks = chunk_document(document)
+        appendix_chunks = [chunk for chunk in chunks if chunk.section_role == "appendix"]
+
+        self.assertTrue(appendix_chunks)
+        self.assertTrue(all(chunk.contains_appendix for chunk in appendix_chunks))
+        self.assertTrue(any(chunk.section_path[0] == "PHỤ LỤC I" for chunk in appendix_chunks))
+        self.assertTrue(any(chunk.contains_table for chunk in appendix_chunks))
+        self.assertFalse(any(chunk.requires_review for chunk in appendix_chunks))
+
+    def test_group_a_detects_multiple_appendices_and_child_context(self) -> None:
+        document = OCRDocument(
+            doc_id="doc-qd-appendix-2",
+            pages=[
+                OCRPage(
+                    page_number=1,
+                    confidence=0.89,
+                    text=(
+                        "QUYẾT ĐỊNH\n"
+                        "Điều 1. Ban hành kèm theo Quyết định này các phụ lục.\n"
+                        "Điều 2. Tổ chức thực hiện.\n"
+                        "PHỤ LỤC I\n"
+                        "Danh mục thiết bị\n"
+                        "Điều 1. Danh mục áp dụng.\n"
+                        "1. Máy bơm nước.\n"
+                        "PHỤ LỤC II\n"
+                        "Danh mục vật tư\n"
+                        "Điều 1. Danh mục áp dụng.\n"
+                        "1. Ống thép.\n"
+                    ),
+                )
+            ],
+            layout_confidence=0.88,
+        )
+
+        chunks = chunk_document(document)
+        appendix_paths = [chunk.section_path for chunk in chunks if chunk.contains_appendix]
+
+        self.assertFalse(
+            any(
+                chunk.section_role == "appendix" and chunk.section_title.startswith("Điều 1. Ban hành")
+                for chunk in chunks
+            )
+        )
+        self.assertTrue(any(path[0] == "PHỤ LỤC I" for path in appendix_paths))
+        self.assertTrue(any(path[0] == "PHỤ LỤC II" for path in appendix_paths))
+        self.assertTrue(any(path[:2] == ["PHỤ LỤC I", "Điều 1"] for path in appendix_paths))
+        self.assertTrue(any(path[:2] == ["PHỤ LỤC II", "Điều 1"] for path in appendix_paths))
+
+    def test_body_mention_of_appendix_is_not_appendix_section(self) -> None:
+        document = OCRDocument(
+            doc_id="doc-no-appendix-false-positive",
+            text=(
+                "HỢP ĐỒNG MUA BÁN VẬT TƯ\n"
+                "Bên A: Công ty A\n"
+                "Bên B: Công ty B\n"
+                "Điều 1. Nội dung hợp đồng\n"
+                "1. Bên B cung cấp vật tư theo phụ lục do hai bên thống nhất.\n"
+                "Điều 2. Thanh toán\n"
+                "Giá trị hợp đồng là 10.000.000 đồng.\n"
+                "ĐẠI DIỆN BÊN A\n"
+            ),
+            ocr_confidence=0.9,
+            layout_confidence=0.86,
+        )
+
+        chunks = chunk_document(document)
+
+        self.assertFalse(any(chunk.section_role == "appendix" for chunk in chunks))
+        self.assertFalse(any(chunk.contains_appendix for chunk in chunks))
+
+    def test_weak_appendix_heading_requires_review(self) -> None:
+        document = OCRDocument(
+            doc_id="doc-weak-appendix",
+            pages=[
+                OCRPage(
+                    page_number=1,
+                    confidence=0.58,
+                    text=(
+                        "CÔNG VĂN\n"
+                        "Kính gửi: Các đơn vị\n"
+                        "Nội dung triển khai kiểm kê vật tư.\n"
+                        "PHU LUC\n"
+                        "Danh sach kem theo cong van so 10/CV-VT\n"
+                        "STT   Noi dung   So luong\n"
+                    ),
+                )
+            ],
+            layout_confidence=0.55,
+        )
+
+        chunks = chunk_document(document)
+        appendix_chunks = [chunk for chunk in chunks if chunk.section_role == "appendix"]
+
+        self.assertTrue(appendix_chunks)
+        self.assertTrue(any(chunk.requires_review for chunk in appendix_chunks))
 
     def test_unknown_bad_ocr_uses_fallback_and_review(self) -> None:
         document = OCRDocument(

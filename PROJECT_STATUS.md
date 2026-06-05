@@ -64,6 +64,7 @@ Worker:
   - Input hỗ trợ OCR text theo document/page/block, bbox, confidence và layout confidence.
   - Detect `doc_type` theo thể thức văn bản, map vào nhóm A/B/C/D/E và chọn strategy riêng cho từng nhóm.
   - Output trả dataclass `Chunk` có `to_dict()` đúng JSON schema retrieval/RAG, gồm path, role, page/bbox, confidence, flags review/table/signature/appendix, entities và fallback info.
+  - Nhận diện phụ lục rule-based từ heading `PHỤ LỤC`, `PHỤ LỤC I/II/01/A` hoặc dòng đính kèm độc lập, tách section/chunk `section_role=appendix`, giữ `section_path` theo tên phụ lục và tránh false positive khi chỉ nhắc tới phụ lục trong thân câu.
   - Worker mặc định dùng module mới qua `CHUNKING_BACKEND=ocr_chunking`; có thể rollback tạm thời bằng `CHUNKING_BACKEND=legacy`.
   - Migration `0008_document_chunk_metadata` bổ sung `doc_group`, `chunk_level`, `section_role`, `section_path`, `chunk_confidence`, `requires_review` vào `document_chunks`.
   - Metadata chi tiết hơn như fallback/entities vẫn được đưa vào Qdrant payload.
@@ -174,6 +175,27 @@ Kết quả:
 - Search service áp filter cho cả Qdrant vector hits và PostgreSQL keyword candidates; vector hits được đối chiếu lại với DB active chunks để tránh trả dữ liệu soft-delete/stale payload.
 - Dashboard có filter UI cho nghiệp vụ, số văn bản, ngày ban hành, nhóm chunk, role section, trạng thái cần review và limit.
 - Smoke pass cho từng filter: `doc_group=A`, `section_role=clause`, `requires_review=true`, `document_number=1589/QĐ-BYT`, `business_type=decision`, `issued_date=2025-08-04`.
+- Frontend build pass; vẫn có warning chunk PrimeVue lớn như trước, không fail.
+
+Appendix-aware chunking kiểm tra ngày 2026-06-05:
+
+```bash
+PYTHONPYCACHEPREFIX=/tmp/qlvb-pycache PYTHONPATH=apps/api python3 -m py_compile apps/api/app/services/ocr_chunking/*.py apps/api/app/services/ocr_chunking/tests/test_pipeline.py apps/api/app/services/chunk_payload.py
+PYTHONPATH=apps/api python3 -m unittest apps.api.app.services.ocr_chunking.tests.test_pipeline
+docker compose exec -T api python -m app.scripts.backfill_chunk_metadata --dry-run --limit 5
+docker compose exec -T api python -m app.scripts.reindex_embeddings --dry-run --limit 20
+docker compose run --rm --no-deps web npm run build
+git diff --check
+```
+
+Kết quả:
+- Pipeline nhận diện heading phụ lục và tạo chunk `section_role=appendix`.
+- Phụ lục sau chữ ký/nơi nhận giữ `section_path` như `PHỤ LỤC I`.
+- Nhiều phụ lục giữ context con, ví dụ `["PHỤ LỤC I", "Điều 1"]`.
+- Câu thân bài chỉ nhắc tới phụ lục không bị false positive.
+- Phụ lục OCR/layout yếu được đánh `requires_review=true`.
+- Unit test `ocr_chunking` pass 10 test.
+- Backfill dry-run không còn document thiếu metadata; reindex dry-run xác nhận 20 chunks.
 - Frontend build pass; vẫn có warning chunk PrimeVue lớn như trước, không fail.
 
 ```bash
