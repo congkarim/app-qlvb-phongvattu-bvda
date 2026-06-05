@@ -1,6 +1,6 @@
 import logging
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -12,13 +12,36 @@ from app.repositories.audit_log_repository import AuditLogRepository
 from app.repositories.document_repository import DocumentRepository, OCRJobRepository
 from app.services.chunking_service import ChunkingService
 from app.services.document_classifier_service import DocumentClassifierService
-from app.services.document_content_service import DocumentContentService, DocumentPageContent
+from app.services.document_content_service import (
+    DocumentContentService,
+    DocumentPageContent,
+    EmptyDocumentContentError,
+    UnsupportedDocumentFormatError,
+)
 from app.services.embedding_service import EmbeddingService
 from app.services.ocr_chunking.adapter import create_chunk_payloads
 from app.services.qdrant_service import QdrantService
 
 
 logger = logging.getLogger(__name__)
+
+
+RETRY_DELAY_SECONDS = 30
+PROCESSING_DOCUMENT_STATUSES = {
+    "ocr_pending",
+    "ocr_running",
+    "reprocess_pending",
+    "reprocess_running",
+    "chunking",
+}
+UNRECOVERABLE_FAILURE_REASONS = {
+    "document_not_found",
+    "unsupported_document_format",
+    "empty_document_content",
+    "empty_chunks",
+    "uploaded_file_missing",
+    "invalid_configuration",
+}
 
 
 class OCRWorker:
@@ -124,15 +147,68 @@ class OCRWorker:
             self.db.commit()
         except Exception as exc:
             self.db.rollback()
+            self._record_job_failure(job, document, previous_document_status, exc)
+            self.db.commit()
+            logger.exception(
+                "OCR job failed: job_id=%s document_id=%s status=%s attempts=%s max_attempts=%s failed_reason=%s",
+                job.id,
+                job.document_id,
+                job.status,
+                job.attempts,
+                job.max_attempts,
+                job.failed_reason,
+            )
+
+    def _record_job_failure(
+        self,
+        job: OCRJob,
+        document: Document | None,
+        previous_document_status: str | None,
+        exc: Exception,
+    ) -> None:
+        now = datetime.now(timezone.utc)
+        failed_reason = self._failed_reason(exc)
+        retryable = failed_reason not in UNRECOVERABLE_FAILURE_REASONS
+        should_retry = retryable and job.attempts < job.max_attempts
+
+        job.failed_reason = failed_reason
+        job.error_message = str(exc)
+
+        if should_retry:
+            job.status = "pending"
+            job.next_run_at = now + timedelta(seconds=RETRY_DELAY_SECONDS)
+            if document:
+                pending_status = "reprocess_pending" if job.job_type == "reprocess" else "ocr_pending"
+                self.documents.update_status(document, pending_status)
+                self._reset_incomplete_files_pending(document.id)
+        else:
+            job.status = "failed"
+            job.completed_at = now
+            job.next_run_at = None
             if document:
                 fallback_status = previous_document_status if job.job_type == "reprocess" else "failed"
+                if fallback_status in PROCESSING_DOCUMENT_STATUSES:
+                    fallback_status = "failed"
                 self.documents.update_status(document, fallback_status or "failed")
                 self._mark_incomplete_files_failed(document.id)
-            job.status = "failed"
-            job.error_message = str(exc)
-            self.db.add(job)
-            self.db.commit()
-            logger.exception("OCR job failed: job_id=%s document_id=%s", job.id, job.document_id)
+
+        self.db.add(job)
+
+    def _failed_reason(self, exc: Exception) -> str:
+        message = str(exc)
+        if isinstance(exc, UnsupportedDocumentFormatError):
+            return "unsupported_document_format"
+        if isinstance(exc, EmptyDocumentContentError):
+            return "empty_document_content"
+        if isinstance(exc, FileNotFoundError):
+            return "uploaded_file_missing"
+        if "Document not found" in message:
+            return "document_not_found"
+        if "No chunks created" in message:
+            return "empty_chunks"
+        if message.startswith("Unsupported OCR_") or message.startswith("Unsupported embedding backend"):
+            return "invalid_configuration"
+        return "processing_error"
 
     def _extract_and_store_metadata(
         self,
@@ -231,6 +307,11 @@ class OCRWorker:
         for document_file in self.documents.list_files_for_document(document_id):
             if document_file.status != "completed":
                 self.documents.update_file_status(document_file, "failed")
+
+    def _reset_incomplete_files_pending(self, document_id: str) -> None:
+        for document_file in self.documents.list_files_for_document(document_id):
+            if document_file.status != "completed":
+                self.documents.update_file_status(document_file, "pending")
 
     def _create_page_chunks(
         self,

@@ -4,8 +4,13 @@ export interface OCRJob {
   job_type: string
   status: string
   attempts: number
+  max_attempts: number
   reason?: string | null
+  failed_reason?: string | null
   error_message?: string | null
+  next_run_at?: string | null
+  started_at?: string | null
+  completed_at?: string | null
   created_at: string
   updated_at: string
 }

@@ -51,6 +51,7 @@ Backend skeleton:
 
 Worker:
 - Claim OCR job pending bằng database row lock trước khi xử lý để tránh nhiều worker xử lý trùng job.
+- OCR job có retry policy MVP: lỗi recoverable retry tối đa theo `max_attempts`, lỗi input/config rõ ràng final failed không retry, có `failed_reason` và `next_run_at`.
 - Trích xuất text trực tiếp cho `.txt`, `.md`, `.docx`, `.xlsx`, `.xls`.
 - PDF có text nhúng được trích xuất trực tiếp bằng `pypdfium2` để giữ Unicode tiếng Việt.
 - OCR thật cho PDF/image scan bằng PaddleOCR/OpenCV khi page không có text nhúng.
@@ -126,6 +127,29 @@ Workflow web đã hoàn thiện:
 ## Đã Kiểm Tra Thủ Công
 
 Các kiểm tra sau đã chạy thành công:
+
+Worker retry policy kiểm tra ngày 2026-06-05:
+
+```bash
+PYTHONPYCACHEPREFIX=/tmp/qlvb-pycache PYTHONPATH=apps/api python3 -m py_compile apps/api/app/models/document.py apps/api/app/schemas/document.py apps/api/app/repositories/document_repository.py apps/api/app/workers/ocr_worker.py apps/api/app/scripts/smoke_worker_retry_policy.py apps/api/alembic/versions/0010_ocr_job_retry_fields.py
+docker compose stop worker
+docker compose exec -T api alembic upgrade head
+docker compose exec -T api python -m app.scripts.smoke_worker_retry_policy
+docker compose exec -T api python -m app.scripts.smoke_worker_claim_atomic
+docker compose run --rm --no-deps web npm run build
+git diff --check
+```
+
+Kết quả:
+- Migration `0010_ocr_job_retry_fields` thêm `ocr_jobs.max_attempts`, `failed_reason`, `next_run_at` và index `ix_ocr_jobs_status_next_run`.
+- Repository chỉ claim job `pending` khi `next_run_at` rỗng hoặc đã tới hạn, tránh chạy lại job retry trước thời điểm hẹn.
+- Worker phân loại lỗi MVP: `unsupported_document_format`, `empty_document_content`, `empty_chunks`, `uploaded_file_missing`, `document_not_found`, `invalid_configuration` là không retry; lỗi runtime còn lại là `processing_error` và retry khi chưa hết `max_attempts`.
+- Khi retry, job quay về `pending`, set `next_run_at`, giữ `error_message/failed_reason`, document quay về `ocr_pending` hoặc `reprocess_pending`, source file chưa completed quay lại `pending`.
+- Khi hết lượt hoặc lỗi không retry, job chuyển `failed`, set `completed_at`, clear `next_run_at`, document chuyển `failed` nếu trạng thái trước đó còn là trạng thái xử lý.
+- Detail page hiển thị attempts dạng `attempts/max_attempts`, `failed_reason` và `next_run_at` trong card Job audit.
+- Smoke retry pass: lần đầu lỗi recoverable được đưa về `pending` và bị skip trước `next_run_at`; lần hai hết `max_attempts` chuyển `failed`.
+- Smoke atomic claim vẫn pass sau thay đổi `next_run_at`, đảm bảo hai session song song không claim cùng job.
+- Frontend build pass; vẫn có warning chunk PrimeVue lớn như trước, không fail.
 
 Atomic claim OCR job kiểm tra ngày 2026-06-05:
 

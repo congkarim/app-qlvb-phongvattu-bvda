@@ -913,11 +913,19 @@ onBeforeUnmount(() => {
                 </div>
                 <div>
                   <dt class="text-slate-500">Số lần thử</dt>
-                  <dd class="font-medium">{{ job.attempts }}</dd>
+                  <dd class="font-medium">{{ job.attempts }}/{{ job.max_attempts }}</dd>
                 </div>
                 <div>
                   <dt class="text-slate-500">Cập nhật</dt>
                   <dd class="font-medium">{{ formatDateTime(job.updated_at) }}</dd>
+                </div>
+                <div v-if="job.next_run_at">
+                  <dt class="text-slate-500">Thử lại lúc</dt>
+                  <dd class="font-medium">{{ formatDateTime(job.next_run_at) }}</dd>
+                </div>
+                <div v-if="job.failed_reason">
+                  <dt class="text-slate-500">Nhóm lỗi</dt>
+                  <dd class="break-words font-medium">{{ job.failed_reason }}</dd>
                 </div>
                 <div v-if="job.reason">
                   <dt class="text-slate-500">Lý do</dt>

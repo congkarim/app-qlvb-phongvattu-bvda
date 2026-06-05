@@ -21,7 +21,7 @@ Tài liệu này là checklist thực thi tuần tự bám theo `ROADMAP.md`. Kh
 
 Phase hiện tại: Phase 2 - Worker Reliability Và Operations.
 
-Mục tiêu tiếp theo phải làm: Phase 2 / Mục tiêu 3 - Retry, Failed Reason Và Audit.
+Mục tiêu tiếp theo phải làm: Phase 2 / Mục tiêu 4 - Worker Smoke Và Ops Runbook.
 
 Điều kiện chuyển sang mục tiêu kế tiếp:
 - Mục tiêu hiện tại pass tiêu chí chấp nhận.
@@ -290,7 +290,7 @@ Sau khi hoàn thành:
 
 ### Mục Tiêu 3 - Retry, Failed Reason Và Audit
 
-Trạng thái: chưa làm.
+Trạng thái: hoàn thành ngày 2026-06-05.
 
 Mục tiêu:
 - Chuẩn hóa retry, max attempts, failed reason và audit cho job lỗi.
@@ -305,9 +305,38 @@ Tiêu chí chấp nhận:
 - Retry count có giới hạn.
 - Detail page vẫn hiển thị audit job dễ hiểu.
 
+Kết quả:
+- Migration `0010_ocr_job_retry_fields` thêm `max_attempts`, `failed_reason`, `next_run_at` và index theo `status/next_run_at/created_at`.
+- `OCRJobRepository.claim_next_pending_job()` chỉ claim job `pending` khi `next_run_at` rỗng hoặc đã tới hạn.
+- Worker phân loại lỗi MVP:
+  - Không retry: document không tồn tại, file upload mất, unsupported format, empty content, empty chunks, cấu hình OCR/embedding không hợp lệ.
+  - Retry: lỗi runtime còn lại với `failed_reason=processing_error`.
+- Khi còn lượt, job quay về `pending`, set `next_run_at`, document quay về pending tương ứng và source file chưa completed được reset `pending`.
+- Khi hết lượt hoặc lỗi không retry, job chuyển `failed`, ghi `error_message`, `failed_reason`, `completed_at` và clear `next_run_at`.
+- Detail page hiển thị `attempts/max_attempts`, `failed_reason` và thời điểm `next_run_at`.
+- Thêm script `python -m app.scripts.smoke_worker_retry_policy`.
+
+Kiểm tra đã chạy:
+
+```bash
+PYTHONPYCACHEPREFIX=/tmp/qlvb-pycache PYTHONPATH=apps/api python3 -m py_compile apps/api/app/models/document.py apps/api/app/schemas/document.py apps/api/app/repositories/document_repository.py apps/api/app/workers/ocr_worker.py apps/api/app/scripts/smoke_worker_retry_policy.py apps/api/alembic/versions/0010_ocr_job_retry_fields.py
+docker compose stop worker
+docker compose exec -T api alembic upgrade head
+docker compose exec -T api python -m app.scripts.smoke_worker_retry_policy
+docker compose exec -T api python -m app.scripts.smoke_worker_claim_atomic
+docker compose run --rm --no-deps web npm run build
+git diff --check
+```
+
+Sau khi hoàn thành:
+- Đã đọc lại `ROADMAP.md`.
+- Đã cập nhật `PROJECT_STATUS.md` với kết quả và kiểm tra đã chạy.
+- Đã cập nhật mục tiêu này thành `hoàn thành`.
+- Đã chuyển con trỏ hiện tại sang `Phase 2 / Mục tiêu 4`.
+
 ### Mục Tiêu 4 - Worker Smoke Và Ops Runbook
 
-Trạng thái: khóa.
+Trạng thái: chưa làm.
 
 Mục tiêu:
 - Có command kiểm tra worker claim/retry và hướng dẫn vận hành cơ bản.

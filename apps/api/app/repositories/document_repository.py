@@ -751,25 +751,48 @@ class OCRJobRepository:
 
     ACTIVE_STATUSES = {"pending", "ocr_running"}
 
-    def create_job(self, document_id: str, *, job_type: str = "ocr", reason: str | None = None) -> OCRJob:
-        job = OCRJob(document_id=document_id, job_type=job_type, reason=reason, status="pending")
+    def create_job(
+        self,
+        document_id: str,
+        *,
+        job_type: str = "ocr",
+        reason: str | None = None,
+        max_attempts: int = 3,
+    ) -> OCRJob:
+        job = OCRJob(
+            document_id=document_id,
+            job_type=job_type,
+            reason=reason,
+            status="pending",
+            max_attempts=max_attempts,
+        )
         self.db.add(job)
         self.db.flush()
         return job
 
     def get_next_pending_job(self) -> OCRJob | None:
+        now = datetime.now(timezone.utc)
         stmt = (
             select(OCRJob)
-            .where(OCRJob.status == "pending", OCRJob.deleted_at.is_(None))
+            .where(
+                OCRJob.status == "pending",
+                OCRJob.deleted_at.is_(None),
+                or_(OCRJob.next_run_at.is_(None), OCRJob.next_run_at <= now),
+            )
             .order_by(OCRJob.created_at.asc())
             .limit(1)
         )
         return self.db.scalar(stmt)
 
     def claim_next_pending_job(self) -> OCRJob | None:
+        now = datetime.now(timezone.utc)
         stmt = (
             select(OCRJob)
-            .where(OCRJob.status == "pending", OCRJob.deleted_at.is_(None))
+            .where(
+                OCRJob.status == "pending",
+                OCRJob.deleted_at.is_(None),
+                or_(OCRJob.next_run_at.is_(None), OCRJob.next_run_at <= now),
+            )
             .order_by(OCRJob.created_at.asc())
             .with_for_update(skip_locked=True)
             .limit(1)
@@ -780,7 +803,9 @@ class OCRJobRepository:
 
         job.status = "ocr_running"
         job.attempts += 1
-        job.started_at = datetime.now(timezone.utc)
+        job.started_at = now
+        job.next_run_at = None
+        job.failed_reason = None
         job.error_message = None
         self.db.add(job)
         self.db.flush()

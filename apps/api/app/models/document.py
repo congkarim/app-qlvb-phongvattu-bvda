@@ -108,11 +108,17 @@ class OCRJob(UUIDTimestampMixin, Base):
     job_type: Mapped[str] = mapped_column(String(64), nullable=False, default="ocr")
     status: Mapped[str] = mapped_column(String(64), nullable=False, default="pending", index=True)
     attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    max_attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=3)
     reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    failed_reason: Mapped[str | None] = mapped_column(String(128), nullable=True)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     started_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    next_run_at: Mapped[datetime | None] = mapped_column(nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(nullable=True)
 
     document: Mapped[Document] = relationship(back_populates="ocr_jobs")
 
-    __table_args__ = (Index("ix_ocr_jobs_status_created", "status", "created_at"),)
+    __table_args__ = (
+        Index("ix_ocr_jobs_status_created", "status", "created_at"),
+        Index("ix_ocr_jobs_status_next_run", "status", "next_run_at", "created_at"),
+    )

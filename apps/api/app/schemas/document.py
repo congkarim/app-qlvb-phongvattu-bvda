@@ -11,8 +11,13 @@ class OCRJobRead(BaseModel):
     job_type: str = "ocr"
     status: str
     attempts: int
+    max_attempts: int = 3
     reason: str | None = None
+    failed_reason: str | None = None
     error_message: str | None = None
+    next_run_at: datetime | None = None
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
 
