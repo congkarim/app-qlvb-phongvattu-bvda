@@ -1,0 +1,11 @@
+CONG TY VAT TU NOI BO
+So: 01/SMOKE-PL
+
+PHU LUC I
+DANH MUC VAT TU CAN DOI CHIEU
+
+1. May bom nuoc: 02 bo, can kiem tra serial va bien ban ban giao.
+2. Ong dan ap luc: 15 met, can doi chieu kho va phieu xuat.
+3. Van khoa chinh: 04 cai, can review do OCR co the nham ky hieu.
+
+Ghi chu: Day la fixture smoke local cho review queue phu luc.

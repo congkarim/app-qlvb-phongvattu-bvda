@@ -229,6 +229,24 @@ curl -X POST http://localhost:8000/api/v1/search/semantic \
 Các filter hiện có: `document_type`, `department_id`, `business_type`, `document_number`, `issued_date`, `doc_group`, `section_role`, `requires_review`. Dashboard cũng có các control filter tương ứng cho metadata đã rollout.
 Với phụ lục, dùng `section_role=appendix` hoặc chọn option `Phụ lục` trong Dashboard.
 
+## Smoke Appendix Data
+
+Kiểm tra luồng phụ lục có dữ liệu thật từ document detail, review queue, semantic search và thao tác `Đã review`:
+
+```bash
+docker compose exec -T api python -m app.scripts.smoke_appendix_data
+```
+
+Script tạo document fixture tạm có chunk `section_role=appendix`, index vào Qdrant, xác nhận review queue và search trả đúng chunk phụ lục, đánh dấu chunk đã review, rồi cleanup document/Qdrant point mặc định.
+
+Giữ dữ liệu smoke để kiểm tra UI thủ công:
+
+```bash
+docker compose exec -T api python -m app.scripts.smoke_appendix_data --keep-data
+```
+
+Lần chạy sau sẽ tự cleanup các document có prefix `[SMOKE] Appendix review fixture` trước khi seed mới.
+
 ## Local OCR Tiếng Việt
 
 OCR scan mặc định chạy local bằng PaddleOCR detector, VietOCR recognizer, PaddlePaddle CPU, PyTorch CPU và OpenCV. PDF có text layer vẫn được đọc trực tiếp bằng `pypdfium2` để giữ Unicode tiếng Việt; chỉ page scan hoặc ảnh mới đi qua OCR.

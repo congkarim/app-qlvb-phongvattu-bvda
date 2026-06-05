@@ -127,6 +127,20 @@ Workflow web đã hoàn thiện:
 
 Các kiểm tra sau đã chạy thành công:
 
+Appendix data smoke kiểm tra ngày 2026-06-05:
+
+```bash
+PYTHONPYCACHEPREFIX=/tmp/qlvb-pycache PYTHONPATH=apps/api python3 -m py_compile apps/api/app/scripts/smoke_appendix_data.py
+docker compose exec -T api python -m app.scripts.smoke_appendix_data
+```
+
+Kết quả:
+- Thêm fixture `tests/fixtures/appendix_smoke/appendix_review_fixture.txt` có heading phụ lục và nội dung vật tư.
+- Thêm script `python -m app.scripts.smoke_appendix_data` để seed document smoke tạm có chunk `section_role=appendix`, `requires_review=true`, confidence thấp và index chunk vào Qdrant.
+- Smoke xác nhận document detail có chunk phụ lục thật, review queue filter `section_role=appendix` trả chunk đó và semantic search filter `section_role=appendix` trả result thật thay vì chỉ pass empty-safe.
+- Smoke gọi action review chunk, xác nhận queue appendix không còn chunk đã review và search `requires_review=true` không còn trả chunk đó.
+- Mặc định script cleanup document smoke và Qdrant point; có thể dùng `--keep-data` để giữ dữ liệu kiểm tra UI thủ công.
+
 Review queue dashboard kiểm tra ngày 2026-06-05:
 
 ```bash
