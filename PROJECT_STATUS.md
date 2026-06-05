@@ -127,6 +127,19 @@ Workflow web đã hoàn thiện:
 
 Các kiểm tra sau đã chạy thành công:
 
+Chuẩn hóa kế hoạch thực thi kiểm tra ngày 2026-06-05:
+
+```bash
+sed -n '1,240p' ROADMAP.md
+sed -n '1,240p' TASK_NEXT.md
+git diff --check
+```
+
+Kết quả:
+- `TASK_NEXT.md` đã được cập nhật thành kế hoạch tuần tự theo phase, khóa phase sau cho đến khi phase trước hoàn thành.
+- Phase 1 được chia nhỏ thành các mục tiêu độc lập: documents pagination, smoke API auth wrapper và review queue UX polish.
+- Mỗi mục tiêu/phase đều có yêu cầu đọc lại `ROADMAP.md`, cập nhật trạng thái và chọn bước tiếp theo trước khi tiếp tục.
+
 Review queue pagination polish kiểm tra ngày 2026-06-05:
 
 ```bash
