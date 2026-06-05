@@ -116,7 +116,7 @@ Workflow web đã hoàn thiện:
 - `/documents/[id]` có action reprocess dành cho admin, khóa nút khi document đang `ocr_pending`, `ocr_running`, `reprocess_pending`, `reprocess_running` hoặc `chunking`.
 - `/documents/[id]` hiển thị audit OCR/reprocess job gồm `job_type`, `status`, `reason`, attempts, error message và thời gian tạo/cập nhật.
 - `/documents` có refresh action, filter/search/sort, loading state, empty state và link sang detail.
-- `/dashboard` có validation search input, loading/empty/error state và result link sang document nguồn.
+- `/dashboard` có validation search input, loading/empty/error state, filter semantic search theo metadata nghiệp vụ/chunk và result link sang document nguồn.
 - `/users` cho phép admin xem audit log theo từng user, gồm actor, action, thời gian và metadata thao tác quản trị.
 
 ## Đã Kiểm Tra Thủ Công
@@ -159,6 +159,22 @@ Kết quả:
 - Reindex Qdrant thật: `indexed: 600 chunks`.
 - DB xác nhận `active_chunks=600`, `missing_metadata=0`, `requires_review=232`.
 - Qdrant payload mẫu có `doc_group=A`, `chunk_level=subsection`, `section_role=clause`, `section_path`, `chunk_confidence=0.9`, `requires_review=false`.
+
+Search filter rollout kiểm tra ngày 2026-06-05:
+
+```bash
+PYTHONPYCACHEPREFIX=/tmp/qlvb-pycache PYTHONPATH=apps/api python3 -m py_compile apps/api/app/schemas/search.py apps/api/app/routers/search.py apps/api/app/services/qdrant_service.py apps/api/app/repositories/document_repository.py apps/api/app/services/search_service.py
+docker compose run --rm --no-deps web npm run build
+python3 <semantic search filter smoke script>
+git diff --check
+```
+
+Kết quả:
+- API `POST /api/v1/search/semantic` hỗ trợ filter `business_type`, `document_number`, `issued_date`, `doc_group`, `section_role`, `requires_review`.
+- Search service áp filter cho cả Qdrant vector hits và PostgreSQL keyword candidates; vector hits được đối chiếu lại với DB active chunks để tránh trả dữ liệu soft-delete/stale payload.
+- Dashboard có filter UI cho nghiệp vụ, số văn bản, ngày ban hành, nhóm chunk, role section, trạng thái cần review và limit.
+- Smoke pass cho từng filter: `doc_group=A`, `section_role=clause`, `requires_review=true`, `document_number=1589/QĐ-BYT`, `business_type=decision`, `issued_date=2025-08-04`.
+- Frontend build pass; vẫn có warning chunk PrimeVue lớn như trước, không fail.
 
 ```bash
 docker compose up --build

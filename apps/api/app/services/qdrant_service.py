@@ -1,4 +1,6 @@
 from qdrant_client import QdrantClient
+from typing import Any
+
 from qdrant_client.http.models import Distance, FieldCondition, Filter, MatchValue, PointIdsList, PointStruct, VectorParams
 
 from app.core.config import get_settings
@@ -39,7 +41,7 @@ class QdrantService:
             points_selector=PointIdsList(points=point_ids),
         )
 
-    def search(self, *, vector: list[float], limit: int, filters: dict[str, str | None]) -> list:
+    def search(self, *, vector: list[float], limit: int, filters: dict[str, Any | None]) -> list:
         self.ensure_collection()
         conditions = [
             FieldCondition(key=key, match=MatchValue(value=value))

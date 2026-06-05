@@ -168,6 +168,25 @@ export interface SearchResult {
   score: number
   text: string
   title?: string | null
+  document_type?: string | null
+  document_number?: string | null
+  issued_date?: string | null
+  business_type?: string | null
   page_from?: number | null
   page_to?: number | null
+  doc_group?: string | null
+  section_role?: string | null
+  section_path: string[]
+  requires_review: boolean
+}
+
+export interface SemanticSearchFilters {
+  limit?: number
+  document_type?: string
+  business_type?: string
+  document_number?: string
+  issued_date?: string
+  doc_group?: string
+  section_role?: string
+  requires_review?: boolean | null
 }

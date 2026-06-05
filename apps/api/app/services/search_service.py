@@ -1,5 +1,6 @@
 import re
 import unicodedata
+from datetime import date
 
 from sqlalchemy.orm import Session
 
@@ -21,26 +22,64 @@ class SearchService:
         limit: int,
         document_type: str | None = None,
         department_id: str | None = None,
+        business_type: str | None = None,
+        document_number: str | None = None,
+        issued_date: date | None = None,
+        doc_group: str | None = None,
+        section_role: str | None = None,
+        requires_review: bool | None = None,
     ) -> list[dict]:
         vector = self.embeddings.embed(query)
         search_limit = min(max(limit * 8, limit + 20), 100)
+        filters = {
+            "document_type": document_type,
+            "department_id": department_id,
+            "business_type": business_type,
+            "document_number": document_number,
+            "issued_date": issued_date.isoformat() if issued_date else None,
+            "doc_group": doc_group,
+            "section_role": section_role,
+            "requires_review": requires_review,
+        }
         hits = self.qdrant.search(
             vector=vector,
             limit=search_limit,
-            filters={"document_type": document_type, "department_id": department_id, "deleted_at": None},
+            filters=filters,
+        )
+        allowed_chunk_ids = self._matching_chunk_ids(
+            hits=hits,
+            document_type=document_type,
+            department_id=department_id,
+            business_type=business_type,
+            document_number=document_number,
+            issued_date=issued_date,
+            doc_group=doc_group,
+            section_role=section_role,
+            requires_review=requires_review,
         )
         candidates = []
         for hit in hits:
             payload = hit.payload or {}
+            chunk_id = str(payload.get("chunk_id") or "")
+            if allowed_chunk_ids is not None and chunk_id not in allowed_chunk_ids:
+                continue
             text = payload.get("text", "")
             candidate = {
                 "document_id": payload.get("document_id", ""),
-                "chunk_id": payload.get("chunk_id", ""),
+                "chunk_id": chunk_id,
                 "score": hit.score,
                 "text": text,
                 "title": payload.get("title"),
+                "document_type": payload.get("document_type"),
+                "document_number": payload.get("document_number"),
+                "issued_date": payload.get("issued_date"),
+                "business_type": payload.get("business_type"),
                 "page_from": payload.get("page_from"),
                 "page_to": payload.get("page_to"),
+                "doc_group": payload.get("doc_group"),
+                "section_role": payload.get("section_role"),
+                "section_path": payload.get("section_path") or [],
+                "requires_review": bool(payload.get("requires_review", False)),
                 "_vector_score": float(hit.score),
                 "_keyword_score": self._keyword_score(query, text, str(payload.get("title") or "")),
                 "_dedup_key": self._dedup_key(payload),
@@ -59,6 +98,12 @@ class SearchService:
             limit=search_limit,
             document_type=document_type,
             department_id=department_id,
+            business_type=business_type,
+            document_number=document_number,
+            issued_date=issued_date,
+            doc_group=doc_group,
+            section_role=section_role,
+            requires_review=requires_review,
         ):
             existing = candidates_by_chunk_id.get(str(candidate["chunk_id"]))
             if existing:
@@ -102,8 +147,16 @@ class SearchService:
                     "score": round(rank_score, 6),
                     "text": item["text"],
                     "title": item["title"],
+                    "document_type": item["document_type"],
+                    "document_number": item["document_number"],
+                    "issued_date": item["issued_date"],
+                    "business_type": item["business_type"],
                     "page_from": item["page_from"],
                     "page_to": item["page_to"],
+                    "doc_group": item["doc_group"],
+                    "section_role": item["section_role"],
+                    "section_path": item["section_path"],
+                    "requires_review": item["requires_review"],
                 }
             )
             if len(results) >= limit:
@@ -117,6 +170,12 @@ class SearchService:
         limit: int,
         document_type: str | None,
         department_id: str | None,
+        business_type: str | None,
+        document_number: str | None,
+        issued_date: date | None,
+        doc_group: str | None,
+        section_role: str | None,
+        requires_review: bool | None,
     ) -> list[dict]:
         if self.db is None:
             return []
@@ -126,6 +185,12 @@ class SearchService:
             limit=limit,
             document_type=document_type,
             department_id=department_id,
+            business_type=business_type,
+            document_number=document_number,
+            issued_date=issued_date,
+            doc_group=doc_group,
+            section_role=section_role,
+            requires_review=requires_review,
         )
         candidates = []
         for chunk in chunks:
@@ -137,8 +202,16 @@ class SearchService:
                 "score": keyword_score,
                 "text": chunk.text,
                 "title": document.title,
+                "document_type": document.document_type,
+                "document_number": document.document_number,
+                "issued_date": document.issued_date,
+                "business_type": document.business_type,
                 "page_from": chunk.page_from,
                 "page_to": chunk.page_to,
+                "doc_group": chunk.doc_group,
+                "section_role": chunk.section_role,
+                "section_path": chunk.section_path or [],
+                "requires_review": chunk.requires_review,
                 "_vector_score": 0.0,
                 "_keyword_score": keyword_score,
                 "_dedup_key": chunk.content_hash or self._dedup_key(
@@ -158,6 +231,35 @@ class SearchService:
             )
             candidates.append(candidate)
         return candidates
+
+    def _matching_chunk_ids(
+        self,
+        *,
+        hits: list,
+        document_type: str | None,
+        department_id: str | None,
+        business_type: str | None,
+        document_number: str | None,
+        issued_date: date | None,
+        doc_group: str | None,
+        section_role: str | None,
+        requires_review: bool | None,
+    ) -> set[str] | None:
+        if self.db is None:
+            return None
+        chunk_ids = [str((hit.payload or {}).get("chunk_id") or "") for hit in hits]
+        chunk_ids = [chunk_id for chunk_id in chunk_ids if chunk_id]
+        return DocumentRepository(self.db).list_matching_chunk_ids(
+            chunk_ids=chunk_ids,
+            document_type=document_type,
+            department_id=department_id,
+            business_type=business_type,
+            document_number=document_number,
+            issued_date=issued_date,
+            doc_group=doc_group,
+            section_role=section_role,
+            requires_review=requires_review,
+        )
 
     def _rerank_score(self, query: str, text: str, *, vector_score: float, keyword_score: float) -> float:
         query_norm = self._normalize(query)

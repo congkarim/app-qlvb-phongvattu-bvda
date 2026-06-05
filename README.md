@@ -216,6 +216,16 @@ curl -X POST http://localhost:8000/api/v1/search/semantic \
   -d '{"query":"quản lý vật tư","limit":5}'
 ```
 
+Semantic search hỗ trợ filter metadata:
+
+```bash
+curl -X POST http://localhost:8000/api/v1/search/semantic \
+  -H "Content-Type: application/json" \
+  -d '{"query":"văn bản","limit":5,"business_type":"decision","doc_group":"A","section_role":"clause","requires_review":false}'
+```
+
+Các filter hiện có: `document_type`, `department_id`, `business_type`, `document_number`, `issued_date`, `doc_group`, `section_role`, `requires_review`. Dashboard cũng có các control filter tương ứng cho metadata đã rollout.
+
 ## Local OCR Tiếng Việt
 
 OCR scan mặc định chạy local bằng PaddleOCR detector, VietOCR recognizer, PaddlePaddle CPU, PyTorch CPU và OpenCV. PDF có text layer vẫn được đọc trực tiếp bằng `pypdfium2` để giữ Unicode tiếng Việt; chỉ page scan hoặc ảnh mới đi qua OCR.

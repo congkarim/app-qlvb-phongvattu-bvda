@@ -1,5 +1,5 @@
 import re
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from typing import Any
 
 from sqlalchemy import asc, desc, or_, select
@@ -464,6 +464,12 @@ class DocumentRepository:
         limit: int,
         document_type: str | None = None,
         department_id: str | None = None,
+        business_type: str | None = None,
+        document_number: str | None = None,
+        issued_date: date | None = None,
+        doc_group: str | None = None,
+        section_role: str | None = None,
+        requires_review: bool | None = None,
     ) -> list[DocumentChunk]:
         terms = list(dict.fromkeys(term for term in re.findall(r"\w+", query.lower()) if len(term) >= 3))
         if not terms:
@@ -483,11 +489,86 @@ class DocumentRepository:
             .order_by(DocumentChunk.created_at.desc(), DocumentChunk.chunk_index.asc())
             .limit(limit)
         )
+        stmt = self._apply_chunk_search_filters(
+            stmt,
+            document_type=document_type,
+            department_id=department_id,
+            business_type=business_type,
+            document_number=document_number,
+            issued_date=issued_date,
+            doc_group=doc_group,
+            section_role=section_role,
+            requires_review=requires_review,
+        )
+        return list(self.db.scalars(stmt))
+
+    def list_matching_chunk_ids(
+        self,
+        *,
+        chunk_ids: list[str],
+        document_type: str | None = None,
+        department_id: str | None = None,
+        business_type: str | None = None,
+        document_number: str | None = None,
+        issued_date: date | None = None,
+        doc_group: str | None = None,
+        section_role: str | None = None,
+        requires_review: bool | None = None,
+    ) -> set[str]:
+        if not chunk_ids:
+            return set()
+        stmt = (
+            select(DocumentChunk.id)
+            .join(Document)
+            .where(
+                DocumentChunk.id.in_(chunk_ids),
+                DocumentChunk.deleted_at.is_(None),
+                Document.deleted_at.is_(None),
+            )
+        )
+        stmt = self._apply_chunk_search_filters(
+            stmt,
+            document_type=document_type,
+            department_id=department_id,
+            business_type=business_type,
+            document_number=document_number,
+            issued_date=issued_date,
+            doc_group=doc_group,
+            section_role=section_role,
+            requires_review=requires_review,
+        )
+        return set(self.db.scalars(stmt))
+
+    def _apply_chunk_search_filters(
+        self,
+        stmt,
+        *,
+        document_type: str | None,
+        department_id: str | None,
+        business_type: str | None,
+        document_number: str | None,
+        issued_date: date | None,
+        doc_group: str | None,
+        section_role: str | None,
+        requires_review: bool | None,
+    ):
         if document_type is not None:
             stmt = stmt.where(Document.document_type == document_type)
         if department_id is not None:
             stmt = stmt.where(Document.department_id == department_id)
-        return list(self.db.scalars(stmt))
+        if business_type is not None:
+            stmt = stmt.where(Document.business_type == business_type)
+        if document_number is not None:
+            stmt = stmt.where(Document.document_number == document_number)
+        if issued_date is not None:
+            stmt = stmt.where(Document.issued_date == issued_date)
+        if doc_group is not None:
+            stmt = stmt.where(DocumentChunk.doc_group == doc_group)
+        if section_role is not None:
+            stmt = stmt.where(DocumentChunk.section_role == section_role)
+        if requires_review is not None:
+            stmt = stmt.where(DocumentChunk.requires_review == requires_review)
+        return stmt
 
     def update_chunk_qdrant_point_id(self, chunk: DocumentChunk, point_id: str) -> DocumentChunk:
         chunk.qdrant_point_id = point_id

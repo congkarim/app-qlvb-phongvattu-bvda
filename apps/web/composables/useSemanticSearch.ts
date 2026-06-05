@@ -1,4 +1,4 @@
-import type { SearchResult } from '~/types/document'
+import type { SearchResult, SemanticSearchFilters } from '~/types/document'
 import { createSearchService } from '~/services/search.service'
 
 export function useSemanticSearch() {
@@ -8,7 +8,7 @@ export function useSemanticSearch() {
   const hasSearched = ref(false)
   const service = createSearchService()
 
-  async function search(query: string) {
+  async function search(query: string, filters: SemanticSearchFilters = {}) {
     const trimmedQuery = query.trim()
     if (!trimmedQuery) {
       error.value = 'Vui lòng nhập nội dung tìm kiếm'
@@ -21,7 +21,7 @@ export function useSemanticSearch() {
     error.value = ''
     hasSearched.value = true
     try {
-      const response = await service.semantic(trimmedQuery)
+      const response = await service.semantic(trimmedQuery, filters)
       results.value = response.results
     } catch {
       error.value = 'Không tìm kiếm được'
