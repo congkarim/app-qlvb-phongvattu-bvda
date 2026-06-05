@@ -2,7 +2,7 @@ import re
 from datetime import date, datetime, timezone
 from typing import Any
 
-from sqlalchemy import asc, desc, or_, select
+from sqlalchemy import asc, desc, nullsfirst, or_, select
 from sqlalchemy.orm import Session, selectinload, with_loader_criteria
 
 from app.models.document import Document, DocumentChunk, DocumentFile, DocumentPage, OCRJob
@@ -364,6 +364,41 @@ class DocumentRepository:
         self.db.add(chunk)
         self.db.flush()
         return chunk
+
+    def list_review_queue_chunks(
+        self,
+        *,
+        limit: int,
+        offset: int,
+        section_role: str | None = None,
+        document_id: str | None = None,
+        max_confidence: float | None = None,
+    ) -> list[DocumentChunk]:
+        stmt = (
+            select(DocumentChunk)
+            .join(Document)
+            .where(
+                DocumentChunk.deleted_at.is_(None),
+                DocumentChunk.requires_review.is_(True),
+                Document.deleted_at.is_(None),
+            )
+            .options(selectinload(DocumentChunk.document))
+            .order_by(nullsfirst(DocumentChunk.chunk_confidence.asc()), DocumentChunk.updated_at.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+        if section_role is not None:
+            stmt = stmt.where(DocumentChunk.section_role == section_role)
+        if document_id is not None:
+            stmt = stmt.where(DocumentChunk.document_id == document_id)
+        if max_confidence is not None:
+            stmt = stmt.where(
+                or_(
+                    DocumentChunk.chunk_confidence <= max_confidence,
+                    DocumentChunk.chunk_confidence.is_(None),
+                )
+            )
+        return list(self.db.scalars(stmt))
 
     def list_documents_for_chunk_metadata_backfill(
         self,

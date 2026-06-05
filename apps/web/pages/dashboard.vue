@@ -1,8 +1,17 @@
 <script setup lang="ts">
-import type { SemanticSearchFilters } from '~/types/document'
+import type { ReviewQueueChunk, ReviewQueueFilters, SemanticSearchFilters } from '~/types/document'
 
 const query = ref('')
-const { results, loading, error, hasSearched, search } = useSemanticSearch()
+const authStore = useAuthStore()
+const { results, loading, error: searchError, hasSearched, search } = useSemanticSearch()
+const {
+  reviewQueue,
+  reviewQueueLoading,
+  chunkReviewLoading,
+  error: reviewQueueError,
+  fetchReviewQueue,
+  markChunkReviewed
+} = useDocuments()
 
 const filters = reactive<SemanticSearchFilters>({
   limit: 10,
@@ -12,6 +21,14 @@ const filters = reactive<SemanticSearchFilters>({
   doc_group: '',
   section_role: '',
   requires_review: null
+})
+
+const reviewQueueFilters = reactive<ReviewQueueFilters>({
+  limit: 20,
+  offset: 0,
+  section_role: '',
+  document_id: '',
+  max_confidence: null
 })
 
 const businessTypeOptions = [
@@ -49,8 +66,30 @@ const reviewOptions: Array<{ label: string; value: boolean | null }> = [
   { label: 'Đã ổn định', value: false }
 ]
 
+const reviewQueueRoleOptions = [
+  { label: 'Tất cả review', value: '' },
+  { label: 'Phụ lục', value: 'appendix' },
+  { label: 'Không xác định', value: 'unknown' }
+]
+
+const confidenceOptions: Array<{ label: string; value: number | null }> = [
+  { label: 'Mọi confidence', value: null },
+  { label: 'Không chắc <= 65%', value: 0.65 },
+  { label: 'Cần xem <= 80%', value: 0.8 }
+]
+
 async function submitSearch() {
   await search(query.value, filters)
+}
+
+async function submitReviewQueue() {
+  await fetchReviewQueue(normalizeReviewQueueFilters())
+}
+
+async function submitMarkQueueChunkReviewed(chunk: ReviewQueueChunk) {
+  const result = await markChunkReviewed(chunk.document_id, chunk.id)
+  if (!result) return
+  await submitReviewQueue()
 }
 
 function resetFilters() {
@@ -63,14 +102,56 @@ function resetFilters() {
   filters.requires_review = null
 }
 
+async function resetReviewQueueFilters() {
+  reviewQueueFilters.limit = 20
+  reviewQueueFilters.offset = 0
+  reviewQueueFilters.section_role = ''
+  reviewQueueFilters.document_id = ''
+  reviewQueueFilters.max_confidence = null
+  await submitReviewQueue()
+}
+
 function formatBusinessType(value?: string | null) {
   return businessTypeOptions.find((option) => option.value === value)?.label || value || '-'
 }
 
 function formatChunkMeta(result: { doc_group?: string | null; section_role?: string | null; section_path?: string[] }) {
-  const parts = [result.doc_group, result.section_role, result.section_path?.join(' > ')].filter(Boolean)
+  const parts = [result.doc_group, formatSectionRole(result.section_role), result.section_path?.join(' > ')].filter(Boolean)
   return parts.length ? parts.join(' · ') : 'Chưa có metadata chunk'
 }
+
+function formatSectionRole(value?: string | null) {
+  if (value === 'article') return 'Điều'
+  if (value === 'clause') return 'Khoản'
+  if (value === 'point') return 'Điểm'
+  if (value === 'task') return 'Nhiệm vụ'
+  if (value === 'appendix') return 'Phụ lục'
+  if (value === 'recipient') return 'Nơi nhận'
+  if (value === 'signature') return 'Chữ ký'
+  if (value === 'unknown') return 'Không xác định'
+  return value || ''
+}
+
+function formatConfidence(value?: number | null) {
+  if (value === null || value === undefined) return '-'
+  return `${Math.round(value * 100)}%`
+}
+
+function normalizeReviewQueueFilters(): ReviewQueueFilters {
+  return {
+    limit: reviewQueueFilters.limit || 20,
+    offset: reviewQueueFilters.offset || 0,
+    section_role: reviewQueueFilters.section_role?.trim() || undefined,
+    document_id: reviewQueueFilters.document_id?.trim() || undefined,
+    max_confidence: reviewQueueFilters.max_confidence ?? undefined
+  }
+}
+
+onMounted(async () => {
+  if (authStore.isAdmin) {
+    await submitReviewQueue()
+  }
+})
 </script>
 
 <template>
@@ -79,6 +160,87 @@ function formatChunkMeta(result: { doc_group?: string | null; section_role?: str
       <h1 class="text-2xl font-semibold">Dashboard</h1>
       <p class="mt-1 text-sm text-slate-600">Upload, OCR và semantic search skeleton.</p>
     </div>
+
+    <Card v-if="authStore.isAdmin">
+      <template #title>
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <span>Review queue</span>
+            <p class="mt-1 text-xs font-normal text-slate-500">{{ reviewQueue.length }} chunks cần review</p>
+          </div>
+          <Button
+            label="Refresh"
+            icon="pi pi-refresh"
+            severity="secondary"
+            size="small"
+            :loading="reviewQueueLoading"
+            @click="submitReviewQueue"
+          />
+        </div>
+      </template>
+      <template #content>
+        <form class="grid gap-3 md:grid-cols-5" @submit.prevent="submitReviewQueue">
+          <select v-model="reviewQueueFilters.section_role" class="rounded border border-slate-300 px-3 py-2 text-sm">
+            <option v-for="option in reviewQueueRoleOptions" :key="option.value" :value="option.value">
+              {{ option.label }}
+            </option>
+          </select>
+          <select v-model="reviewQueueFilters.max_confidence" class="rounded border border-slate-300 px-3 py-2 text-sm">
+            <option v-for="option in confidenceOptions" :key="String(option.value)" :value="option.value">
+              {{ option.label }}
+            </option>
+          </select>
+          <InputText v-model="reviewQueueFilters.document_id" placeholder="Document ID" />
+          <select v-model.number="reviewQueueFilters.limit" class="rounded border border-slate-300 px-3 py-2 text-sm">
+            <option :value="10">10 chunks</option>
+            <option :value="20">20 chunks</option>
+            <option :value="50">50 chunks</option>
+            <option :value="100">100 chunks</option>
+          </select>
+          <div class="flex gap-2">
+            <Button type="submit" label="Lọc" icon="pi pi-filter" :loading="reviewQueueLoading" />
+            <Button type="button" label="Xóa" icon="pi pi-times" severity="secondary" :disabled="reviewQueueLoading" @click="resetReviewQueueFilters" />
+          </div>
+        </form>
+        <Message v-if="reviewQueueError" class="mt-4" severity="error">{{ reviewQueueError }}</Message>
+        <p v-else-if="reviewQueueLoading" class="mt-4 text-sm text-slate-600">Đang tải review queue...</p>
+        <p v-else-if="!reviewQueue.length" class="mt-4 text-sm text-slate-600">Không có chunk cần review.</p>
+        <div class="mt-5 space-y-3">
+          <article v-for="chunk in reviewQueue" :key="chunk.id" class="border-b border-slate-200 pb-3">
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <NuxtLink class="font-medium text-sky-700" :to="`/documents/${chunk.document_id}`">
+                  {{ chunk.document_title || chunk.document_id }}
+                </NuxtLink>
+                <p class="mt-1 text-xs text-slate-500">
+                  #{{ chunk.chunk_index }}
+                  <span v-if="chunk.document_number"> · Số {{ chunk.document_number }}</span>
+                  <span v-if="chunk.issued_date"> · {{ chunk.issued_date }}</span>
+                  <span v-if="chunk.page_from"> · Trang {{ chunk.page_from }}{{ chunk.page_to && chunk.page_to !== chunk.page_from ? `-${chunk.page_to}` : '' }}</span>
+                </p>
+              </div>
+              <div class="flex flex-wrap items-center gap-2">
+                <Tag v-if="chunk.section_role" :value="formatSectionRole(chunk.section_role)" :severity="chunk.section_role === 'appendix' ? 'success' : 'secondary'" />
+                <Tag value="review" severity="warn" />
+                <span class="text-xs text-slate-500">{{ formatConfidence(chunk.chunk_confidence) }}</span>
+                <Button
+                  label="Đã review"
+                  icon="pi pi-check"
+                  severity="secondary"
+                  size="small"
+                  :loading="chunkReviewLoading === chunk.id"
+                  :disabled="Boolean(chunkReviewLoading)"
+                  @click="submitMarkQueueChunkReviewed(chunk)"
+                />
+              </div>
+            </div>
+            <p class="mt-1 break-words text-xs text-slate-500">{{ chunk.section_path?.join(' > ') || '-' }}</p>
+            <p class="mt-1 break-words text-xs text-slate-500">{{ chunk.section_title }}</p>
+            <p class="mt-1 text-sm text-slate-700">{{ chunk.text }}</p>
+          </article>
+        </div>
+      </template>
+    </Card>
 
     <Card>
       <template #title>Semantic search</template>
@@ -122,7 +284,7 @@ function formatChunkMeta(result: { doc_group?: string | null; section_role?: str
             <Button type="button" label="Xóa lọc" icon="pi pi-times" severity="secondary" :disabled="loading" @click="resetFilters" />
           </div>
         </form>
-        <Message v-if="error" class="mt-4" severity="error">{{ error }}</Message>
+        <Message v-if="searchError" class="mt-4" severity="error">{{ searchError }}</Message>
         <p v-else-if="loading" class="mt-4 text-sm text-slate-600">Đang tìm kiếm...</p>
         <p v-else-if="hasSearched && !results.length" class="mt-4 text-sm text-slate-600">Không có kết quả phù hợp.</p>
         <div class="mt-5 space-y-3">

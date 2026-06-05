@@ -7,6 +7,8 @@ import type {
   DocumentMetadataUpdateInput,
   MultiFileUploadResponse,
   ReprocessDocumentResponse,
+  ReviewQueueChunk,
+  ReviewQueueFilters,
   SourceFilePreview,
   SourceFileMutationResponse,
   UploadResponse
@@ -16,9 +18,11 @@ import { createDocumentService } from '~/services/document.service'
 export function useDocuments() {
   const documents = ref<DocumentItem[]>([])
   const document = ref<DocumentDetail | null>(null)
+  const reviewQueue = ref<ReviewQueueChunk[]>([])
   const uploadResult = ref<UploadResponse | null>(null)
   const multiFileUploadResult = ref<MultiFileUploadResponse | null>(null)
   const loading = ref(false)
+  const reviewQueueLoading = ref(false)
   const metadataLoading = ref(false)
   const reprocessLoading = ref(false)
   const sourceFileLoading = ref(false)
@@ -50,6 +54,21 @@ export function useDocuments() {
       error.value = 'Không tải được chi tiết văn bản'
     } finally {
       if (!options.silent) loading.value = false
+    }
+  }
+
+  async function fetchReviewQueue(filters: ReviewQueueFilters = {}): Promise<ReviewQueueChunk[]> {
+    reviewQueueLoading.value = true
+    error.value = ''
+    try {
+      reviewQueue.value = await service.listReviewQueue(filters)
+      return reviewQueue.value
+    } catch {
+      error.value = 'Không tải được review queue'
+      reviewQueue.value = []
+      return []
+    } finally {
+      reviewQueueLoading.value = false
     }
   }
 
@@ -321,9 +340,11 @@ export function useDocuments() {
   return {
     documents,
     document,
+    reviewQueue,
     uploadResult,
     multiFileUploadResult,
     loading,
+    reviewQueueLoading,
     metadataLoading,
     reprocessLoading,
     sourceFileLoading,
@@ -334,6 +355,7 @@ export function useDocuments() {
     error,
     fetchDocuments,
     fetchDocument,
+    fetchReviewQueue,
     uploadDocument,
     uploadMultiFileDocument,
     uploadZipDocument,

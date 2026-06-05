@@ -90,6 +90,28 @@ class DocumentChunkRead(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class ReviewQueueChunkRead(BaseModel):
+    id: str
+    document_id: str
+    document_title: str
+    document_number: str | None = None
+    issued_date: date | None = None
+    business_type: str | None = None
+    chunk_index: int
+    text: str
+    page_from: int | None = None
+    page_to: int | None = None
+    section_title: str | None = None
+    doc_group: str | None = None
+    chunk_level: str | None = None
+    section_role: str | None = None
+    section_path: list[str] | None = None
+    chunk_confidence: float | None = None
+    requires_review: bool = True
+    created_at: datetime
+    updated_at: datetime
+
+
 class DocumentDetailRead(DocumentRead):
     files: list[DocumentFileRead] = []
     pages: list[DocumentPageRead] = []

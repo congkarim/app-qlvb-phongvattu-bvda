@@ -302,6 +302,24 @@ class DocumentService:
     def get_document(self, document_id: str):
         return self.documents.get_document(document_id)
 
+    def list_review_queue_chunks(
+        self,
+        *,
+        limit: int,
+        offset: int,
+        section_role: str | None = None,
+        document_id: str | None = None,
+        max_confidence: float | None = None,
+    ) -> list[dict]:
+        chunks = self.documents.list_review_queue_chunks(
+            limit=limit,
+            offset=offset,
+            section_role=self._normalize_title(section_role),
+            document_id=self._normalize_title(document_id),
+            max_confidence=max_confidence,
+        )
+        return [self._review_queue_chunk_payload(chunk) for chunk in chunks]
+
     def get_source_file_for_download(self, document_id: str, document_file_id: str):
         if not self._is_uuid(document_id) or not self._is_uuid(document_file_id):
             raise DocumentFileNotFoundError(f"Document source file not found: {document_file_id}")
@@ -705,6 +723,30 @@ class DocumentService:
             "metadata_source": document.metadata_source,
             "metadata_reviewed_at": document.metadata_reviewed_at.isoformat() if document.metadata_reviewed_at else None,
             "business_type": document.business_type,
+        }
+
+    def _review_queue_chunk_payload(self, chunk) -> dict:
+        document = chunk.document
+        return {
+            "id": chunk.id,
+            "document_id": chunk.document_id,
+            "document_title": document.title,
+            "document_number": document.document_number,
+            "issued_date": document.issued_date,
+            "business_type": document.business_type,
+            "chunk_index": chunk.chunk_index,
+            "text": chunk.text,
+            "page_from": chunk.page_from,
+            "page_to": chunk.page_to,
+            "section_title": chunk.section_title,
+            "doc_group": chunk.doc_group,
+            "chunk_level": chunk.chunk_level,
+            "section_role": chunk.section_role,
+            "section_path": chunk.section_path,
+            "chunk_confidence": chunk.chunk_confidence,
+            "requires_review": chunk.requires_review,
+            "created_at": chunk.created_at,
+            "updated_at": chunk.updated_at,
         }
 
     def _serialize_metadata_value(self, value) -> str | None:

@@ -120,11 +120,29 @@ Workflow web đã hoàn thiện:
 - `/documents/[id]` cho phép admin đánh dấu chunk `requires_review=true` là đã review; thao tác ghi audit log `document_chunk.reviewed` và cập nhật payload Qdrant để search filter đồng bộ.
 - `/documents` có refresh action, filter/search/sort, loading state, empty state và link sang detail.
 - `/dashboard` có validation search input, loading/empty/error state, filter semantic search theo metadata nghiệp vụ/chunk, bao gồm option `section_role=appendix`, và result link sang document nguồn.
+- `/dashboard` có card `Review queue` chỉ dành cho admin để xem chunks `requires_review=true`, lọc theo phụ lục/document/confidence thấp, mở document detail và đánh dấu chunk đã review ngay từ queue.
 - `/users` cho phép admin xem audit log theo từng user, gồm actor, action, thời gian và metadata thao tác quản trị.
 
 ## Đã Kiểm Tra Thủ Công
 
 Các kiểm tra sau đã chạy thành công:
+
+Review queue dashboard kiểm tra ngày 2026-06-05:
+
+```bash
+PYTHONPYCACHEPREFIX=/tmp/qlvb-pycache PYTHONPATH=apps/api python3 -m py_compile apps/api/app/schemas/document.py apps/api/app/repositories/document_repository.py apps/api/app/services/document_service.py apps/api/app/routers/documents.py
+docker compose run --rm --no-deps web npm run build
+python3 <review queue smoke script>
+git diff --check
+```
+
+Kết quả:
+- Thêm endpoint admin-only `GET /api/v1/documents/chunks/review-queue`.
+- Endpoint trả danh sách chunk active `requires_review=true` kèm document title/id, metadata chunk, confidence, text preview và hỗ trợ filter `section_role`, `document_id`, `max_confidence`.
+- Dashboard hiển thị card `Review queue` chỉ cho admin, có filter tất cả/phụ lục/unknown, confidence thấp, document id, limit và action `Đã review`.
+- Smoke queue pass: admin nhận 10 chunks cần review, filter `max_confidence=0.65` trả 10 chunks hợp lệ, filter `section_role=appendix` trả 0 do local chưa có appendix indexed trong queue.
+- Smoke phân quyền pass: user thường `queue-smoke-de1c52133fac@example.com` gọi review queue nhận 403.
+- Frontend build pass; vẫn có warning chunk PrimeVue lớn như trước, không fail.
 
 Review action cho chunk kiểm tra ngày 2026-06-05:
 

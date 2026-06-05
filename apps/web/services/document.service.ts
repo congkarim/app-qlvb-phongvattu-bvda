@@ -8,6 +8,8 @@ import type {
   DocumentMetadataUpdateInput,
   MultiFileUploadResponse,
   ReprocessDocumentResponse,
+  ReviewQueueChunk,
+  ReviewQueueFilters,
   SourceFileMutationResponse,
   UploadResponse
 } from '~/types/document'
@@ -30,6 +32,16 @@ export function createDocumentService() {
     },
     get(id: string) {
       return api<DocumentDetail>(`/documents/${id}`)
+    },
+    listReviewQueue(filters: ReviewQueueFilters = {}) {
+      const params = new URLSearchParams()
+      for (const [key, value] of Object.entries(filters)) {
+        if (value !== undefined && value !== null && String(value).trim() !== '') {
+          params.set(key, String(value))
+        }
+      }
+      const query = params.toString()
+      return api<ReviewQueueChunk[]>(`/documents/chunks/review-queue${query ? `?${query}` : ''}`)
     },
     async downloadSourceFile(id: string, file: DocumentFile) {
       const config = useRuntimeConfig()

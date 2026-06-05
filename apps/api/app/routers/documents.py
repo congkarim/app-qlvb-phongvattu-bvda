@@ -16,6 +16,7 @@ from app.schemas.document import (
     ReorderDocumentFilesRequest,
     ReprocessDocumentRequest,
     ReprocessDocumentResponse,
+    ReviewQueueChunkRead,
     SourceFileMutationResponse,
     UploadResponse,
 )
@@ -231,6 +232,25 @@ def download_document_source_file(
         media_type=document_file.content_type or "application/octet-stream",
         filename=document_file.original_filename,
         content_disposition_type="inline",
+    )
+
+
+@router.get("/chunks/review-queue", response_model=list[ReviewQueueChunkRead])
+def list_review_queue_chunks(
+    limit: int = Query(default=20, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    section_role: str | None = Query(default=None, max_length=64),
+    document_id: str | None = Query(default=None, max_length=64),
+    max_confidence: float | None = Query(default=None, ge=0.0, le=1.0),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+) -> list[ReviewQueueChunkRead]:
+    return DocumentService(db).list_review_queue_chunks(
+        limit=limit,
+        offset=offset,
+        section_role=section_role,
+        document_id=document_id,
+        max_confidence=max_confidence,
     )
 
 

@@ -162,6 +162,36 @@ export interface ReprocessDocumentResponse {
   ocr_job: OCRJob
 }
 
+export interface ReviewQueueChunk {
+  id: string
+  document_id: string
+  document_title: string
+  document_number?: string | null
+  issued_date?: string | null
+  business_type?: string | null
+  chunk_index: number
+  text: string
+  page_from?: number | null
+  page_to?: number | null
+  section_title?: string | null
+  doc_group?: string | null
+  chunk_level?: string | null
+  section_role?: string | null
+  section_path?: string[] | null
+  chunk_confidence?: number | null
+  requires_review: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface ReviewQueueFilters {
+  limit?: number
+  offset?: number
+  section_role?: string
+  document_id?: string
+  max_confidence?: number | null
+}
+
 export interface SearchResult {
   document_id: string
   chunk_id: string
