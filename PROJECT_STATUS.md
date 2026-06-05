@@ -127,6 +127,30 @@ Workflow web đã hoàn thiện:
 
 Các kiểm tra sau đã chạy thành công:
 
+Worker job lifecycle survey ngày 2026-06-05:
+
+```bash
+sed -n '1,320p' apps/api/app/workers/ocr_worker.py
+sed -n '730,800p' apps/api/app/repositories/document_repository.py
+sed -n '40,125p' apps/api/app/services/document_service.py
+sed -n '420,465p' apps/api/app/services/document_service.py
+sed -n '670,725p' apps/api/app/services/document_service.py
+sed -n '1,180p' apps/api/app/models/document.py
+git diff --check
+```
+
+Kết quả khảo sát:
+- Worker entrypoint `apps/worker/runner.py` gọi `run_forever(SessionLocal)`, mỗi vòng tạo DB session mới, chạy `OCRWorker.run_once()`, nếu không có job thì sleep 5 giây.
+- `OCRJobRepository.get_next_pending_job()` hiện chỉ `SELECT` job `status='pending'` cũ nhất, không `FOR UPDATE`, không `SKIP LOCKED`, không đổi status trong cùng transaction.
+- `OCRWorker.process_job()` đổi job sang `ocr_running`, tăng `attempts`, set `started_at`, commit; sau đó mới xử lý document. Nếu có hai worker gọi cùng lúc, cả hai có thể lấy cùng một pending job trước khi worker đầu commit trạng thái chạy.
+- Upload một file, multi-file và zip đều tạo `ocr_jobs.status='pending'`, `job_type='ocr'`, rồi set document `ocr_pending`.
+- Reprocess thủ công và thay đổi source file đều kiểm tra `has_active_job(document_id)` trước, tạo job `job_type='reprocess'`, `reason`, rồi set document `reprocess_pending`.
+- `has_active_job()` chỉ tính job status `pending` và `ocr_running`; job `failed`/`completed` không chặn reprocess. Job type không ảnh hưởng active check.
+- Khi worker xử lý job OCR thường, document chuyển `ocr_running -> chunking -> searchable`; khi reprocess, document chuyển `reprocess_running -> chunking -> searchable`.
+- Khi lỗi, job chuyển `failed`, ghi `error_message`; OCR job thường đưa document về `failed`, reprocess đưa document về trạng thái trước đó nếu có. Các source file chưa `completed` được set `failed`.
+- Chưa có retry policy, `max_attempts`, delayed retry, hoặc phân biệt lỗi recoverable/unrecoverable. `attempts` chỉ tăng một lần trong mỗi lần process job, nhưng failed job không được đưa về pending.
+- Health hiện chỉ có `/health` trả `{"status":"ok"}`, chưa có worker/queue readiness hoặc metrics về pending/running/failed job.
+
 Review queue UX polish kiểm tra ngày 2026-06-05:
 
 ```bash

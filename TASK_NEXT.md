@@ -21,7 +21,7 @@ Tài liệu này là checklist thực thi tuần tự bám theo `ROADMAP.md`. Kh
 
 Phase hiện tại: Phase 2 - Worker Reliability Và Operations.
 
-Mục tiêu tiếp theo phải làm: Phase 2 / Mục tiêu 1 - Khảo Sát Worker Và Job Lifecycle.
+Mục tiêu tiếp theo phải làm: Phase 2 / Mục tiêu 2 - Atomic Claim OCR Job.
 
 Điều kiện chuyển sang mục tiêu kế tiếp:
 - Mục tiêu hiện tại pass tiêu chí chấp nhận.
@@ -218,7 +218,7 @@ Mục tiêu phase: giảm rủi ro khi chạy worker lâu dài hoặc nhiều wo
 
 ### Mục Tiêu 1 - Khảo Sát Worker Và Job Lifecycle
 
-Trạng thái: chưa làm.
+Trạng thái: hoàn thành ngày 2026-06-05.
 
 Mục tiêu:
 - Hiểu rõ worker hiện đang poll pending job, update status, retry và ghi lỗi như thế nào.
@@ -232,9 +232,27 @@ Tiêu chí chấp nhận:
 - Có ghi chú kỹ thuật trong `TASK_NEXT.md` hoặc `PROJECT_STATUS.md` về điểm cần sửa.
 - Chưa thay đổi behavior lớn trước khi nắm rõ lifecycle.
 
+Kết quả khảo sát:
+- Worker loop: `apps/worker/runner.py` gọi `run_forever(SessionLocal)`, mỗi vòng tạo session mới, `OCRWorker.run_once()` xử lý tối đa 1 job, không có job thì sleep 5 giây.
+- Job claim hiện tại: `OCRJobRepository.get_next_pending_job()` chỉ select job `pending` cũ nhất, không lock row, không `SKIP LOCKED`, không đổi status trong cùng transaction.
+- Điểm race chính: `run_once()` lấy job rồi `process_job()` mới set `ocr_running` và commit. Nhiều worker có thể lấy cùng pending job trước khi worker đầu commit.
+- Upload một file, multi-file và zip tạo job `job_type='ocr'`, `status='pending'`, document `ocr_pending`.
+- Reprocess thủ công và thay đổi source file tạo job `job_type='reprocess'`, `status='pending'`, `reason`, document `reprocess_pending`.
+- Active job hiện chỉ tính status `pending` và `ocr_running`; không có status riêng `reprocess_running` trong job table, reprocess chỉ thể hiện qua `job_type`.
+- Worker success path: document `ocr_running/reprocess_running -> chunking -> searchable`, job `completed`, set `completed_at`.
+- Worker error path: job `failed`, `error_message=str(exc)`; OCR thường đưa document `failed`, reprocess đưa document về trạng thái trước đó nếu có; source file chưa completed bị set `failed`.
+- Chưa có retry policy, `max_attempts`, delayed retry, failed reason taxonomy, worker id/lease hoặc timeout cho job đang chạy.
+- Health hiện chỉ có `/health` đơn giản, chưa có worker/queue readiness.
+
+Điểm cần sửa ở mục tiêu 2:
+- Thêm repository method claim atomic, ví dụ transaction `SELECT ... FOR UPDATE SKIP LOCKED` trên job `pending`, order `created_at asc`, limit 1.
+- Trong cùng transaction claim, set job `ocr_running`, tăng `attempts`, set `started_at`, clear/giữ `error_message` theo policy, rồi commit trước khi xử lý OCR dài.
+- `OCRWorker.run_once()` nên gọi claim method thay vì `get_next_pending_job()` + set status tách rời.
+- Giữ `has_active_job()` hoạt động với status active hiện tại để không phá upload/reprocess.
+
 ### Mục Tiêu 2 - Atomic Claim OCR Job
 
-Trạng thái: khóa.
+Trạng thái: chưa làm.
 
 Mục tiêu:
 - Đảm bảo nhiều worker song song không xử lý trùng một OCR job.
