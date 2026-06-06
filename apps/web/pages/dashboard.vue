@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { ContractStatus } from '~/types/contract'
 import type { ReviewQueueChunk, ReviewQueueFilters, SemanticSearchFilters } from '~/types/document'
 
 const query = ref('')
@@ -26,7 +27,10 @@ const filters = reactive<SemanticSearchFilters>({
   issued_date: '',
   doc_group: '',
   section_role: '',
-  requires_review: null
+  requires_review: null,
+  contract_number: '',
+  supplier_name: '',
+  contract_status: ''
 })
 
 const reviewQueueFilters = reactive<ReviewQueueFilters>({
@@ -62,6 +66,15 @@ const reviewOptions: Array<{ label: string; value: boolean | null }> = [
   { label: 'Tất cả review', value: null },
   { label: 'Cần review', value: true },
   { label: 'Đã ổn định', value: false }
+]
+
+const contractStatusOptions: Array<{ label: string; value: ContractStatus | '' }> = [
+  { label: 'Tất cả HĐ', value: '' },
+  { label: 'Nháp', value: 'draft' },
+  { label: 'Đang hiệu lực', value: 'active' },
+  { label: 'Hết hạn', value: 'expired' },
+  { label: 'Chấm dứt', value: 'terminated' },
+  { label: 'Hoàn thành', value: 'completed' }
 ]
 
 const reviewQueueRoleOptions = [
@@ -141,6 +154,14 @@ function resetFilters() {
   filters.doc_group = ''
   filters.section_role = ''
   filters.requires_review = null
+  filters.contract_number = ''
+  filters.supplier_name = ''
+  filters.contract_status = ''
+}
+
+function formatContractStatus(value?: string | null) {
+  const option = contractStatusOptions.find((item) => item.value === value)
+  return option?.label || value || ''
 }
 
 async function resetReviewQueueFilters() {
@@ -188,7 +209,11 @@ onMounted(async () => {
   await fetchCatalogOptions()
   const presetQuery = typeof route.query.q === 'string' ? route.query.q : ''
   const presetDocumentNumber = typeof route.query.document_number === 'string' ? route.query.document_number : ''
+  const presetContractNumber = typeof route.query.contract_number === 'string' ? route.query.contract_number : ''
+  const presetSupplierName = typeof route.query.supplier_name === 'string' ? route.query.supplier_name : ''
   if (presetDocumentNumber) filters.document_number = presetDocumentNumber
+  if (presetContractNumber) filters.contract_number = presetContractNumber
+  if (presetSupplierName) filters.supplier_name = presetSupplierName
   if (isAdmin.value) {
     await submitReviewQueue()
   }
@@ -343,7 +368,7 @@ onMounted(async () => {
             <InputText v-model="query" class="w-full" required placeholder="Tìm điều khoản, trách nhiệm, hợp đồng..." />
             <Button type="submit" label="Search" icon="pi pi-search" :loading="loading" :disabled="!query.trim()" />
           </div>
-          <div class="grid gap-3 md:grid-cols-6">
+          <div class="grid gap-3 md:grid-cols-3">
             <select v-model="filters.business_type" class="rounded border border-slate-300 px-3 py-2 text-sm">
               <option v-for="option in businessTypeFilterOptions" :key="option.value" :value="option.value">
                 {{ option.label }}
@@ -363,6 +388,13 @@ onMounted(async () => {
             </select>
             <select v-model="filters.requires_review" class="rounded border border-slate-300 px-3 py-2 text-sm">
               <option v-for="option in reviewOptions" :key="String(option.value)" :value="option.value">
+                {{ option.label }}
+              </option>
+            </select>
+            <InputText v-model="filters.contract_number" placeholder="Số hợp đồng" />
+            <InputText v-model="filters.supplier_name" placeholder="Nhà cung cấp" />
+            <select v-model="filters.contract_status" class="rounded border border-slate-300 px-3 py-2 text-sm">
+              <option v-for="option in contractStatusOptions" :key="option.value" :value="option.value">
                 {{ option.label }}
               </option>
             </select>
@@ -393,6 +425,11 @@ onMounted(async () => {
               <span v-if="result.issued_date"> · {{ result.issued_date }}</span>
               <span v-if="result.issuing_agency"> · {{ result.issuing_agency }}</span>
               <span v-if="result.page_from"> · Trang {{ result.page_from }}{{ result.page_to && result.page_to !== result.page_from ? `-${result.page_to}` : '' }}</span>
+            </p>
+            <p v-if="result.contract_number || result.supplier_name" class="mt-1 text-xs text-slate-500">
+              <span v-if="result.contract_number">HĐ {{ result.contract_number }}</span>
+              <span v-if="result.supplier_name"> · {{ result.supplier_name }}</span>
+              <span v-if="result.contract_status"> · {{ formatContractStatus(result.contract_status) }}</span>
             </p>
             <p class="mt-1 text-xs text-slate-500">
               {{ formatChunkMeta(result) }}

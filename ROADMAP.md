@@ -33,7 +33,7 @@ Cập nhật lần cuối: 2026-06-06
 Giới hạn còn lại (ưu tiên cho phase mới):
 - Worker chưa có lease timeout hoặc auto recovery cho job `ocr_running` khi worker crash giữa chừng.
 - RAG mới có API backend; frontend chưa có UI hỏi–đáp trên dashboard.
-- Module hợp đồng mới ở mức metadata CRUD; chưa liên kết sâu document detail ↔ contract và chưa filter search theo metadata hợp đồng.
+- Module hợp đồng đã liên kết hai chiều document detail ↔ contract và có filter search theo metadata hợp đồng; chưa mở module nghiệp vụ thứ hai.
 - Chưa có module nghiệp vụ thứ hai (công văn đến/đi, quyết định, phiếu vật tư).
 - Chưa có runbook nâng cấp/migration Alembic cho production nội bộ.
 - Chưa có LLM/generator nội bộ nâng cao; RAG hiện extractive từ chunk truy xuất.

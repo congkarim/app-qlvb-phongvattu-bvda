@@ -31,6 +31,42 @@ class ContractRepository:
         )
         return self.db.scalar(stmt)
 
+    def list_document_ids_by_metadata(
+        self,
+        *,
+        contract_number: str | None = None,
+        supplier_name: str | None = None,
+        status: str | None = None,
+    ) -> list[str]:
+        stmt = (
+            select(ContractRecord.document_id)
+            .join(ContractRecord.document)
+            .where(*self._conditions(
+                query=None,
+                document_id=None,
+                contract_number=contract_number,
+                supplier_name=supplier_name,
+                status=status,
+                sign_date_from=None,
+                sign_date_to=None,
+                effective_to_from=None,
+                effective_to_to=None,
+            ))
+        )
+        return list(self.db.scalars(stmt))
+
+    def map_active_by_document_ids(self, document_ids: list[str]) -> dict[str, ContractRecord]:
+        if not document_ids:
+            return {}
+        stmt = (
+            select(ContractRecord)
+            .where(
+                ContractRecord.document_id.in_(document_ids),
+                ContractRecord.deleted_at.is_(None),
+            )
+        )
+        return {record.document_id: record for record in self.db.scalars(stmt)}
+
     def list_contracts(
         self,
         *,

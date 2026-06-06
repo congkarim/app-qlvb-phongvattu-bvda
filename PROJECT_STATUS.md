@@ -136,6 +136,7 @@ Domain modules:
 - Phase 4 chọn module đầu tiên là **Hợp đồng và phụ lục hợp đồng**.
 - Đã thêm endpoint `GET /api/v1/contracts/by-document/{document_id}` để tra cứu metadata hợp đồng active theo document core (Phase 7 mục tiêu 1).
 - Frontend `/documents/[id]` hiển thị card Hợp đồng và liên kết hai chiều với `/contracts`; dashboard nhận preset search từ contracts (Phase 7 mục tiêu 2).
+- Semantic search/dashboard lọc theo metadata hợp đồng (`contract_number`, `supplier_name`, `contract_status`) và hiển thị metadata hợp đồng trong kết quả (Phase 7 mục tiêu 3).
 - Quyết định được ghi tại `docs/DOMAIN_MODULE_DECISION.md`, scope MVP chỉ quản lý metadata hợp đồng liên kết document core, chưa mở rộng sang inventory/procurement workflow.
 - Đã thêm bảng `contract_records` bằng migration `0011_contract_records`, có UUID primary key, `created_at`, `updated_at`, `deleted_at`, liên kết `documents.id` và index filter MVP cho số hợp đồng, nhà cung cấp, trạng thái, ngày ký và hiệu lực.
 - Đã thêm backend Contract API theo `router -> service -> repository`, hỗ trợ list/filter/get/create/update/soft-delete metadata hợp đồng, audit log cho create/update/delete và smoke HTTP `python -m app.scripts.smoke_contract_api`.
@@ -165,6 +166,22 @@ Ops/runbook:
 ## Đã Kiểm Tra Thủ Công
 
 Các kiểm tra sau đã chạy thành công:
+
+Phase 7 search filter theo metadata hợp đồng kiểm tra ngày 2026-06-06:
+
+```bash
+PYTHONPYCACHEPREFIX=/tmp/qlvb-pycache PYTHONPATH=apps/api python3 -m py_compile apps/api/app/schemas/search.py apps/api/app/services/search_service.py apps/api/app/routers/search.py apps/api/app/repositories/contract_repository.py apps/api/app/repositories/document_repository.py apps/api/app/scripts/smoke_api_workflows.py
+docker compose exec -T api python -m app.scripts.smoke_api_workflows
+docker compose run --rm --no-deps -e NODE_OPTIONS=--max-old-space-size=2048 web npm run build
+git diff --check
+```
+
+Kết quả:
+- Search nhận filter `contract_number`, `supplier_name`, `contract_status`; giới hạn `document_id` từ `contract_records` active trước Qdrant/DB.
+- Search không filter contract vẫn hoạt động như trước; kết quả có metadata hợp đồng khi document liên kết contract.
+- Dashboard thêm filter hợp đồng và hiển thị số HĐ/nhà cung cấp/trạng thái trong result.
+- Smoke API workflow pass, gồm filter supplier/contract number và empty result khi supplier không khớp.
+- Frontend build pass.
 
 Phase 7 liên kết hợp đồng ↔ document (frontend) kiểm tra ngày 2026-06-06:
 

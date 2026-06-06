@@ -602,6 +602,7 @@ class DocumentRepository:
         doc_group: str | None = None,
         section_role: str | None = None,
         requires_review: bool | None = None,
+        document_ids: set[str] | None = None,
     ) -> list[DocumentChunk]:
         terms = list(dict.fromkeys(term for term in re.findall(r"\w+", query.lower()) if len(term) >= 3))
         if not terms:
@@ -631,6 +632,7 @@ class DocumentRepository:
             doc_group=doc_group,
             section_role=section_role,
             requires_review=requires_review,
+            document_ids=document_ids,
         )
         return list(self.db.scalars(stmt))
 
@@ -646,6 +648,7 @@ class DocumentRepository:
         doc_group: str | None = None,
         section_role: str | None = None,
         requires_review: bool | None = None,
+        document_ids: set[str] | None = None,
     ) -> set[str]:
         if not chunk_ids:
             return set()
@@ -668,6 +671,7 @@ class DocumentRepository:
             doc_group=doc_group,
             section_role=section_role,
             requires_review=requires_review,
+            document_ids=document_ids,
         )
         return set(self.db.scalars(stmt))
 
@@ -683,6 +687,7 @@ class DocumentRepository:
         doc_group: str | None,
         section_role: str | None,
         requires_review: bool | None,
+        document_ids: set[str] | None = None,
     ):
         if document_type is not None:
             stmt = stmt.where(Document.document_type == document_type)
@@ -700,6 +705,8 @@ class DocumentRepository:
             stmt = stmt.where(DocumentChunk.section_role == section_role)
         if requires_review is not None:
             stmt = stmt.where(DocumentChunk.requires_review == requires_review)
+        if document_ids is not None:
+            stmt = stmt.where(Document.id.in_(document_ids))
         return stmt
 
     def update_chunk_qdrant_point_id(self, chunk: DocumentChunk, point_id: str) -> DocumentChunk:

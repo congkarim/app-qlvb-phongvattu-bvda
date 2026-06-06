@@ -15,8 +15,10 @@ from sqlalchemy import select
 from app.core.config import get_settings
 from app.core.security import hash_password
 from app.db.session import SessionLocal
+from app.models.contract import ContractRecord
 from app.models.document import Document, DocumentChunk, DocumentFile, DocumentPage
 from app.models.user import User
+from app.repositories.contract_repository import ContractRepository
 from app.repositories.document_repository import DocumentRepository
 from app.repositories.user_repository import UserRepository
 from app.services.chunk_payload import build_qdrant_payload
@@ -137,6 +139,57 @@ def run_smoke(*, api_base: str, keep_data: bool) -> dict[str, str]:
             "Reviewed chunk still appears in requires_review search",
         )
 
+        contract_search = _request_json(
+            "POST",
+            f"{api_base}/search/semantic",
+            token=admin_token,
+            payload={
+                "query": "api workflow smoke vat tu",
+                "limit": 5,
+                "supplier_name": seed["supplier_name"],
+            },
+        )
+        contract_results = contract_search.get("results", [])
+        _assert(contract_results, "Contract supplier_name search returned no results")
+        _assert(
+            all(result.get("document_id") == seed["document_id"] for result in contract_results),
+            "Contract supplier_name search returned chunks from other documents",
+        )
+        _assert(
+            all(result.get("supplier_name") == seed["supplier_name"] for result in contract_results),
+            "Contract supplier_name search missing contract metadata",
+        )
+
+        contract_number_search = _request_json(
+            "POST",
+            f"{api_base}/search/semantic",
+            token=admin_token,
+            payload={
+                "query": "api workflow smoke vat tu",
+                "limit": 5,
+                "contract_number": seed["contract_number"],
+            },
+        )
+        _assert(
+            any(result.get("chunk_id") in created_chunk_ids for result in contract_number_search.get("results", [])),
+            "Contract number search did not return smoke chunks",
+        )
+
+        unrelated_contract_search = _request_json(
+            "POST",
+            f"{api_base}/search/semantic",
+            token=admin_token,
+            payload={
+                "query": "api workflow smoke vat tu",
+                "limit": 5,
+                "supplier_name": "Nha cung cap khong ton tai",
+            },
+        )
+        _assert(
+            not unrelated_contract_search.get("results"),
+            "Contract supplier_name search should return empty for unrelated supplier",
+        )
+
         if not keep_data:
             _cleanup_created_data(db=db, qdrant=qdrant, document_id=seed["document_id"], user_id=seed["user_id"])
             db.commit()
@@ -222,6 +275,18 @@ def _seed_smoke_data(*, db, qdrant: QdrantService) -> dict[str, str]:
     )
     documents.update_status(document, "searchable")
 
+    contract_number = f"HD-SMOKE-{suffix}"
+    supplier_name = f"Nha cung cap smoke {suffix}"
+    contract = ContractRepository(db).create(
+        document_id=document.id,
+        contract_number=contract_number,
+        contract_title="Hop dong smoke api workflow",
+        supplier_name=supplier_name,
+        sign_date=date(2026, 6, 5),
+        status="active",
+        currency="VND",
+    )
+
     user_email = f"{SMOKE_USER_EMAIL_PREFIX}{suffix}@example.local"
     user = UserRepository(db).create(
         email=user_email,
@@ -251,6 +316,9 @@ def _seed_smoke_data(*, db, qdrant: QdrantService) -> dict[str, str]:
         "appendix_chunk_id": appendix_chunk.id,
         "user_id": user.id,
         "user_email": user.email,
+        "contract_id": contract.id,
+        "contract_number": contract_number,
+        "supplier_name": supplier_name,
     }
 
 
@@ -354,6 +422,9 @@ def _cleanup_created_data(*, db, qdrant: QdrantService, document_id: str | None,
             for row in db.scalars(select(model).where(model.document_id == document_id)):
                 row.deleted_at = deleted_at
                 db.add(row)
+        for record in db.scalars(select(ContractRecord).where(ContractRecord.document_id == document_id)):
+            record.deleted_at = deleted_at
+            db.add(record)
         document = db.get(Document, document_id)
         if document is not None:
             document.deleted_at = deleted_at

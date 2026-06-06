@@ -2,6 +2,7 @@ from datetime import date
 
 from sqlalchemy.orm import Session
 
+from app.repositories.contract_repository import ContractRepository
 from app.repositories.document_repository import DocumentRepository
 from app.services.embedding_service import EmbeddingService
 from app.services.qdrant_service import QdrantService
@@ -28,7 +29,18 @@ class SearchService:
         doc_group: str | None = None,
         section_role: str | None = None,
         requires_review: bool | None = None,
+        contract_number: str | None = None,
+        supplier_name: str | None = None,
+        contract_status: str | None = None,
     ) -> list[dict]:
+        contract_document_ids = self._resolve_contract_document_ids(
+            contract_number=contract_number,
+            supplier_name=supplier_name,
+            contract_status=contract_status,
+        )
+        if contract_document_ids is not None and not contract_document_ids:
+            return []
+
         vector = self.embeddings.embed(query)
         search_limit = min(max(limit * 8, limit + 20), 100)
         filters = {
@@ -56,16 +68,20 @@ class SearchService:
             doc_group=doc_group,
             section_role=section_role,
             requires_review=requires_review,
+            document_ids=contract_document_ids,
         )
         candidates = []
         for hit in hits:
             payload = hit.payload or {}
             chunk_id = str(payload.get("chunk_id") or "")
+            document_id = str(payload.get("document_id") or "")
+            if contract_document_ids is not None and document_id not in contract_document_ids:
+                continue
             if allowed_chunk_ids is not None and chunk_id not in allowed_chunk_ids:
                 continue
             text = payload.get("text", "")
             candidate = {
-                "document_id": payload.get("document_id", ""),
+                "document_id": document_id,
                 "chunk_id": chunk_id,
                 "score": hit.score,
                 "text": text,
@@ -105,6 +121,7 @@ class SearchService:
             doc_group=doc_group,
             section_role=section_role,
             requires_review=requires_review,
+            document_ids=contract_document_ids,
         ):
             existing = candidates_by_chunk_id.get(str(candidate["chunk_id"]))
             if existing:
@@ -163,7 +180,44 @@ class SearchService:
             )
             if len(results) >= limit:
                 break
-        return results
+        return self._attach_contract_metadata(results)
+
+    def _resolve_contract_document_ids(
+        self,
+        *,
+        contract_number: str | None,
+        supplier_name: str | None,
+        contract_status: str | None,
+    ) -> set[str] | None:
+        if self.db is None:
+            return None
+        if not any([contract_number, supplier_name, contract_status]):
+            return None
+        document_ids = ContractRepository(self.db).list_document_ids_by_metadata(
+            contract_number=contract_number,
+            supplier_name=supplier_name,
+            status=contract_status,
+        )
+        return set(document_ids)
+
+    def _attach_contract_metadata(self, results: list[dict]) -> list[dict]:
+        if self.db is None or not results:
+            return results
+        document_ids = list({str(result.get("document_id") or "") for result in results if result.get("document_id")})
+        contracts = ContractRepository(self.db).map_active_by_document_ids(document_ids)
+        enriched = []
+        for result in results:
+            contract = contracts.get(str(result.get("document_id") or ""))
+            enriched.append(
+                {
+                    **result,
+                    "contract_id": contract.id if contract else None,
+                    "contract_number": contract.contract_number if contract else None,
+                    "supplier_name": contract.supplier_name if contract else None,
+                    "contract_status": contract.status if contract else None,
+                }
+            )
+        return enriched
 
     def _keyword_candidates(
         self,
@@ -178,6 +232,7 @@ class SearchService:
         doc_group: str | None,
         section_role: str | None,
         requires_review: bool | None,
+        document_ids: set[str] | None,
     ) -> list[dict]:
         if self.db is None:
             return []
@@ -193,6 +248,7 @@ class SearchService:
             doc_group=doc_group,
             section_role=section_role,
             requires_review=requires_review,
+            document_ids=document_ids,
         )
         candidates = []
         for chunk in chunks:
@@ -247,6 +303,7 @@ class SearchService:
         doc_group: str | None,
         section_role: str | None,
         requires_review: bool | None,
+        document_ids: set[str] | None,
     ) -> set[str] | None:
         if self.db is None:
             return None
@@ -262,6 +319,7 @@ class SearchService:
             doc_group=doc_group,
             section_role=section_role,
             requires_review=requires_review,
+            document_ids=document_ids,
         )
 
     def _dedup_key(self, payload: dict) -> str:

@@ -1,6 +1,10 @@
 from datetime import date
+from typing import Literal
 
 from pydantic import BaseModel, Field
+
+
+ContractStatus = Literal["draft", "active", "expired", "terminated", "completed"]
 
 
 class SemanticSearchRequest(BaseModel):
@@ -14,6 +18,9 @@ class SemanticSearchRequest(BaseModel):
     doc_group: str | None = Field(default=None, max_length=8)
     section_role: str | None = Field(default=None, max_length=64)
     requires_review: bool | None = None
+    contract_number: str | None = Field(default=None, max_length=128)
+    supplier_name: str | None = Field(default=None, max_length=255)
+    contract_status: ContractStatus | None = None
 
 
 class SemanticSearchResult(BaseModel):
@@ -33,6 +40,10 @@ class SemanticSearchResult(BaseModel):
     section_role: str | None = None
     section_path: list[str] = Field(default_factory=list)
     requires_review: bool = False
+    contract_id: str | None = None
+    contract_number: str | None = None
+    supplier_name: str | None = None
+    contract_status: str | None = None
 
 
 class SemanticSearchResponse(BaseModel):

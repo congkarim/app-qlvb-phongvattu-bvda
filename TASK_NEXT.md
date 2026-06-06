@@ -22,7 +22,7 @@ Tài liệu này là checklist thực thi tuần tự bám theo `ROADMAP.md`. Kh
 
 Phase hiện tại: Phase 7 - Domain Integration Và Module Mở Rộng.
 
-Mục tiêu tiếp theo phải làm: Phase 7 / Mục tiêu 3 - Search Filter Theo Metadata Hợp Đồng.
+Mục tiêu tiếp theo phải làm: Phase 7 / Mục tiêu 4 - Thiết Kế Module Công Văn Đến/Đi.
 
 Điều kiện chuyển sang mục tiêu kế tiếp:
 - Mục tiêu hiện tại pass tiêu chí chấp nhận.
@@ -1145,26 +1145,20 @@ Sau khi hoàn thành:
 
 ### Mục Tiêu 3 - Search Filter Theo Metadata Hợp Đồng
 
-Trạng thái: chưa làm.
+Trạng thái: hoàn thành ngày 2026-06-06.
 
 Mục tiêu:
 - Dashboard/search lọc được theo metadata hợp đồng MVP mà không thay thế semantic search core.
 
-Phạm vi backend:
-- Mở rộng search request/filter để nhận ít nhất một trong các field: `contract_number`, `supplier_name`, `contract_status`.
-- Lọc bằng cách giới hạn tập `document_id` từ `contract_records` active trước khi query Qdrant/DB; không denormalize contract metadata vào Qdrant nếu chưa cần.
-- Giữ pagination, filter chunk hiện có (`section_role`, `requires_review`, ...).
+Kết quả:
+- Mở rộng `SemanticSearchRequest` với `contract_number`, `supplier_name`, `contract_status`.
+- `SearchService` giới hạn tập `document_id` từ `contract_records` active trước khi query Qdrant/DB; không denormalize metadata vào Qdrant.
+- `DocumentRepository` hỗ trợ filter `document_ids` cho keyword search và chunk validation.
+- Response search bổ sung metadata hợp đồng (`contract_id`, `contract_number`, `supplier_name`, `contract_status`) khi document có contract active.
+- Frontend `/dashboard` thêm filter hợp đồng và hiển thị metadata trong kết quả; nhận preset query `contract_number`/`supplier_name`.
+- Smoke `python -m app.scripts.smoke_api_workflows` kiểm tra filter `supplier_name`/`contract_number` và empty result khi supplier không khớp.
 
-Phạm vi frontend:
-- Thêm filter contract trên `/dashboard` qua composable/service search hiện có.
-- Hiển thị metadata hợp đồng trong result nếu đã có sẵn hoặc fetch nhẹ theo document.
-
-Tiêu chí chấp nhận:
-- Search với `supplier_name` hoặc `contract_number` chỉ trả chunk thuộc document có contract khớp.
-- Search không filter contract vẫn hoạt động như trước.
-- Smoke API workflow hoặc script search contract filter pass.
-
-Kiểm tra cần chạy:
+Kiểm tra đã chạy:
 
 ```bash
 PYTHONPYCACHEPREFIX=/tmp/qlvb-pycache PYTHONPATH=apps/api python3 -m py_compile apps/api/app/schemas/search.py apps/api/app/services/search_service.py apps/api/app/routers/search.py
@@ -1182,7 +1176,7 @@ Sau khi hoàn thành:
 
 ### Mục Tiêu 4 - Thiết Kế Module Công Văn Đến/Đi
 
-Trạng thái: khóa.
+Trạng thái: chưa làm.
 
 Mục tiêu:
 - Ghi quyết định scope module nghiệp vụ thứ hai trước khi viết migration/API.

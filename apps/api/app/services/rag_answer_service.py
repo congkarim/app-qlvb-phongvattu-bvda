@@ -25,6 +25,9 @@ class SearchBackend(Protocol):
         doc_group: str | None = None,
         section_role: str | None = None,
         requires_review: bool | None = None,
+        contract_number: str | None = None,
+        supplier_name: str | None = None,
+        contract_status: str | None = None,
     ) -> list[dict]:
         ...
 
@@ -65,6 +68,9 @@ class RagAnswerService:
         doc_group: str | None = None,
         section_role: str | None = None,
         requires_review: bool | None = None,
+        contract_number: str | None = None,
+        supplier_name: str | None = None,
+        contract_status: str | None = None,
     ) -> dict:
         results = self.search.semantic_search(
             query=query,
@@ -77,6 +83,9 @@ class RagAnswerService:
             doc_group=doc_group,
             section_role=section_role,
             requires_review=requires_review,
+            contract_number=contract_number,
+            supplier_name=supplier_name,
+            contract_status=contract_status,
         )
         evidence = [
             result

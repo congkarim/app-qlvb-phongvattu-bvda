@@ -1,3 +1,5 @@
+import type { ContractStatus } from '~/types/contract'
+
 export interface OCRJob {
   id: string
   document_id: string
@@ -228,6 +230,10 @@ export interface SearchResult {
   section_role?: string | null
   section_path: string[]
   requires_review: boolean
+  contract_id?: string | null
+  contract_number?: string | null
+  supplier_name?: string | null
+  contract_status?: ContractStatus | string | null
 }
 
 export interface SemanticSearchFilters {
@@ -239,4 +245,7 @@ export interface SemanticSearchFilters {
   doc_group?: string
   section_role?: string
   requires_review?: boolean | null
+  contract_number?: string
+  supplier_name?: string
+  contract_status?: ContractStatus | ''
 }
