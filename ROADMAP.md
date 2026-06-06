@@ -34,9 +34,7 @@ Cập nhật lần cuối: 2026-06-06
 - On-prem hardening: env/secret/CORS guard, backup/restore runbook, health/readiness, log policy, compose resource limits.
 
 Giới hạn còn lại (ưu tiên Phase 8–9):
-- Worker chưa có lease timeout hoặc auto recovery cho job `ocr_running` khi worker crash giữa chừng.
-- Admin chưa có endpoint/UI tối thiểu để xem và xử lý job/document bị kẹt ngoài runbook thủ công.
-- Chưa có runbook nâng cấp/migration Alembic cho production nội bộ.
+- Chưa có smoke/script chuyên dụng mô phỏng worker crash và xác nhận stale recovery end-to-end (Phase 8 mục tiêu 5).
 - RAG mới có API backend; frontend chưa có UI hỏi–đáp trên dashboard.
 - Chưa có module nghiệp vụ thứ ba (quyết định, phiếu vật tư).
 - Chưa có LLM/generator nội bộ nâng cao; RAG hiện extractive từ chunk truy xuất.

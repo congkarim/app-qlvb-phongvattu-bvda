@@ -25,7 +25,7 @@ Phase trước: Phase 7 hoàn thành ngày 2026-06-06.
 
 Phase hiện tại: Phase 8 - Worker Resilience Và Production Upgrade.
 
-Mục tiêu tiếp theo: Phase 8 / Mục tiêu 4 - Runbook Nâng Cấp Alembic Production.
+Mục tiêu tiếp theo: Phase 8 / Mục tiêu 5 - Smoke Worker Recovery Sau Crash Mô Phỏng.
 
 Điều kiện chuyển sang mục tiêu kế tiếp:
 - Mục tiêu hiện tại pass tiêu chí chấp nhận.
@@ -131,7 +131,7 @@ git diff --check
 
 ### Mục Tiêu 4 - Runbook Nâng Cấp Alembic Production
 
-Trạng thái: chưa làm.
+Trạng thái: hoàn thành (2026-06-06).
 
 Skill bắt buộc: `solution-architect`, `project-git-manager`.
 

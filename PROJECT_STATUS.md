@@ -8,12 +8,12 @@ Cập nhật lần cuối: 2026-06-06
 
 Hệ thống chạy on-prem bằng Docker Compose (`api`, `worker`, `web`, `postgres`, `redis`, `qdrant`). Workflow web end-to-end: upload → OCR/extract → searchable → semantic search → review chunk → audit. Module nghiệp vụ MVP: hợp đồng (`/contracts`) và công văn đến/đi (`/dispatches`), liên kết hai chiều với document detail; dashboard lọc search theo metadata hợp đồng.
 
-Con trỏ tiếp theo: `TASK_NEXT.md` → Phase 8 / Mục tiêu 4 (runbook nâng cấp Alembic production).
+Con trỏ tiếp theo: `TASK_NEXT.md` → Phase 8 / Mục tiêu 5 (smoke worker recovery sau crash mô phỏng).
 
 ## Giới Hạn Còn Lại
 
 Ưu tiên Phase 8–9 (đồng bộ với `ROADMAP.md`):
-- Chưa có runbook nâng cấp/migration Alembic cho production nội bộ.
+- Chưa có smoke/script chuyên dụng mô phỏng worker crash và xác nhận stale recovery end-to-end (Phase 8 mục tiêu 5).
 - RAG mới có API backend; frontend chưa có UI hỏi–đáp trên dashboard.
 - Chưa có module nghiệp vụ thứ ba (quyết định, phiếu vật tư).
 - Chưa có LLM/generator nội bộ nâng cao; RAG hiện extractive từ chunk truy xuất.
@@ -1671,5 +1671,18 @@ Kết quả:
 - User thường bị `403` ở endpoint ops (router `require_admin`).
 - Cập nhật `docs/WORKER_OPS_RUNBOOK.md`: command curl liệt kê/recover stale, cấu hình lease, hướng dẫn dừng worker khi recover thủ công.
 - Smoke `smoke_worker_operations` pass: seed job stale, admin list/recover, user 403; `git diff --check` pass.
+
+Phase 8 / Mục tiêu 4 — Runbook nâng cấp Alembic production (2026-06-06):
+
+```bash
+git diff --check
+```
+
+Kiểm tra: tài liệu runbook; `git diff --check` pass.
+
+Kết quả:
+- Thêm `docs/PRODUCTION_UPGRADE_RUNBOOK.md`: checklist trước upgrade, backup PostgreSQL, thứ tự **dừng worker → migrate → start api/worker/web**, smoke sau upgrade, rollback application và restore DB tối thiểu.
+- Liên kết tới `docs/STORAGE_BACKUP_RESTORE_RUNBOOK.md`, `docs/ON_PREM_ENV_RUNBOOK.md`, `docs/WORKER_OPS_RUNBOOK.md`.
+- Command copy-paste cho on-prem Docker Compose: `alembic current/heads/upgrade head`, `docker compose stop worker web`, `docker compose up -d api worker web`, `smoke_worker_operations`, health checks.
 
 Chi tiết phase và mục tiêu tiếp theo nằm trong `TASK_NEXT.md` và `ROADMAP.md`.
