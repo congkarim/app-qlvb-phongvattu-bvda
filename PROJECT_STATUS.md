@@ -8,7 +8,7 @@ Cập nhật lần cuối: 2026-06-06
 
 Hệ thống chạy on-prem bằng Docker Compose (`api`, `worker`, `web`, `postgres`, `redis`, `qdrant`). Workflow web end-to-end: upload → OCR/extract → searchable → semantic search → review chunk → audit. Module nghiệp vụ MVP: hợp đồng (`/contracts`) và công văn đến/đi (`/dispatches`), liên kết hai chiều với document detail; dashboard lọc search theo metadata hợp đồng.
 
-Con trỏ tiếp theo: `TASK_NEXT.md` → Phase 8 / Mục tiêu 1 (khảo sát job kẹt và thiết kế lease recovery).
+Con trỏ tiếp theo: `TASK_NEXT.md` → Phase 8 / Mục tiêu 2 (stale-job recovery backend).
 
 ## Giới Hạn Còn Lại
 
@@ -1559,5 +1559,83 @@ Workflow MVP hiện có:
 web upload -> document detail -> OCR status refresh -> searchable -> dashboard search -> open source document
 contracts/dispatches <-> document detail (liên kết hai chiều metadata nghiệp vụ)
 ```
+
+Phase 8 / Mục tiêu 1 — Khảo sát job kẹt và thiết kế lease recovery (2026-06-06):
+
+```bash
+sed -n '29,45p' apps/api/app/workers/ocr_worker.py
+sed -n '60,195p' apps/api/app/workers/ocr_worker.py
+sed -n '271,315p' apps/api/app/workers/ocr_worker.py
+sed -n '415,433p' apps/api/app/workers/ocr_worker.py
+sed -n '755,865p' apps/api/app/repositories/document_repository.py
+sed -n '106,126p' apps/api/app/models/document.py
+sed -n '1,52p' apps/api/app/core/config.py
+git diff --check
+```
+
+Kiểm tra: khảo sát read-only, không thay đổi runtime; `git diff --check` pass.
+
+Kết quả khảo sát lifecycle job `ocr_running`:
+
+- Worker entrypoint `run_forever()` tạo session mới mỗi vòng, gọi `OCRWorker.run_once()` → `claim_next_pending_job()` → `commit` claim → `process_job()`.
+- `OCRJobRepository.claim_next_pending_job()` chọn job `pending` cũ nhất thỏa `next_run_at` rỗng hoặc đã tới hạn, khóa `FOR UPDATE SKIP LOCKED`, rồi trong cùng transaction: `status='ocr_running'`, `attempts += 1`, `started_at=now`, clear `next_run_at`/`failed_reason`/`error_message`.
+- Job giữ `ocr_running` suốt `process_job()` cho đến khi thành công (`completed`) hoặc lỗi (`pending` retry hoặc `failed`). Không có lease timeout hay worker id trên bảng `ocr_jobs`.
+- `ACTIVE_STATUSES = {pending, ocr_running}`; `has_active_job()` chặn tạo job reprocess mới khi job cũ còn `ocr_running` — đây là nguyên nhân chính document “kẹt” sau worker crash.
+- Heartbeat file `/tmp/worker.heartbeat` chỉ ghi timestamp local trong container, không dùng cho lease recovery cross-worker.
+
+Trạng thái document/source file kẹt khi worker crash giữa chừng:
+
+| Giai đoạn trong `process_job()` | Document status | Source file (`document_files`) | Job status |
+| --- | --- | --- | --- |
+| Ngay sau commit đầu (OCR/reprocess extract) | `ocr_running` / `reprocess_running` | `pending` hoặc đang chuyển `ocr_running` từng file | `ocr_running` |
+| Giữa vòng `_extract_document_pages()` | như trên | Một số file `ocr_running`, file trước đó có thể đã `completed` | `ocr_running` |
+| Sau extract, trước chunk xong | `chunking` | Thường đã `completed` | `ocr_running` |
+| Giữa embed/Qdrant | `chunking` | `completed` | `ocr_running` |
+
+- Retry policy Phase 2 (`_record_job_failure`) chỉ chạy khi worker bắt được exception; process bị kill (SIGKILL, OOM, `docker compose stop`) không gọi nhánh này.
+- Lỗi recoverable dùng `failed_reason='processing_error'`; stale recovery nên dùng reason riêng `worker_lease_expired` (vẫn recoverable nếu còn lượt `max_attempts`).
+
+Policy lease timeout MVP đề xuất (triển khai ở Mục tiêu 2):
+
+Config mới trong `apps/api/app/core/config.py`:
+
+- `OCR_JOB_LEASE_TIMEOUT_SECONDS: int = 3600` — env `OCR_JOB_LEASE_TIMEOUT_SECONDS`. Ngưỡng mặc định 1 giờ: đủ cho PDF scan lớn on-prem; ops có thể tăng qua env nếu job OCR thật thường > 1h.
+- (Tuỳ chọn MVP) `OCR_JOB_STALE_RECOVERY_ENABLED: bool = True` — tắt recovery mà không đổi timeout khi debug.
+
+Phát hiện stale:
+
+- Điều kiện: `status = 'ocr_running'`, `deleted_at IS NULL`, `started_at IS NOT NULL`, `started_at + lease_timeout < now()`.
+- Không dùng heartbeat file; `started_at` tại thời điểm claim là lease marker duy nhất cần cho MVP.
+
+Hành vi recovery (không phá atomic claim và retry policy Phase 2):
+
+1. Chạy trong worker loop **trước** `claim_next_pending_job()` (MVP); mỗi job stale recover trong transaction riêng với `FOR UPDATE SKIP LOCKED` trên row job (tránh hai worker recover cùng lúc).
+2. **Không** tăng `attempts` lúc recovery — `attempts` đã tăng lúc claim; lần claim tiếp theo mới tăng thêm (giữ đúng semantics retry hiện có).
+3. Clear `started_at` khi đưa job về `pending` để tránh recover lặp ngay.
+4. Nếu `attempts < max_attempts` (recoverable stale):
+   - Job → `pending`, `next_run_at = now + RETRY_DELAY_SECONDS` (30s, dùng hằng số hiện có), `failed_reason='worker_lease_expired'`, `error_message` mô tả lease timeout.
+   - Document → `ocr_pending` (job `ocr`) hoặc `reprocess_pending` (job `reprocess`).
+   - Source file chưa `completed` → `pending` (tái sử dụng `_reset_incomplete_files_pending`).
+   - Ghi audit/log: `ocr_job.stale_recovered` với `job_id`, `document_id`, `attempts`, `started_at`, `lease_timeout_seconds`.
+5. Nếu `attempts >= max_attempts`:
+   - Job → `failed`, `failed_reason='worker_lease_expired'`, `completed_at=now`, `next_run_at=NULL`.
+   - Document → `failed` (ocr) hoặc fallback trạng thái trước reprocess (giống `_record_job_failure`).
+   - Source file chưa completed → `failed`.
+6. Thêm `worker_lease_expired` vào tập lỗi **recoverable** (không nằm trong `UNRECOVERABLE_FAILURE_REASONS`) để nhất quán với retry policy.
+7. Job đang chạy thật **không** bị recover nhầm miễn là `lease_timeout` lớn hơn thời gian xử lý tối đa kỳ vọng; smoke Mục tiêu 5 cần job “fresh” và job stale tách biệt.
+
+Tương thích atomic claim:
+
+- Recovery chỉ đụng `ocr_running` quá hạn, không đụng `pending`.
+- Sau recovery, job về `pending` và được claim lại qua `claim_next_pending_job()` với `SKIP LOCKED` như hiện tại.
+- Smoke `smoke_worker_claim_atomic` và `smoke_worker_retry_policy` vẫn hợp lệ nếu recovery không chạy trên job non-stale.
+
+Rủi ro / việc cần làm ở Mục tiêu 2:
+
+- Job `job_type='ocr'` dùng `create_page()` không idempotent: nếu crash sau khi đã tạo một phần pages/chunks, retry có thể duplicate dữ liệu. Job `reprocess` an toàn hơn vì `replace_pages_for_document` / `replace_chunks_for_document`.
+- Đề xuất MVP Mục tiêu 2: trước khi đưa job ocr stale về `pending`, xóa pages/chunks (và point Qdrant tương ứng nếu đã upsert) tạo trong attempt bị gián đoạn, **hoặc** chuyển document sang luồng reprocess thay vì retry ocr trực tiếp — cần chọn một hướng trong implementation và bổ sung smoke.
+- Ops counter `running` trên `/api/v1/ops/worker-queue` vẫn đếm job `ocr_running` kể cả stale cho đến khi recovery chạy; Mục tiêu 3 có thể thêm counter/list stale.
+
+Chưa thay đổi code runtime trong mục tiêu này (chỉ tài liệu khảo sát).
 
 Chi tiết phase và mục tiêu tiếp theo nằm trong `TASK_NEXT.md` và `ROADMAP.md`.

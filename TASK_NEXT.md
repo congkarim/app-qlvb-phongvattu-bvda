@@ -25,7 +25,7 @@ Phase trước: Phase 7 hoàn thành ngày 2026-06-06.
 
 Phase hiện tại: Phase 8 - Worker Resilience Và Production Upgrade.
 
-Mục tiêu tiếp theo: Phase 8 / Mục tiêu 1 - Khảo Sát Job Kẹt Và Thiết Kế Lease Recovery.
+Mục tiêu tiếp theo: Phase 8 / Mục tiêu 2 - Stale-Job Recovery Backend.
 
 Điều kiện chuyển sang mục tiêu kế tiếp:
 - Mục tiêu hiện tại pass tiêu chí chấp nhận.
@@ -49,7 +49,7 @@ Mục tiêu phase: giảm rủi ro vận hành lâu dài khi worker crash hoặc
 
 ### Mục Tiêu 1 - Khảo Sát Job Kẹt Và Thiết Kế Lease Recovery
 
-Trạng thái: chưa làm.
+Trạng thái: hoàn thành (2026-06-06).
 
 Skill bắt buộc: `backend-fastapi`, `solution-architect`.
 
@@ -67,7 +67,11 @@ Tiêu chí chấp nhận:
 - Chưa thay đổi runtime behavior lớn trước khi hoàn tất khảo sát.
 
 Kết quả khảo sát:
-- (chưa có)
+- Job `ocr_running` giữ lease implicit qua `started_at`; worker crash không có cơ chế clear → `has_active_job()` chặn reprocess mới.
+- Document có thể kẹt ở `ocr_running`, `reprocess_running`, `chunking`; source file có thể kẹt ở `ocr_running`.
+- Policy MVP đề xuất: `OCR_JOB_LEASE_TIMEOUT_SECONDS` (mặc định 3600), phát hiện `started_at + lease < now`, recovery về `pending`/`failed` với `failed_reason=worker_lease_expired`, không tăng `attempts` lúc recovery, dùng `FOR UPDATE SKIP LOCKED`.
+- Rủi ro Goal 2: job `ocr` retry sau crash giữa chừng có thể duplicate pages nếu chưa cleanup partial state — cần xử lý trong implementation.
+- Chi tiết đầy đủ trong `PROJECT_STATUS.md` mục “Phase 8 / Mục tiêu 1”.
 
 ### Mục Tiêu 2 - Stale-Job Recovery Backend
 
