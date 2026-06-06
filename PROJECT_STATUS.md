@@ -137,6 +137,7 @@ Domain modules:
 - Quyết định được ghi tại `docs/DOMAIN_MODULE_DECISION.md`, scope MVP chỉ quản lý metadata hợp đồng liên kết document core, chưa mở rộng sang inventory/procurement workflow.
 - Đã thêm bảng `contract_records` bằng migration `0011_contract_records`, có UUID primary key, `created_at`, `updated_at`, `deleted_at`, liên kết `documents.id` và index filter MVP cho số hợp đồng, nhà cung cấp, trạng thái, ngày ký và hiệu lực.
 - Đã thêm backend Contract API theo `router -> service -> repository`, hỗ trợ list/filter/get/create/update/soft-delete metadata hợp đồng, audit log cho create/update/delete và smoke HTTP `python -m app.scripts.smoke_contract_api`.
+- Đã thêm frontend `/contracts` theo `page -> composable -> service -> API`, có list/filter/pagination, form tạo/sửa metadata, link document nguồn và xóa mềm admin-only.
 
 Ops/runbook:
 - `docs/WORKER_OPS_RUNBOOK.md` ghi command kiểm tra worker queue, chạy worker smoke, restart worker, xử lý job failed, reprocess, backup/restore PostgreSQL, Qdrant và uploaded source files.
@@ -144,6 +145,27 @@ Ops/runbook:
 ## Đã Kiểm Tra Thủ Công
 
 Các kiểm tra sau đã chạy thành công:
+
+Frontend Contract UI kiểm tra ngày 2026-06-06:
+
+```bash
+docker compose run --rm --no-deps web npm run build
+docker compose up -d web
+curl -fsS http://localhost:3000/contracts
+docker compose exec -T api python -m app.scripts.smoke_contract_api
+git diff --check
+```
+
+Kết quả:
+- Thêm type `ContractItem`, `ContractInput`, filter và response trong `apps/web/types/contract.ts`.
+- Thêm service `createContractService` gọi `/contracts`.
+- Thêm composable `useContracts` quản lý loading/error/pagination/save/delete.
+- Thêm page `/contracts` với filter/list/form tạo-sửa metadata hợp đồng, link sang document nguồn và nút delete chỉ hiển thị với admin.
+- Thêm nav `Contracts` trong app shell.
+- Frontend build pass; vẫn có warning chunk PrimeVue lớn như trước, không fail.
+- `curl /contracts` trả redirect về `/login` khi chưa đăng nhập, đúng theo auth middleware.
+- Contract API smoke vẫn pass sau khi thêm UI.
+- Phase 4 đã đạt điều kiện hoàn thành: module mới có metadata/filter/API/UI, không phá upload/OCR/search core.
 
 Backend Contract API kiểm tra ngày 2026-06-06:
 

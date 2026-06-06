@@ -254,6 +254,12 @@ docker compose exec -T api python -m app.scripts.smoke_rag_answer
 
 Module hợp đồng MVP lưu metadata nghiệp vụ liên kết với document core. Tạo/sửa/list/xem hợp đồng dùng token đăng nhập; xóa mềm metadata hợp đồng yêu cầu admin.
 
+Web UI:
+
+```text
+http://localhost:3000/contracts
+```
+
 Tạo metadata hợp đồng cho một document đã có:
 
 ```bash

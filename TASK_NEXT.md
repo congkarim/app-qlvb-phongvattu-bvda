@@ -19,9 +19,9 @@ Tài liệu này là checklist thực thi tuần tự bám theo `ROADMAP.md`. Kh
 
 ## Con Trỏ Hiện Tại
 
-Phase hiện tại: Phase 4 - Domain Modules.
+Phase hiện tại: Phase 5 - Admin Configuration Và Governance.
 
-Mục tiêu tiếp theo phải làm: Phase 4 / Mục tiêu 4 - Frontend Module UI.
+Mục tiêu tiếp theo phải làm: Phase 5 / Mục tiêu 1 - Thiết Kế Danh Mục Admin.
 
 Điều kiện chuyển sang mục tiêu kế tiếp:
 - Mục tiêu hiện tại pass tiêu chí chấp nhận.
@@ -551,7 +551,7 @@ Sau khi hoàn thành:
 
 ## Phase 4 - Domain Modules
 
-Trạng thái: đang làm.
+Trạng thái: hoàn thành ngày 2026-06-06.
 
 Mục tiêu phase: mở rộng từ kho văn bản chung sang các module nghiệp vụ thực tế của phòng vật tư.
 
@@ -702,7 +702,7 @@ Sau khi hoàn thành:
 
 ### Mục Tiêu 4 - Frontend Module UI
 
-Trạng thái: chưa làm.
+Trạng thái: hoàn thành ngày 2026-06-06.
 
 Mục tiêu:
 - Thêm frontend theo `page -> composable -> service -> API`.
@@ -716,6 +716,31 @@ Tiêu chí chấp nhận:
 - UI có workflow nghiệp vụ rõ.
 - Không gọi API trực tiếp trong component.
 
+Kết quả:
+- Thêm `apps/web/types/contract.ts`.
+- Thêm `apps/web/services/contract.service.ts`.
+- Thêm `apps/web/composables/useContracts.ts`.
+- Thêm page `apps/web/pages/contracts.vue`.
+- Thêm navigation `Contracts` trong `apps/web/app.vue`.
+- Page `/contracts` có list/filter/pagination, form tạo/sửa metadata hợp đồng, link về document nguồn và action xóa mềm chỉ hiện cho admin.
+- Frontend giữ đúng luồng `page -> composable -> service -> API`; component không gọi API trực tiếp.
+
+Kiểm tra đã chạy:
+
+```bash
+docker compose run --rm --no-deps web npm run build
+docker compose up -d web
+curl -fsS http://localhost:3000/contracts
+docker compose exec -T api python -m app.scripts.smoke_contract_api
+git diff --check
+```
+
+Sau khi hoàn thành:
+- Đã đọc lại `ROADMAP.md`.
+- Đã cập nhật `PROJECT_STATUS.md` với kết quả và kiểm tra đã chạy.
+- Đã cập nhật mục tiêu này thành `hoàn thành`.
+- Phase 4 đã đạt điều kiện hoàn thành, đã đánh dấu Phase 4 `hoàn thành` và mở khóa Phase 5.
+
 Điều kiện hoàn thành Phase 4:
 - Module mới không phá upload/OCR/search core.
 - Metadata module có thể filter/search được.
@@ -724,13 +749,13 @@ Tiêu chí chấp nhận:
 
 ## Phase 5 - Admin Configuration Và Governance
 
-Trạng thái: khóa đến khi Phase 4 hoàn thành.
+Trạng thái: đang làm.
 
 Mục tiêu phase: để admin cấu hình hệ thống thay vì sửa code cho danh mục và rule cơ bản.
 
 ### Mục Tiêu 1 - Thiết Kế Danh Mục Admin
 
-Trạng thái: khóa.
+Trạng thái: chưa làm.
 
 Mục tiêu:
 - Xác định danh mục cần quản lý: đơn vị/phòng ban, loại nghiệp vụ, loại văn bản.

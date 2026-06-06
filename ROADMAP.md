@@ -113,12 +113,12 @@ Tiêu chí hoàn thành:
 
 ### Phase 4 - Domain Modules
 
-Trạng thái: đang ưu tiên tiếp theo.
+Trạng thái: hoàn thành ngày 2026-06-06.
 
 Mục tiêu: mở rộng từ kho văn bản chung sang các module nghiệp vụ thực tế của phòng vật tư.
 
 Phạm vi ứng viên:
-- Hợp đồng và phụ lục hợp đồng: chọn làm module đầu tiên ngày 2026-06-06.
+- Hợp đồng và phụ lục hợp đồng: chọn làm module đầu tiên và triển khai MVP ngày 2026-06-06.
 - Công văn đến/đi.
 - Quyết định, thông báo, đề nghị mua sắm.
 - Phiếu/đề xuất vật tư nếu cần quản lý inventory workflow.
@@ -130,7 +130,7 @@ Tiêu chí hoàn thành:
 
 ### Phase 5 - Admin Configuration Và Governance
 
-Trạng thái: chưa bắt đầu.
+Trạng thái: đang ưu tiên tiếp theo.
 
 Mục tiêu: để admin cấu hình hệ thống thay vì sửa code cho các danh mục và rule cơ bản.
 
