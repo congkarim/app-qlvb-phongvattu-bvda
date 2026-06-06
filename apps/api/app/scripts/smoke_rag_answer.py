@@ -135,6 +135,11 @@ def main() -> None:
 
     result = run_smoke(api_base=args.api_base.rstrip("/"), keep_data=args.keep_data)
     print(json.dumps(result, ensure_ascii=False, indent=2))
+    if args.keep_data:
+        print(
+            "Fixture kept for manual UI checks. See docs/RAG_ANSWER_RUNBOOK.md "
+            '(dashboard query: "dieu 3 nghiem thu vat tu").'
+        )
 
 
 if __name__ == "__main__":

@@ -21,11 +21,11 @@ Lịch sử phase đã hoàn thành, kết quả khảo sát và log kiểm tra 
 
 ## Con Trỏ Hiện Tại
 
-Phase trước: Phase 8 hoàn thành ngày 2026-06-06.
+Phase trước: Phase 9 hoàn thành ngày 2026-06-06.
 
-Phase hiện tại: Phase 9 - RAG UX Và Search Nâng Cao.
+Phase hiện tại: Phase 10 - Module Quyết Định Và Thông Báo.
 
-Mục tiêu tiếp theo: Phase 9 / Mục Tiêu 3 - Smoke Và Runbook RAG Answer Trên Web.
+Mục tiêu tiếp theo: Phase 10 / Mục Tiêu 1 - Khảo Sát Và Thiết Kế Module Quyết Định.
 
 Điều kiện chuyển sang mục tiêu kế tiếp:
 - Mục tiêu hiện tại pass tiêu chí chấp nhận.
@@ -35,93 +35,109 @@ Mục tiêu tiếp theo: Phase 9 / Mục Tiêu 3 - Smoke Và Runbook RAG Answer 
 
 ---
 
-## Phase 9 - RAG UX Và Search Nâng Cao
+## Phase 10 - Module Quyết Định Và Thông Báo
 
 Trạng thái: đang làm (bắt đầu 2026-06-06).
 
-Mục tiêu phase: đưa RAG foundation từ API backend lên workflow người dùng trên dashboard và giữ citation rõ ràng.
+Mục tiêu phase: module nghiệp vụ thứ ba cho quyết định/thông báo theo pattern `contracts` và `dispatches`.
 
 Điều kiện hoàn thành phase:
-- User hỏi–đáp trên web với citation chunk/document/page.
-- Fallback `insufficient_evidence` hiển thị đúng trên UI.
-- Smoke hoặc benchmark RAG answer có thể chạy lại sau khi có UI.
+- Có quyết định scope trong `docs/DOMAIN_MODULE_DECISION.md`.
+- Schema, API CRUD, UI `/decisions` và smoke script tái chạy được.
+- Liên kết document detail hai chiều; không regression upload/OCR/search/RAG.
 
-### Mục Tiêu 1 - Khảo Sát RAG API Và Thiết Kế UX Dashboard
+### Mục Tiêu 1 - Khảo Sát Và Thiết Kế Module Quyết Định
 
-Trạng thái: hoàn thành (2026-06-06).
+Trạng thái: chưa làm.
 
-Skill bắt buộc: `frontend-nuxt`, `semantic-search-rag`, `solution-architect`.
-
-Mục tiêu:
-- Nắm contract `POST /api/v1/search/answer` và thiết kế UX MVP trên dashboard trước khi code UI.
-
-Phạm vi:
-- Đọc `rag_answer_service`, schema response, `smoke_rag_answer`, dashboard/search composable hiện có.
-- Xác định states UI: loading, grounded answer, `insufficient_evidence`, lỗi API.
-- Đề xuất component/composable/service structure theo `page -> composable -> service -> API`.
-
-Tiêu chí chấp nhận:
-- Ghi chú kỹ thuật trong `PROJECT_STATUS.md`; cập nhật mục Kết quả khảo sát dưới đây khi xong.
-- Không thêm LLM/cloud; giữ extractive RAG local hiện có.
-- Chưa thay đổi UI lớn trước khi hoàn tất khảo sát.
-
-Kết quả khảo sát:
-- API `POST /api/v1/search/answer` đã sẵn sàng (auth bắt buộc); response `grounded`/`fallback_reason`/`citations[]`; extractive local-only, không LLM.
-- Dashboard chỉ có semantic search (`useSemanticSearch` → `/search/semantic`); chưa có type/service/composable RAG.
-- UX MVP: panel Q&A riêng trên `/dashboard`, tái dùng `SemanticSearchFilters`, states loading/grounded/insufficient_evidence/error; citation link `/documents/{id}`.
-- Chi tiết đầy đủ trong `PROJECT_STATUS.md` mục “Phase 9 / Mục tiêu 1”.
-
-### Mục Tiêu 2 - RAG Q&A UI Trên Dashboard
-
-Trạng thái: hoàn thành (2026-06-06).
-
-Skill bắt buộc: `frontend-nuxt`, `semantic-search-rag`.
+Skill bắt buộc: `solution-architect`, `database-designer`, `backend-fastapi`.
 
 Mục tiêu:
-- User hỏi–đáp trên dashboard qua API RAG answer, hiển thị citation và link mở document/chunk.
+- Chọn scope MVP module quyết định/thông báo và ghi quyết định trong `docs/DOMAIN_MODULE_DECISION.md` trước khi code.
 
 Phạm vi:
-- Service/composable gọi `POST /api/v1/search/answer`.
-- UI panel Q&A trên `/dashboard`: input câu hỏi, answer, danh sách citation, trạng thái `insufficient_evidence`.
-- Tái sử dụng filter metadata search hiện có nếu phù hợp MVP.
+- Đọc pattern `contract_records`, `dispatch_records`, liên kết document, audit, quyền admin/user.
+- Đề xuất metadata tối thiểu, `business_type` mapping, API surface và boundary không làm trong MVP.
+- Không code schema/API/UI trong mục tiêu này.
 
 Tiêu chí chấp nhận:
-- Admin/user đã login gọi được RAG answer từ dashboard.
-- Citation hiển thị quote và nguồn (document/chunk/page).
-- `insufficient_evidence` có message rõ, không hiển thị answer giả.
+- Mục mới trong `DOMAIN_MODULE_DECISION.md` đủ để triển khai schema ở mục tiêu 2.
+- Ghi chú khảo sát trong `PROJECT_STATUS.md`.
+- Không thêm cloud/LLM; giữ document/chunk core.
+
+Kiểm tra bắt buộc:
+
+```bash
+git diff --check
+```
+
+### Mục Tiêu 2 - Schema Và Migration
+
+Trạng thái: chưa làm.
+
+Skill bắt buộc: `database-designer`, `backend-fastapi`.
+
+Mục tiêu:
+- Tạo bảng metadata quyết định với audit fields và soft delete.
+
+Phạm vi:
+- Alembic migration, SQLAlchemy model, quan hệ `Document`.
+- Indexes cho list/filter MVP.
+
+Tiêu chí chấp nhận:
+- Migration chạy được trên stack local.
+- Model khớp thiết kế mục tiêu 1.
+
+Kiểm tra bắt buộc:
+
+```bash
+docker compose exec -T api alembic upgrade head
+git diff --check
+```
+
+### Mục Tiêu 3 - Backend API Và Smoke
+
+Trạng thái: chưa làm.
+
+Skill bắt buộc: `backend-fastapi`, `project-git-manager`.
+
+Mục tiêu:
+- API CRUD `/api/v1/decisions` theo `router -> service -> repository` và smoke tái chạy được.
+
+Phạm vi:
+- Router, service, repository, schema, audit log, soft delete admin-only.
+- Script `smoke_decision_api` (hoặc tên tương đương).
+
+Tiêu chí chấp nhận:
+- Smoke pass; user/admin permission nhất quán với contracts/dispatches.
+
+Kiểm tra bắt buộc:
+
+```bash
+docker compose exec -T api python -m app.scripts.smoke_decision_api
+git diff --check
+```
+
+### Mục Tiêu 4 - Frontend UI Và Liên Kết Document
+
+Trạng thái: chưa làm.
+
+Skill bắt buộc: `frontend-nuxt`, `project-git-manager`.
+
+Mục tiêu:
+- Trang `/decisions` và liên kết hai chiều với document detail; hoàn tất phase 10.
+
+Phạm vi:
+- Page, composable, service, list/filter/form theo pattern `/contracts`.
+- Cập nhật `ROADMAP.md`, `PROJECT_STATUS.md`, thay `TASK_NEXT.md` bằng phase kế tiếp (nếu có), auto commit.
+
+Tiêu chí chấp nhận:
+- UI CRUD hoạt động với API; không regression semantic search/RAG dashboard.
 
 Kiểm tra bắt buộc:
 
 ```bash
 WEB_MEMORY_LIMIT=4g docker compose run --rm --no-deps -e NODE_OPTIONS=--max-old-space-size=3072 web npm run build
-git diff --check
-```
-
-Kết quả: build pass với `WEB_MEMORY_LIMIT=4g` (mặc định 512M OOM khi SSR); `git diff --check` pass.
-
-### Mục Tiêu 3 - Smoke Và Runbook RAG Answer Trên Web
-
-Trạng thái: chưa làm.
-
-Skill bắt buộc: `frontend-nuxt`, `backend-fastapi`, `project-git-manager`.
-
-Mục tiêu:
-- Có smoke/checklist tái chạy được cho RAG answer sau khi có UI; hoàn tất phase 9.
-
-Phạm vi:
-- Mở rộng hoặc bổ sung smoke (API + hướng dẫn kiểm tra UI thủ công ngắn trong README hoặc runbook nếu cần).
-- Xác nhận `smoke_rag_answer` vẫn pass; ghi command trong `PROJECT_STATUS.md`.
-- Phase 9 hoàn thành: cập nhật `ROADMAP.md`, `PROJECT_STATUS.md`, thay `TASK_NEXT.md` bằng checklist phase kế tiếp (nếu có), auto commit.
-
-Tiêu chí chấp nhận:
-- `docker compose exec -T api python -m app.scripts.smoke_rag_answer` pass.
-- UI dashboard Q&A hoạt động với fixture/smoke data hoặc checklist manual rõ ràng.
-- Không regression semantic search dashboard hiện có.
-
-Kiểm tra bắt buộc:
-
-```bash
-docker compose exec -T api python -m app.scripts.smoke_rag_answer
-docker compose run --rm --no-deps web npm run build
+docker compose exec -T api python -m app.scripts.smoke_decision_api
 git diff --check
 ```

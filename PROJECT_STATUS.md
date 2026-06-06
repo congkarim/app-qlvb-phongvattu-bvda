@@ -4,16 +4,15 @@ Cập nhật lần cuối: 2026-06-06
 
 ## Giai Đoạn Hiện Tại
 
-**Phase 0–8 đã hoàn thành.** **Phase 9 - RAG UX Và Search Nâng Cao** đang là phase hiện tại; checklist thực thi trong `TASK_NEXT.md` (chỉ phase đang làm), ưu tiên trong `ROADMAP.md`.
+**Phase 0–9 đã hoàn thành.** **Phase 10 - Module Quyết Định Và Thông Báo** đang là phase hiện tại; checklist thực thi trong `TASK_NEXT.md` (chỉ phase đang làm), ưu tiên trong `ROADMAP.md`.
 
 Hệ thống chạy on-prem bằng Docker Compose (`api`, `worker`, `web`, `postgres`, `redis`, `qdrant`). Workflow web end-to-end: upload → OCR/extract → searchable → semantic search → review chunk → audit. Module nghiệp vụ MVP: hợp đồng (`/contracts`) và công văn đến/đi (`/dispatches`), liên kết hai chiều với document detail; dashboard lọc search theo metadata hợp đồng.
 
-Con trỏ tiếp theo: `TASK_NEXT.md` → Phase 9 / Mục tiêu 3 (Smoke và runbook RAG answer trên web).
+Con trỏ tiếp theo: `TASK_NEXT.md` → Phase 10 / Mục tiêu 1 (Khảo sát và thiết kế module quyết định).
 
 ## Giới Hạn Còn Lại
 
-Ưu tiên Phase 9 (đồng bộ với `ROADMAP.md`):
-- Chưa có smoke/checklist tái chạy cho RAG answer sau khi có UI dashboard.
+Ưu tiên Phase 10 (đồng bộ với `ROADMAP.md`):
 - Chưa có module nghiệp vụ thứ ba (quyết định, phiếu vật tư).
 - Chưa có LLM/generator nội bộ nâng cao; RAG hiện extractive từ chunk truy xuất.
 
@@ -1788,5 +1787,23 @@ Kiểm tra: `npm run build` pass (cần `WEB_MEMORY_LIMIT=4g` vì container `web
 - **Composable** (`apps/web/composables/useRagAnswer.ts`): state loading/grounded/citations/fallback; methods `ask`, `clear`, `resetQuestion`.
 - **Component** (`apps/web/components/RagAnswerPanel.vue`): input câu hỏi, grounded answer + confidence, warn `insufficient_evidence` (không trình bày như câu trả lời chắc chắn), citation quote + metadata + link `/documents/{id}`.
 - **Dashboard** (`apps/web/pages/dashboard.vue`): Card **Hỏi đáp (RAG)** dưới Semantic search; dùng chung `filters` metadata; watch filter → clear answer + hint “Hỏi lại”.
+
+**Phase 9 hoàn thành ngày 2026-06-06.** Phase tiếp theo: Phase 10 - Module Quyết Định Và Thông Báo (`TASK_NEXT.md`).
+
+Phase 9 / Mục tiêu 3 — Smoke và runbook RAG answer trên web (2026-06-06):
+
+```bash
+docker compose exec -T api python -m app.scripts.smoke_rag_answer
+WEB_MEMORY_LIMIT=4g docker compose run --rm --no-deps -e NODE_OPTIONS=--max-old-space-size=3072 web npm run build
+git diff --check
+```
+
+Kiểm tra: `smoke_rag_answer` pass; `npm run build` pass với `WEB_MEMORY_LIMIT=4g`; `git diff --check` pass.
+
+Đã bổ sung:
+
+- **Runbook** `docs/RAG_ANSWER_RUNBOOK.md`: smoke API, `--keep-data` cho UI manual, checklist dashboard (grounded / `insufficient_evidence` / citation / regression semantic search), lệnh build frontend.
+- **README**: link runbook, hướng dẫn `--keep-data` và checklist UI.
+- **Smoke** `smoke_rag_answer.py`: in gợi ý runbook khi `--keep-data`.
 
 Chi tiết phase và mục tiêu tiếp theo nằm trong `TASK_NEXT.md` và `ROADMAP.md`.

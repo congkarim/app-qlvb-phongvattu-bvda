@@ -81,6 +81,12 @@ Storage volumes và backup/restore runbook:
 docs/STORAGE_BACKUP_RESTORE_RUNBOOK.md
 ```
 
+RAG answer smoke và checklist UI dashboard:
+
+```text
+docs/RAG_ANSWER_RUNBOOK.md
+```
+
 Login admin local:
 
 ```bash
@@ -289,6 +295,14 @@ Smoke RAG answer endpoint:
 ```bash
 docker compose exec -T api python -m app.scripts.smoke_rag_answer
 ```
+
+Giữ fixture để kiểm tra panel **Hỏi đáp (RAG)** trên `/dashboard`:
+
+```bash
+docker compose exec -T api python -m app.scripts.smoke_rag_answer --keep-data
+```
+
+Checklist UI thủ công (grounded answer, `insufficient_evidence`, citation, regression semantic search): `docs/RAG_ANSWER_RUNBOOK.md`.
 
 ## Test Contract API
 

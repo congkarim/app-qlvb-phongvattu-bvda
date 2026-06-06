@@ -15,7 +15,7 @@ Cập nhật lần cuối: 2026-06-06
 
 **Lộ trình Phase 0–7 đã hoàn thành.** Hệ thống có thể chạy on-prem bằng Docker Compose với các service `api`, `worker`, `web`, `postgres`, `redis`, `qdrant`.
 
-**Phase hiện tại: Phase 9 - RAG UX Và Search Nâng Cao** (checklist chi tiết trong `TASK_NEXT.md`).
+**Phase hiện tại: Phase 10 - Module Quyết Định Và Thông Báo** (checklist chi tiết trong `TASK_NEXT.md`).
 
 Đã hoàn thành:
 - Auth local, seed admin, cookie token frontend và RBAC nhẹ cho admin/user.
@@ -34,9 +34,8 @@ Cập nhật lần cuối: 2026-06-06
 - On-prem hardening: env/secret/CORS guard, backup/restore runbook, health/readiness, log policy, compose resource limits.
 - Worker lease timeout, stale-job recovery, ops endpoint job kẹt, runbook upgrade Alembic production, smoke worker stale recovery.
 
-Giới hạn còn lại (ưu tiên Phase 9):
-- Dashboard đã có UI RAG Q&A; chưa có smoke/checklist tái chạy cho workflow web.
-- Chưa có module nghiệp vụ thứ ba (quyết định, phiếu vật tư).
+Giới hạn còn lại (ưu tiên Phase 10):
+- Chưa có module nghiệp vụ thứ ba (quyết định/thông báo).
 - Chưa có LLM/generator nội bộ nâng cao; RAG hiện extractive từ chunk truy xuất.
 
 ## Lộ Trình Ưu Tiên
@@ -154,27 +153,42 @@ Tiêu chí hoàn thành:
 
 ### Phase 9 - RAG UX Và Search Nâng Cao
 
-Trạng thái: đang làm (bắt đầu 2026-06-06).
+Trạng thái: hoàn thành ngày 2026-06-06.
 
 Mục tiêu: đưa RAG foundation từ API backend lên workflow người dùng và cải thiện search theo dữ liệu thật.
 
-Phạm vi đề xuất:
-- UI hỏi–đáp trên dashboard dùng `POST /api/v1/search/answer`, hiển thị citation chunk/document/page.
-- Tinh chỉnh rerank/rule hoặc benchmark từ dữ liệu nghiệp vụ thật (không đổi model nếu chưa có bằng chứng).
-- Liên kết RAG answer với module nghiệp vụ (hợp đồng/công văn) khi filter metadata có sẵn.
-
-Không làm trong phase này trừ khi có yêu cầu rõ:
-- LLM local nặng hoặc cloud API.
-- Thay thế hoàn toàn semantic search MVP.
+Đã thực hiện:
+- Panel **Hỏi đáp (RAG)** trên `/dashboard` (`useRagAnswer`, `RagAnswerPanel`, `POST /search/answer`).
+- Fallback `insufficient_evidence` phân biệt rõ trên UI; citation quote + link document.
+- Runbook `docs/RAG_ANSWER_RUNBOOK.md` và smoke `smoke_rag_answer` tái chạy được.
 
 Tiêu chí hoàn thành:
 - User có thể hỏi–đáp trên web với citation rõ ràng.
 - Fallback `insufficient_evidence` hiển thị đúng trên UI.
 - Benchmark hoặc smoke RAG answer có thể chạy lại.
 
+### Phase 10 - Module Quyết Định Và Thông Báo
+
+Trạng thái: đang làm (bắt đầu 2026-06-06).
+
+Mục tiêu: mở module nghiệp vụ thứ ba cho quyết định/thông báo nội bộ theo pattern hợp đồng và công văn.
+
+Phạm vi đề xuất:
+- Thiết kế scope trong `docs/DOMAIN_MODULE_DECISION.md` trước khi code.
+- Schema `decision_records` (hoặc tên tương đương), API CRUD, UI `/decisions`, smoke script.
+- Liên kết hai chiều với document core; search/RAG tiếp tục dựa trên chunk/document.
+
+Không làm trong phase này:
+- Inventory/procurement workflow nhiều bước.
+- LLM local nặng hoặc cloud API.
+
+Tiêu chí hoàn thành:
+- Module có metadata riêng, filter list và không phá document/search core.
+- UI theo `page -> composable -> service -> API`; smoke tái chạy được.
+
 ## Ghi Chú Lập Kế Hoạch
 
-- `TASK_NEXT.md` chỉ chứa checklist phase đang làm (hiện Phase 9); lịch sử phase đã xong nằm trong `PROJECT_STATUS.md`.
+- `TASK_NEXT.md` chỉ chứa checklist phase đang làm (hiện Phase 10); lịch sử phase đã xong nằm trong `PROJECT_STATUS.md`.
 - Con trỏ thực thi: `TASK_NEXT.md` → `PROJECT_STATUS.md` → commit sau mỗi mục tiêu (skill `project-git-manager`).
 - Ưu tiên MVP và maintainability; mỗi module nghiệp vụ mới phải có quyết định scope trong `docs/DOMAIN_MODULE_DECISION.md`.
 - Mỗi mục tiêu Phase 9 khi hoàn thành phải auto commit theo quy tắc trong `TASK_NEXT.md`.
