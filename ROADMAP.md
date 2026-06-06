@@ -33,7 +33,7 @@ Cập nhật lần cuối: 2026-06-06
 Giới hạn còn lại (ưu tiên cho phase mới):
 - Worker chưa có lease timeout hoặc auto recovery cho job `ocr_running` khi worker crash giữa chừng.
 - RAG mới có API backend; frontend chưa có UI hỏi–đáp trên dashboard.
-- Module hợp đồng đã liên kết hai chiều document detail ↔ contract và có filter search theo metadata hợp đồng; chưa mở module nghiệp vụ thứ hai.
+- Module hợp đồng và công văn đến/đi đã có schema, API, UI MVP; document detail liên kết hai chiều và search filter theo metadata hợp đồng.
 - Chưa có module nghiệp vụ thứ hai (công văn đến/đi, quyết định, phiếu vật tư).
 - Chưa có runbook nâng cấp/migration Alembic cho production nội bộ.
 - Chưa có LLM/generator nội bộ nâng cao; RAG hiện extractive từ chunk truy xuất.
@@ -119,7 +119,7 @@ Tiêu chí hoàn thành:
 
 ### Phase 7 - Domain Integration Và Module Mở Rộng
 
-Trạng thái: đang ưu tiên tiếp theo.
+Trạng thái: hoàn thành ngày 2026-06-06.
 
 Mục tiêu: tăng giá trị nghiệp vụ thực tế sau khi nền tảng on-prem đã sẵn sàng, bắt đầu từ module hợp đồng hiện có và mở module nghiệp vụ thứ hai.
 

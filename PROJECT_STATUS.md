@@ -140,6 +140,7 @@ Domain modules:
 - Đã thiết kế module nghiệp vụ thứ hai **Công văn đến/đi** (`dispatch_records`) trong `docs/DOMAIN_MODULE_DECISION.md` trước khi implement schema/API/UI (Phase 7 mục tiêu 4).
 - Đã thêm bảng `dispatch_records` bằng migration `0013_dispatch_records`, liên kết 1-1 `documents.id` và index filter MVP (Phase 7 mục tiêu 5).
 - Đã thêm Dispatch API CRUD theo pattern contracts: `/api/v1/dispatches`, audit log và smoke `smoke_dispatch_api` (Phase 7 mục tiêu 6).
+- Frontend `/dispatches` quản lý metadata công văn đến/đi; document detail liên kết hai chiều với module dispatch (Phase 7 mục tiêu 7).
 - Quyết định được ghi tại `docs/DOMAIN_MODULE_DECISION.md`, scope MVP chỉ quản lý metadata hợp đồng liên kết document core, chưa mở rộng sang inventory/procurement workflow.
 - Đã thêm bảng `contract_records` bằng migration `0011_contract_records`, có UUID primary key, `created_at`, `updated_at`, `deleted_at`, liên kết `documents.id` và index filter MVP cho số hợp đồng, nhà cung cấp, trạng thái, ngày ký và hiệu lực.
 - Đã thêm backend Contract API theo `router -> service -> repository`, hỗ trợ list/filter/get/create/update/soft-delete metadata hợp đồng, audit log cho create/update/delete và smoke HTTP `python -m app.scripts.smoke_contract_api`.
@@ -169,6 +170,21 @@ Ops/runbook:
 ## Đã Kiểm Tra Thủ Công
 
 Các kiểm tra sau đã chạy thành công:
+
+Phase 7 frontend module công văn đến/đi kiểm tra ngày 2026-06-06:
+
+```bash
+docker compose run --rm --no-deps -e NODE_OPTIONS=--max-old-space-size=2048 web npm run build
+docker compose exec -T api python -m app.scripts.smoke_dispatch_api
+git diff --check
+```
+
+Kết quả:
+- Thêm type/service/composable/page `/dispatches` theo pattern `/contracts`.
+- Nav `Công văn`, list/filter/pagination, form tạo/sửa, link document và preset search dashboard.
+- Document detail hiển thị card Công văn và link tạo/mở metadata.
+- Frontend build pass; smoke dispatch API vẫn pass.
+- Ghi chú: build cần tạm dừng container khác nếu máy thiếu RAM (tránh SIGKILL ở Nitro step).
 
 Phase 7 backend API công văn đến/đi kiểm tra ngày 2026-06-06:
 

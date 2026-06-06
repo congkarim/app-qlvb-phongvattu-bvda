@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { ContractStatus } from '~/types/contract'
+import type { DispatchStatus, DispatchType } from '~/types/dispatch'
 import type { DocumentChunk, DocumentMetadataUpdateInput } from '~/types/document'
 import { formatDate, formatDateTime, formatFileSize } from '~/utils/format'
 
@@ -18,6 +19,11 @@ const {
   contractByDocumentLoading,
   fetchContractByDocumentId
 } = useContracts()
+const {
+  dispatchByDocument,
+  dispatchByDocumentLoading,
+  fetchDispatchByDocumentId
+} = useDispatches()
 const {
   document,
   loading,
@@ -227,6 +233,29 @@ function formatContractValue(value?: string | number | null, currency = 'VND') {
 
 const contractsPageLink = computed(() => `/contracts?document_id=${encodeURIComponent(documentId.value)}`)
 const createContractLink = computed(() => `${contractsPageLink.value}&create=1`)
+const dispatchesPageLink = computed(() => `/dispatches?document_id=${encodeURIComponent(documentId.value)}`)
+const createDispatchLink = computed(() => `${dispatchesPageLink.value}&create=1`)
+
+const dispatchTypeLabels: Record<DispatchType, string> = {
+  incoming: 'Công văn đến',
+  outgoing: 'Công văn đi'
+}
+
+const dispatchStatusLabels: Record<DispatchStatus, string> = {
+  draft: 'Nháp',
+  registered: 'Đã vào sổ',
+  processing: 'Đang xử lý',
+  completed: 'Hoàn thành',
+  archived: 'Lưu trữ'
+}
+
+function formatDispatchType(type?: DispatchType | null) {
+  return type ? dispatchTypeLabels[type] || type : '-'
+}
+
+function formatDispatchStatus(status?: DispatchStatus | null) {
+  return status ? dispatchStatusLabels[status] || status : '-'
+}
 
 function formatConfidence(value?: number | null): string {
   if (value === null || value === undefined) return '-'
@@ -383,7 +412,8 @@ onMounted(async () => {
   await Promise.all([
     fetchCatalogOptions(),
     fetchDocument(documentId.value),
-    fetchContractByDocumentId(documentId.value)
+    fetchContractByDocumentId(documentId.value),
+    fetchDispatchByDocumentId(documentId.value)
   ])
   syncMetadataForm()
   markDetailRefreshed()
@@ -391,7 +421,7 @@ onMounted(async () => {
 })
 
 watch(documentId, async (value) => {
-  await Promise.all([fetchDocument(value), fetchContractByDocumentId(value)])
+  await Promise.all([fetchDocument(value), fetchContractByDocumentId(value), fetchDispatchByDocumentId(value)])
   syncMetadataForm()
   markDetailRefreshed()
   if (shouldPoll.value) startPolling()
@@ -469,6 +499,56 @@ onBeforeUnmount(() => {
             <p class="text-sm text-slate-600">Văn bản này chưa có metadata hợp đồng liên kết.</p>
             <NuxtLink :to="createContractLink">
               <Button label="Tạo metadata hợp đồng" icon="pi pi-plus" size="small" />
+            </NuxtLink>
+          </div>
+        </template>
+      </Card>
+
+      <Card>
+        <template #title>Công văn</template>
+        <template #content>
+          <p v-if="dispatchByDocumentLoading" class="text-sm text-slate-600">Đang kiểm tra metadata công văn...</p>
+          <div v-else-if="dispatchByDocument" class="space-y-3">
+            <div class="grid gap-3 sm:grid-cols-2">
+              <div>
+                <p class="text-xs text-slate-500">Loại</p>
+                <p class="font-medium">{{ formatDispatchType(dispatchByDocument.dispatch_type) }}</p>
+              </div>
+              <div>
+                <p class="text-xs text-slate-500">Số công văn</p>
+                <p class="font-medium">{{ dispatchByDocument.document_number || '-' }}</p>
+              </div>
+              <div>
+                <p class="text-xs text-slate-500">Đơn vị ban hành</p>
+                <p class="font-medium">{{ dispatchByDocument.issuing_agency || '-' }}</p>
+              </div>
+              <div>
+                <p class="text-xs text-slate-500">Trạng thái</p>
+                <p class="font-medium">{{ formatDispatchStatus(dispatchByDocument.status) }}</p>
+              </div>
+              <div>
+                <p class="text-xs text-slate-500">Ngày ban hành</p>
+                <p class="font-medium">{{ formatDate(dispatchByDocument.issued_date) }}</p>
+              </div>
+              <div>
+                <p class="text-xs text-slate-500">Nơi nhận</p>
+                <p class="font-medium">{{ dispatchByDocument.recipient || '-' }}</p>
+              </div>
+              <div class="sm:col-span-2">
+                <p class="text-xs text-slate-500">Trích yếu</p>
+                <p class="font-medium">{{ dispatchByDocument.excerpt || '-' }}</p>
+              </div>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <NuxtLink :to="dispatchesPageLink">
+                <Button label="Mở Công văn" icon="pi pi-envelope" severity="secondary" size="small" />
+              </NuxtLink>
+            </div>
+          </div>
+          <div v-else class="space-y-3">
+            <p class="text-sm text-slate-600">Văn bản này chưa có metadata công văn liên kết.</p>
+            <NuxtLink :to="createDispatchLink">
+              <Button label="Tạo metadata công văn" icon="pi pi-plus" size="small" />
             </NuxtLink>
           </div>
         </template>

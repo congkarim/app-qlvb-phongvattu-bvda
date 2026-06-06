@@ -322,7 +322,9 @@ Response list: `{ items, total, limit, offset }` — pattern `ContractListRespon
 
 Lỗi nghiệp vụ: `404` không tìm thấy; `409` trùng dispatch active cho cùng `document_id`; `403` user delete.
 
-## Frontend Dự Kiến (Mục Tiêu 7)
+## Frontend Đã Triển Khai (Mục Tiêu 7)
+
+Mục tiêu 7 đã thêm page `/dispatches` theo `page -> composable -> service -> API`.
 
 - Route `/dispatches`: bảng list, filter, pagination, form tạo/sửa.
 - Query `document_id` / `create=1` để drill-down từ document detail (mục tiêu liên kết sau).

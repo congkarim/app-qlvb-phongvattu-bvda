@@ -22,7 +22,7 @@ Tài liệu này là checklist thực thi tuần tự bám theo `ROADMAP.md`. Kh
 
 Phase hiện tại: Phase 7 - Domain Integration Và Module Mở Rộng.
 
-Mục tiêu tiếp theo phải làm: Phase 7 / Mục tiêu 7 - Frontend Module Công Văn Đến/Đi.
+Mục tiêu tiếp theo phải làm: Phase 8 (chưa có checklist trong `TASK_NEXT.md`).
 
 Điều kiện chuyển sang mục tiêu kế tiếp:
 - Mục tiêu hiện tại pass tiêu chí chấp nhận.
@@ -1077,7 +1077,7 @@ Sau khi hoàn thành:
 
 ## Phase 7 - Domain Integration Và Module Mở Rộng
 
-Trạng thái: đang làm.
+Trạng thái: hoàn thành ngày 2026-06-06.
 
 Mục tiêu phase: tăng giá trị nghiệp vụ thực tế sau khi nền tảng on-prem đã sẵn sàng, bắt đầu từ module hợp đồng hiện có và mở module công văn đến/đi.
 
@@ -1262,23 +1262,18 @@ Sau khi hoàn thành:
 
 ### Mục Tiêu 7 - Frontend Module Công Văn Đến/Đi
 
-Trạng thái: chưa làm.
+Trạng thái: hoàn thành ngày 2026-06-06.
 
 Mục tiêu:
 - UI quản lý metadata công văn MVP theo pattern `/contracts`.
 
-Phạm vi frontend:
-- Thêm type/service/composable/page, ví dụ `/dispatches`.
-- List/filter/pagination, form tạo/sửa, link document nguồn, soft delete admin-only.
-- Thêm nav item phù hợp trong `app.vue`.
-- Liên kết document detail ↔ dispatch nếu pattern đã làm ở mục tiêu 1–2 có thể tái sử dụng.
+Kết quả:
+- Thêm `types/dispatch.ts`, `dispatch.service.ts`, `useDispatches`, page `/dispatches`.
+- List/filter/pagination, form tạo/sửa, link document nguồn, preset search dashboard, soft delete admin-only.
+- Nav `Công văn` trong `app.vue`.
+- `/documents/[id]` hiển thị card Công văn và link sang `/dispatches?document_id=...` / `create=1`.
 
-Tiêu chí chấp nhận:
-- User thao tác CRUD metadata công văn từ browser.
-- Frontend build pass.
-- Smoke dispatch API vẫn pass sau khi ghép UI.
-
-Kiểm tra cần chạy:
+Kiểm tra đã chạy:
 
 ```bash
 docker compose run --rm --no-deps -e NODE_OPTIONS=--max-old-space-size=2048 web npm run build
@@ -1286,9 +1281,11 @@ docker compose exec -T api python -m app.scripts.smoke_dispatch_api
 git diff --check
 ```
 
+Ghi chú: build pass sau khi tạm dừng các container khác để tránh OOM SIGKILL trong Nitro step.
+
 Sau khi hoàn thành:
 - Đã đọc lại `ROADMAP.md`.
 - Đã cập nhật `PROJECT_STATUS.md` với kết quả và kiểm tra đã chạy.
 - Đã cập nhật mục tiêu này thành `hoàn thành`.
 - Đã auto commit thay đổi liên quan.
-- Phase 7 đã đạt điều kiện hoàn thành; cập nhật trạng thái phase `hoàn thành`, commit, rồi chuyển con trỏ sang Phase 8 / Mục tiêu 1 khi `TASK_NEXT.md` đã có checklist Phase 8.
+- Phase 7 đã đạt điều kiện hoàn thành; cập nhật trạng thái phase `hoàn thành`, commit, chờ checklist Phase 8 trong `TASK_NEXT.md`.
