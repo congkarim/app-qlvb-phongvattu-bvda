@@ -282,6 +282,25 @@ Smoke Contract API:
 docker compose exec -T api python -m app.scripts.smoke_contract_api
 ```
 
+## Test Admin Catalog API
+
+Catalog API cung cấp option danh mục cho frontend và CRUD admin-only cho đơn vị/phòng ban, loại nghiệp vụ, loại văn bản.
+
+Read option bằng token đăng nhập:
+
+```bash
+curl http://localhost:8000/api/v1/catalogs/business-types \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+CRUD admin-only dùng prefix `/api/v1/admin/catalogs`.
+
+Smoke Catalog API:
+
+```bash
+docker compose exec -T api python -m app.scripts.smoke_catalog_api
+```
+
 ## Smoke Appendix Data
 
 Kiểm tra luồng phụ lục có dữ liệu thật từ document detail, review queue, semantic search và thao tác `Đã review`:

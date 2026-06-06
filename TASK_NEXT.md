@@ -21,7 +21,7 @@ Tài liệu này là checklist thực thi tuần tự bám theo `ROADMAP.md`. Kh
 
 Phase hiện tại: Phase 5 - Admin Configuration Và Governance.
 
-Mục tiêu tiếp theo phải làm: Phase 5 / Mục tiêu 2 - CRUD Danh Mục Có Audit.
+Mục tiêu tiếp theo phải làm: Phase 5 / Mục tiêu 3 - Frontend Dùng Option Từ API.
 
 Điều kiện chuyển sang mục tiêu kế tiếp:
 - Mục tiêu hiện tại pass tiêu chí chấp nhận.
@@ -788,7 +788,7 @@ Sau khi hoàn thành:
 
 ### Mục Tiêu 2 - CRUD Danh Mục Có Audit
 
-Trạng thái: chưa làm.
+Trạng thái: hoàn thành ngày 2026-06-06.
 
 Mục tiêu:
 - Admin thay đổi danh mục có audit log.
@@ -801,9 +801,44 @@ Phạm vi:
 Tiêu chí chấp nhận:
 - Audit log ghi được create/update/delete.
 
+Kết quả:
+- Thêm migration `apps/api/alembic/versions/0012_admin_catalogs.py`.
+- Thêm model `AdminCatalogItem` và mở rộng model `Department` với `description`, `sort_order`, `is_active`.
+- Thêm `apps/api/app/schemas/catalog.py`.
+- Thêm `apps/api/app/repositories/catalog_repository.py`.
+- Thêm `apps/api/app/services/catalog_service.py`.
+- Thêm `apps/api/app/routers/catalogs.py` và include router trong `apps/api/app/main.py`.
+- API read option cho user đăng nhập:
+  - `GET /api/v1/catalogs/departments`.
+  - `GET /api/v1/catalogs/business-types`.
+  - `GET /api/v1/catalogs/document-types`.
+- API CRUD admin-only:
+  - `POST/PATCH/DELETE /api/v1/admin/catalogs/departments`.
+  - `GET/POST/PATCH/DELETE /api/v1/admin/catalogs/items`.
+- Thêm smoke HTTP `python -m app.scripts.smoke_catalog_api`.
+
+Kiểm tra đã chạy:
+
+```bash
+PYTHONPYCACHEPREFIX=/tmp/qlvb-pycache PYTHONPATH=apps/api python3 -m py_compile apps/api/app/models/catalog.py apps/api/app/models/department.py apps/api/app/db/base.py apps/api/app/models/__init__.py apps/api/app/schemas/catalog.py apps/api/app/repositories/catalog_repository.py apps/api/app/services/catalog_service.py apps/api/app/routers/catalogs.py apps/api/app/scripts/smoke_catalog_api.py apps/api/app/main.py apps/api/alembic/versions/0012_admin_catalogs.py
+docker compose up -d api postgres redis qdrant
+docker compose exec -T api alembic upgrade head
+docker compose restart api
+docker compose exec -T api alembic current
+docker compose exec -T api python -m app.scripts.smoke_catalog_api
+docker compose exec -T api python -m app.scripts.smoke_contract_api
+git diff --check
+```
+
+Sau khi hoàn thành:
+- Đã đọc lại `ROADMAP.md`.
+- Đã cập nhật `PROJECT_STATUS.md` với kết quả và kiểm tra đã chạy.
+- Đã cập nhật mục tiêu này thành `hoàn thành`.
+- Đã chuyển con trỏ hiện tại sang `Phase 5 / Mục tiêu 3`.
+
 ### Mục Tiêu 3 - Frontend Dùng Option Từ API
 
-Trạng thái: khóa.
+Trạng thái: chưa làm.
 
 Mục tiêu:
 - Các form phù hợp lấy option từ API thay vì hardcode.

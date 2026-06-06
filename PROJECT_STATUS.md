@@ -142,6 +142,7 @@ Domain modules:
 Admin configuration:
 - Đã thiết kế danh mục admin tối thiểu trong `docs/ADMIN_CATEGORY_DESIGN.md`: `departments` là entity riêng; `business_type` và `document_type` dùng catalog item giới hạn, không mở thành framework cấu hình phức tạp.
 - Danh mục MVP cần CRUD tiếp theo: đơn vị/phòng ban, loại nghiệp vụ, loại văn bản; write admin-only, read cho user đã đăng nhập, soft delete và audit log.
+- Đã thêm backend Catalog API theo `router -> service -> repository`, gồm read option cho user đăng nhập và CRUD admin-only cho `departments`/`admin_catalog_items`, có soft delete và audit log create/update/delete.
 
 Ops/runbook:
 - `docs/WORKER_OPS_RUNBOOK.md` ghi command kiểm tra worker queue, chạy worker smoke, restart worker, xử lý job failed, reprocess, backup/restore PostgreSQL, Qdrant và uploaded source files.
@@ -149,6 +150,29 @@ Ops/runbook:
 ## Đã Kiểm Tra Thủ Công
 
 Các kiểm tra sau đã chạy thành công:
+
+CRUD danh mục admin kiểm tra ngày 2026-06-06:
+
+```bash
+PYTHONPYCACHEPREFIX=/tmp/qlvb-pycache PYTHONPATH=apps/api python3 -m py_compile apps/api/app/models/catalog.py apps/api/app/models/department.py apps/api/app/db/base.py apps/api/app/models/__init__.py apps/api/app/schemas/catalog.py apps/api/app/repositories/catalog_repository.py apps/api/app/services/catalog_service.py apps/api/app/routers/catalogs.py apps/api/app/scripts/smoke_catalog_api.py apps/api/app/main.py apps/api/alembic/versions/0012_admin_catalogs.py
+docker compose up -d api postgres redis qdrant
+docker compose exec -T api alembic upgrade head
+docker compose restart api
+docker compose exec -T api alembic current
+docker compose exec -T api python -m app.scripts.smoke_catalog_api
+docker compose exec -T api python -m app.scripts.smoke_contract_api
+git diff --check
+```
+
+Kết quả:
+- Thêm model `AdminCatalogItem` và migration `0012_admin_catalogs`.
+- Migration bổ sung `description`, `sort_order`, `is_active` cho `departments`, chuyển unique sang partial unique active và seed `VT`/`UNKNOWN`.
+- Migration tạo bảng `admin_catalog_items` cho `business_type` và `document_type`, có UUID, `created_at`, `updated_at`, `deleted_at`, `sort_order`, `is_active` và unique active theo `catalog_type/code`.
+- Thêm schema, repository, service và router `catalogs`.
+- Endpoint read cho user đăng nhập: `/catalogs/departments`, `/catalogs/business-types`, `/catalogs/document-types`.
+- Endpoint CRUD admin-only: `/admin/catalogs/departments` và `/admin/catalogs/items`.
+- Smoke pass: user đọc được option seed, user không tạo được catalog, admin create/update/delete được department và item, duplicate trả `409`, audit log create/update/delete được ghi.
+- Contract API smoke vẫn pass sau khi thêm catalog schema/API.
 
 Thiết kế danh mục admin kiểm tra ngày 2026-06-06:
 
