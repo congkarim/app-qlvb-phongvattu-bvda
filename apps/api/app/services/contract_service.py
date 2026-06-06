@@ -80,6 +80,16 @@ class ContractService:
     def get_contract(self, contract_id: str) -> dict[str, Any]:
         return self._read(self._get_contract(contract_id))
 
+    def get_contract_by_document_id(self, document_id: str) -> dict[str, Any]:
+        normalized_document_id = self._normalize_required(document_id, "document_id")
+        document = self.contracts.get_document(normalized_document_id)
+        if document is None:
+            raise ContractNotFoundError("Document not found")
+        record = self.contracts.get_active_by_document_id(normalized_document_id)
+        if record is None:
+            raise ContractNotFoundError("Contract metadata not found for this document")
+        return self._read(record)
+
     def create_contract(self, *, values: dict[str, Any], actor: User) -> dict[str, Any]:
         document_id = self._normalize_required(values.get("document_id"), "document_id")
         document = self.contracts.get_document(document_id)

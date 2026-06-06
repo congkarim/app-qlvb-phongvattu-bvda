@@ -51,6 +51,14 @@ def run_smoke(*, api_base: str, keep_data: bool) -> dict[str, Any]:
             expected_role="user",
         )
 
+        _expect_http_status(
+            "GET",
+            f"{api_base}/contracts/by-document/{seed['document_id']}",
+            token=user_token,
+            expected_status=404,
+            label="contract lookup before create",
+        )
+
         created = _request_json(
             "POST",
             f"{api_base}/contracts",
@@ -91,6 +99,14 @@ def run_smoke(*, api_base: str, keep_data: bool) -> dict[str, Any]:
         detail = _request_json("GET", f"{api_base}/contracts/{created_contract_id}", token=user_token)
         _assert(detail["document_title"].startswith(SMOKE_TITLE_PREFIX), "Contract detail missing document title")
 
+        by_document = _request_json(
+            "GET",
+            f"{api_base}/contracts/by-document/{seed['document_id']}",
+            token=user_token,
+        )
+        _assert(by_document["id"] == created_contract_id, "Contract lookup by document_id mismatch")
+        _assert(by_document["document_id"] == seed["document_id"], "Contract by-document document_id mismatch")
+
         updated = _request_json(
             "PATCH",
             f"{api_base}/contracts/{created_contract_id}",
@@ -126,6 +142,13 @@ def run_smoke(*, api_base: str, keep_data: bool) -> dict[str, Any]:
             token=admin_token,
             expected_status=404,
             label="deleted contract lookup",
+        )
+        _expect_http_status(
+            "GET",
+            f"{api_base}/contracts/by-document/{seed['document_id']}",
+            token=admin_token,
+            expected_status=404,
+            label="deleted contract lookup by document",
         )
         _assert(_audit_count(db, created_contract_id) >= 3, "Expected contract create/update/delete audit logs")
 

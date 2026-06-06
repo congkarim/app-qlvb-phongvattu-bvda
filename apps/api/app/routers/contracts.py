@@ -56,6 +56,18 @@ def list_contracts(
     return ContractListResponse(items=items, total=total, limit=limit, offset=offset)
 
 
+@router.get("/by-document/{document_id}", response_model=ContractRead)
+def get_contract_by_document(
+    document_id: str,
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(get_current_user),
+) -> ContractRead:
+    try:
+        return ContractRead(**ContractService(db).get_contract_by_document_id(document_id))
+    except ContractNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
+
+
 @router.get("/{contract_id}", response_model=ContractRead)
 def get_contract(
     contract_id: str,

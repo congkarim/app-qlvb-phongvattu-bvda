@@ -22,7 +22,7 @@ Tài liệu này là checklist thực thi tuần tự bám theo `ROADMAP.md`. Kh
 
 Phase hiện tại: Phase 7 - Domain Integration Và Module Mở Rộng.
 
-Mục tiêu tiếp theo phải làm: Phase 7 / Mục tiêu 1 - Liên Kết Hợp Đồng ↔ Document (Backend).
+Mục tiêu tiếp theo phải làm: Phase 7 / Mục tiêu 2 - Liên Kết Hợp Đồng ↔ Document (Frontend).
 
 Điều kiện chuyển sang mục tiêu kế tiếp:
 - Mục tiêu hiện tại pass tiêu chí chấp nhận.
@@ -1089,26 +1089,22 @@ Mục tiêu phase: tăng giá trị nghiệp vụ thực tế sau khi nền tả
 
 ### Mục Tiêu 1 - Liên Kết Hợp Đồng ↔ Document (Backend)
 
-Trạng thái: chưa làm.
+Trạng thái: hoàn thành ngày 2026-06-06.
 
 Mục tiêu:
 - Cho phép tra cứu metadata hợp đồng theo `document_id` từ document core mà không copy OCR/chunk sang bảng module.
 
-Phạm vi backend:
-- Thêm repository method lấy contract active theo `document_id`.
-- Thêm endpoint read-only, ví dụ `GET /api/v1/contracts/by-document/{document_id}` hoặc mở rộng document detail response nếu gọn hơn; giữ `router -> service -> repository`.
-- Trả `404` khi document không có contract active; user đăng nhập được gọi endpoint.
-- Không sửa Qdrant payload hay OCR pipeline.
+Kết quả:
+- Tái sử dụng `ContractRepository.get_active_by_document_id`.
+- Thêm `ContractService.get_contract_by_document_id`.
+- Thêm endpoint read-only `GET /api/v1/contracts/by-document/{document_id}` (đặt trước route `/{contract_id}`).
+- Trả `404` khi document không tồn tại hoặc chưa có contract active.
+- Mở rộng smoke `python -m app.scripts.smoke_contract_api` kiểm tra lookup trước/sau create và sau soft delete.
 
-Tiêu chí chấp nhận:
-- Gọi API theo `document_id` có contract trả metadata hợp đồng đúng.
-- Document không có contract trả `404` hoặc `null` rõ ràng theo thiết kế đã chọn.
-- Permission giữ nguyên rule contract hiện có.
-
-Kiểm tra cần chạy:
+Kiểm tra đã chạy:
 
 ```bash
-PYTHONPYCACHEPREFIX=/tmp/qlvb-pycache PYTHONPATH=apps/api python3 -m py_compile apps/api/app/repositories/contract_repository.py apps/api/app/services/contract_service.py apps/api/app/routers/contracts.py apps/api/app/schemas/contract.py
+PYTHONPYCACHEPREFIX=/tmp/qlvb-pycache PYTHONPATH=apps/api python3 -m py_compile apps/api/app/repositories/contract_repository.py apps/api/app/services/contract_service.py apps/api/app/routers/contracts.py apps/api/app/schemas/contract.py apps/api/app/scripts/smoke_contract_api.py
 docker compose exec -T api python -m app.scripts.smoke_contract_api
 git diff --check
 ```
@@ -1122,7 +1118,7 @@ Sau khi hoàn thành:
 
 ### Mục Tiêu 2 - Liên Kết Hợp Đồng ↔ Document (Frontend)
 
-Trạng thái: khóa.
+Trạng thái: chưa làm.
 
 Mục tiêu:
 - Người dùng đi được hai chiều giữa document detail và contract module.

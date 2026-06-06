@@ -134,6 +134,7 @@ Search:
 
 Domain modules:
 - Phase 4 chọn module đầu tiên là **Hợp đồng và phụ lục hợp đồng**.
+- Đã thêm endpoint `GET /api/v1/contracts/by-document/{document_id}` để tra cứu metadata hợp đồng active theo document core (Phase 7 mục tiêu 1).
 - Quyết định được ghi tại `docs/DOMAIN_MODULE_DECISION.md`, scope MVP chỉ quản lý metadata hợp đồng liên kết document core, chưa mở rộng sang inventory/procurement workflow.
 - Đã thêm bảng `contract_records` bằng migration `0011_contract_records`, có UUID primary key, `created_at`, `updated_at`, `deleted_at`, liên kết `documents.id` và index filter MVP cho số hợp đồng, nhà cung cấp, trạng thái, ngày ký và hiệu lực.
 - Đã thêm backend Contract API theo `router -> service -> repository`, hỗ trợ list/filter/get/create/update/soft-delete metadata hợp đồng, audit log cho create/update/delete và smoke HTTP `python -m app.scripts.smoke_contract_api`.
@@ -163,6 +164,19 @@ Ops/runbook:
 ## Đã Kiểm Tra Thủ Công
 
 Các kiểm tra sau đã chạy thành công:
+
+Phase 7 liên kết hợp đồng ↔ document (backend) kiểm tra ngày 2026-06-06:
+
+```bash
+PYTHONPYCACHEPREFIX=/tmp/qlvb-pycache PYTHONPATH=apps/api python3 -m py_compile apps/api/app/repositories/contract_repository.py apps/api/app/services/contract_service.py apps/api/app/routers/contracts.py apps/api/app/schemas/contract.py apps/api/app/scripts/smoke_contract_api.py
+docker compose exec -T api python -m app.scripts.smoke_contract_api
+git diff --check
+```
+
+Kết quả:
+- Thêm `GET /api/v1/contracts/by-document/{document_id}` lookup contract active theo document.
+- Trả `404` khi document không tồn tại hoặc chưa có contract active.
+- Smoke contract API pass, gồm lookup trước create, sau create và sau soft delete.
 
 Compose resource limits và upload policy kiểm tra ngày 2026-06-06:
 
