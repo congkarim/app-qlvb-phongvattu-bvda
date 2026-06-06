@@ -139,3 +139,202 @@ Audit:
 - `contract.deleted`.
 
 Mục tiêu 4 nên thêm frontend module UI theo `page -> composable -> service -> API`, dùng các endpoint trên và không gọi API trực tiếp trong component.
+
+---
+
+## Module Thứ Hai (Phase 7)
+
+Chọn module nghiệp vụ thứ hai cho Phase 7: **Công văn đến/đi**.
+
+## Lý Do Chọn
+
+- Phòng vật tư xử lý hàng ngày công văn đến (yêu cầu, chỉ đạo, phối hợp) và công văn đi (báo cáo, đề xuất, phúc đáp); cần sổ theo dõi metadata nghiệp vụ tách khỏi danh sách document thuần OCR.
+- Hệ thống đã có `business_type=incoming_dispatch` / `outgoing_dispatch` trong catalog upload/search và document core đã lưu `document_number`, `issued_date`, `issuing_agency`, `recipient`, `excerpt` từ OCR — module mới tận dụng nền này mà không trùng lặp text/chunk.
+- Pattern `contract_records` đã chứng minh: metadata 1-1 với `documents`, CRUD/filter UI, audit log, liên kết hai chiều document detail, search filter theo metadata module.
+- Module công văn tạo giá trị ngay cho tra cứu theo số/ký hiệu, đơn vị ban hành, nơi nhận, trạng thái xử lý nội bộ mà document list chưa đủ chuyên biệt.
+
+## Ứng Viên Không Chọn Ở Phase 7
+
+- Quyết định/thông báo: gần document core hơn; chưa cần sổ nghiệp vụ riêng ở MVP này.
+- Phiếu/đề xuất vật tư: dễ kéo sang inventory/procurement workflow nhiều bước, vượt scope Phase 7.
+
+## Tên Kỹ Thuật
+
+- Bảng: `dispatch_records`
+- Model: `DispatchRecord`
+- API prefix: `/api/v1/dispatches`
+- Frontend route: `/dispatches`
+- Entity audit: `dispatch`
+
+`dispatch` ở đây là tên module nghiệp vụ (công văn đến/đi), không nhầm với HTTP dispatch hay worker queue.
+
+## Scope MVP
+
+MVP chỉ quản lý sổ công văn đến/đi như lớp metadata nghiệp vụ liên kết document core, không thay thế OCR/search/document workflow.
+
+### Metadata Tối Thiểu
+
+| Trường | Mô tả | Ghi chú |
+|--------|--------|---------|
+| `document_id` | Liên kết 1-1 tới `documents` | Bắt buộc; partial unique index active |
+| `dispatch_type` | Loại công văn: `incoming` (đến) hoặc `outgoing` (đi) | Map catalog `incoming_dispatch` / `outgoing_dispatch` |
+| `document_number` | Số công văn | Ví dụ `123/CV-VT` |
+| `document_symbol` | Ký hiệu | Ví dụ `CV-VT`; optional |
+| `issued_date` | Ngày ban hành | Date |
+| `issuing_agency` | Đơn vị ban hành | Ví dụ tên phòng/ban/cơ quan gửi |
+| `recipient` | Nơi nhận / kính gửi | Text; quan trọng với công văn đi |
+| `excerpt` | Trích yếu | Text ngắn, không copy full OCR |
+| `status` | Trạng thái xử lý nghiệp vụ module | Xem bảng status bên dưới |
+| `notes` | Ghi chú nội bộ | Optional |
+
+Trường bổ sung khi tạo từ document (read-only trong response, không lưu trùng vào bảng module nếu đã có trên `documents`):
+
+- `document_title`, `document_status` — join từ `documents` khi list/get, giống pattern `ContractRead`.
+
+### Trạng Thái MVP (`status`)
+
+| Giá trị | Nhãn UI | Ý nghĩa |
+|---------|---------|---------|
+| `draft` | Nháp | Metadata chưa chốt |
+| `registered` | Đã vào sổ | Đã ghi nhận vào sổ công văn |
+| `processing` | Đang xử lý | Đơn vị đang xử lý nội bộ |
+| `completed` | Hoàn thành | Đã xử lý xong, không còn tác vụ mở |
+| `archived` | Lưu trữ | Đóng hồ sơ, chỉ tra cứu |
+
+Không mở workflow chuyển trạng thái nhiều bước có rule engine; user/admin cập nhật `status` trực tiếp qua form PATCH.
+
+### Workflow MVP
+
+- User đăng nhập upload hoặc chọn document có `business_type` là `incoming_dispatch` hoặc `outgoing_dispatch`.
+- Tạo/cập nhật metadata công văn liên kết `document_id`; form có thể pre-fill từ metadata document hiện có (`document_number`, `issued_date`, `issuing_agency`, `recipient`, `excerpt`).
+- List/filter theo: `dispatch_type`, số/ký hiệu, ngày ban hành, đơn vị ban hành, nơi nhận, trích yếu (query `q`), trạng thái, `document_id`.
+- Detail/link document nguồn, drill-down sang chunks/search dashboard (preset `q`, `document_number` hoặc filter dispatch sau khi search filter module hoàn thiện).
+- Audit log cho create/update/delete mềm metadata.
+
+### Không Làm Trong MVP
+
+- Không quản lý inventory, phiếu xuất kho, đề xuất mua sắm hoặc luồng phê duyệt nhiều bước (trình ký, chuyển phòng, hạn xử lý SLA).
+- Không tạo bảng file đính kèm riêng — file vẫn nằm ở `document_files` / document core.
+- Không tự động trích xuất toàn bộ metadata công văn bằng LLM; chỉ pre-fill từ metadata document/OCR đã có nếu user chọn document nguồn.
+- Không denormalize OCR text/chunk vào `dispatch_records` hoặc Qdrant payload ở giai đoạn schema/API MVP.
+- Không thêm service ngoài PostgreSQL/Qdrant/Redis hiện có.
+
+## Boundary Kỹ Thuật
+
+### Backend
+
+```text
+router -> service -> repository
+```
+
+- Module có `dispatches` router, `DispatchService`, `DispatchRepository` riêng.
+- Bảng `dispatch_records`: UUID primary key, `created_at`, `updated_at`, `deleted_at`.
+- Không hard delete metadata.
+- Liên kết document core qua `document_id`; validate document active và chưa có dispatch active khác (1-1 như hợp đồng).
+- Validate `dispatch_type` ∈ `{incoming, outgoing}`; khuyến nghị (không bắt buộc hard-fail MVP) khớp `documents.business_type` tương ứng.
+
+### Frontend
+
+```text
+page -> composable -> service -> API
+```
+
+- Page `/dispatches` dùng `useDispatches` + `dispatch.service.ts`.
+- Không gọi API trực tiếp trong component.
+- Tái sử dụng layout list/filter/pagination/form từ `/contracts`.
+
+### Search/RAG
+
+- Search/RAG tiếp tục dựa trên document/chunk core.
+- Filter search theo metadata dispatch (`dispatch_type`, `document_number`, `issuing_agency`, `status`) là hạng mục sau schema/API/UI MVP, theo pattern contract filter Phase 7 mục tiêu 3 — không bắt buộc trong mục tiêu thiết kế này.
+- Citation luôn trỏ về document/chunk/page nguồn.
+
+## Quyền Và Audit
+
+### Quyền
+
+| Hành động | User đăng nhập | Admin |
+|-----------|----------------|-------|
+| List / get | Có | Có |
+| Get by `document_id` | Có | Có |
+| Create / update metadata | Có | Có |
+| Soft delete | Không (`403`) | Có |
+
+Giữ nhất quán với module hợp đồng: user quản lý metadata hàng ngày; admin xóa mềm khi cần.
+
+### Audit Actions
+
+- `dispatch.created`
+- `dispatch.updated`
+- `dispatch.deleted`
+
+`entity_type=dispatch`, `entity_id=<dispatch_record.id>`, metadata JSON gọn (ví dụ `dispatch_type`, `document_number`, `status`).
+
+## Schema Dự Kiến (Mục Tiêu 5)
+
+Migration tiếp theo tạo bảng `dispatch_records` (ví dụ `0013_dispatch_records` sau các migration hiện có).
+
+### Các Cột Chính
+
+- `id`: UUID primary key.
+- `document_id`: FK `documents.id`, not null.
+- `dispatch_type`: `String(16)`, not null — `incoming` | `outgoing`.
+- `document_number`: `String(128)`, nullable.
+- `document_symbol`: `String(128)`, nullable.
+- `issued_date`: `Date`, nullable.
+- `issuing_agency`: `String(255)`, nullable.
+- `recipient`: `Text`, nullable.
+- `excerpt`: `Text`, nullable.
+- `status`: `String(32)`, not null, default `draft`.
+- `notes`: `Text`, nullable.
+- `created_at`, `updated_at`, `deleted_at`.
+
+### Indexes Dự Kiến
+
+- `ux_dispatch_records_document_active`: unique partial trên `document_id` WHERE `deleted_at IS NULL`.
+- `ix_dispatch_records_dispatch_type_active`: (`dispatch_type`, `deleted_at`).
+- `ix_dispatch_records_document_number_active`: (`document_number`, `deleted_at`).
+- `ix_dispatch_records_issuing_agency_active`: (`issuing_agency`, `deleted_at`).
+- `ix_dispatch_records_issued_date_active`: (`issued_date`, `deleted_at`).
+- `ix_dispatch_records_status_active`: (`status`, `deleted_at`).
+
+### Quan Hệ Model
+
+- `Document.dispatch_record` — `uselist=False`, tương tự `contract_record`.
+- `DispatchRecord.document` — `relationship` back_populates.
+
+## API Dự Kiến (Mục Tiêu 6)
+
+| Method | Path | Mô tả |
+|--------|------|--------|
+| `GET` | `/api/v1/dispatches` | List + filter + pagination |
+| `GET` | `/api/v1/dispatches/{dispatch_id}` | Chi tiết |
+| `GET` | `/api/v1/dispatches/by-document/{document_id}` | Lookup theo document (đặt trước `/{dispatch_id}`) |
+| `POST` | `/api/v1/dispatches` | Tạo metadata |
+| `PATCH` | `/api/v1/dispatches/{dispatch_id}` | Cập nhật |
+| `DELETE` | `/api/v1/dispatches/{dispatch_id}` | Soft delete (admin) |
+
+Filter list tối thiểu: `q`, `document_id`, `dispatch_type`, `document_number`, `issuing_agency`, `status`, `issued_date_from`, `issued_date_to`, `sort_by`, `sort_dir`, `limit`, `offset`.
+
+Response list: `{ items, total, limit, offset }` — pattern `ContractListResponse`.
+
+Lỗi nghiệp vụ: `404` không tìm thấy; `409` trùng dispatch active cho cùng `document_id`; `403` user delete.
+
+## Frontend Dự Kiến (Mục Tiêu 7)
+
+- Route `/dispatches`: bảng list, filter, pagination, form tạo/sửa.
+- Query `document_id` / `create=1` để drill-down từ document detail (mục tiêu liên kết sau).
+- Link document nguồn, nút "Search trong văn bản" preset dashboard.
+- Nav item `Công văn` trong app shell.
+- Smoke script: `python -m app.scripts.smoke_dispatch_api` (tái chạy được, cleanup mặc định).
+
+## Hướng Dẫn Cho Mục Tiêu Tiếp Theo (Schema)
+
+Mục tiêu 5 nên:
+
+1. Thêm model `DispatchRecord` và migration `dispatch_records` đúng cột/index ở trên.
+2. Import model vào `app.db.base` / `app.models`.
+3. Thêm relationship trên `Document` — không đổi OCR/chunk pipeline.
+4. Chạy `alembic upgrade head` và kiểm tra partial unique index.
+
+Không implement API/UI trong mục tiêu thiết kế này.

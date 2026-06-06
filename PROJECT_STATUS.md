@@ -137,6 +137,7 @@ Domain modules:
 - Đã thêm endpoint `GET /api/v1/contracts/by-document/{document_id}` để tra cứu metadata hợp đồng active theo document core (Phase 7 mục tiêu 1).
 - Frontend `/documents/[id]` hiển thị card Hợp đồng và liên kết hai chiều với `/contracts`; dashboard nhận preset search từ contracts (Phase 7 mục tiêu 2).
 - Semantic search/dashboard lọc theo metadata hợp đồng (`contract_number`, `supplier_name`, `contract_status`) và hiển thị metadata hợp đồng trong kết quả (Phase 7 mục tiêu 3).
+- Đã thiết kế module nghiệp vụ thứ hai **Công văn đến/đi** (`dispatch_records`) trong `docs/DOMAIN_MODULE_DECISION.md` trước khi implement schema/API/UI (Phase 7 mục tiêu 4).
 - Quyết định được ghi tại `docs/DOMAIN_MODULE_DECISION.md`, scope MVP chỉ quản lý metadata hợp đồng liên kết document core, chưa mở rộng sang inventory/procurement workflow.
 - Đã thêm bảng `contract_records` bằng migration `0011_contract_records`, có UUID primary key, `created_at`, `updated_at`, `deleted_at`, liên kết `documents.id` và index filter MVP cho số hợp đồng, nhà cung cấp, trạng thái, ngày ký và hiệu lực.
 - Đã thêm backend Contract API theo `router -> service -> repository`, hỗ trợ list/filter/get/create/update/soft-delete metadata hợp đồng, audit log cho create/update/delete và smoke HTTP `python -m app.scripts.smoke_contract_api`.
@@ -166,6 +167,17 @@ Ops/runbook:
 ## Đã Kiểm Tra Thủ Công
 
 Các kiểm tra sau đã chạy thành công:
+
+Phase 7 thiết kế module công văn đến/đi kiểm tra ngày 2026-06-06:
+
+```bash
+git diff --check
+```
+
+Kết quả:
+- `docs/DOMAIN_MODULE_DECISION.md` bổ sung quyết định module `dispatch_records`: metadata MVP, status, quyền, audit, schema/API/frontend dự kiến theo pattern `contracts`.
+- Metadata MVP gồm `dispatch_type` (đến/đi), số/ký hiệu, ngày ban hành, đơn vị ban hành, nơi nhận, trích yếu, trạng thái.
+- Ghi rõ không làm inventory, workflow nhiều bước, LLM extraction.
 
 Phase 7 search filter theo metadata hợp đồng kiểm tra ngày 2026-06-06:
 

@@ -22,7 +22,7 @@ Tài liệu này là checklist thực thi tuần tự bám theo `ROADMAP.md`. Kh
 
 Phase hiện tại: Phase 7 - Domain Integration Và Module Mở Rộng.
 
-Mục tiêu tiếp theo phải làm: Phase 7 / Mục tiêu 4 - Thiết Kế Module Công Văn Đến/Đi.
+Mục tiêu tiếp theo phải làm: Phase 7 / Mục tiêu 5 - Schema Công Văn Đến/Đi.
 
 Điều kiện chuyển sang mục tiêu kế tiếp:
 - Mục tiêu hiện tại pass tiêu chí chấp nhận.
@@ -1176,21 +1176,19 @@ Sau khi hoàn thành:
 
 ### Mục Tiêu 4 - Thiết Kế Module Công Văn Đến/Đi
 
-Trạng thái: chưa làm.
+Trạng thái: hoàn thành ngày 2026-06-06.
 
 Mục tiêu:
 - Ghi quyết định scope module nghiệp vụ thứ hai trước khi viết migration/API.
 
-Phạm vi:
-- Cập nhật `docs/DOMAIN_MODULE_DECISION.md` với module **Công văn đến/đi**.
-- Xác định metadata MVP, boundary kỹ thuật, quyền, audit action, liên kết `document_id`.
-- Liệt kê rõ không làm: inventory, workflow nhiều bước, LLM extraction.
+Kết quả:
+- Cập nhật `docs/DOMAIN_MODULE_DECISION.md` với module **Công văn đến/đi** (`dispatch_records`).
+- Xác định metadata MVP: `dispatch_type`, số/ký hiệu, ngày ban hành, đơn vị ban hành, nơi nhận, trích yếu, trạng thái (`draft`/`registered`/`processing`/`completed`/`archived`).
+- Ghi boundary kỹ thuật, quyền (user CRUD, admin soft delete), audit (`dispatch.created/updated/deleted`), liên kết 1-1 `document_id`.
+- Liệt kê rõ không làm: inventory, workflow nhiều bước, LLM extraction, denormalize OCR/chunk.
+- Dự kiến schema, API endpoints và frontend `/dispatches` theo pattern `contracts`.
 
-Tiêu chí chấp nhận:
-- Có tài liệu quyết định đủ để implement schema/API/UI theo pattern `contracts`.
-- Metadata MVP có ít nhất: loại công văn (đến/đi), số/ký hiệu, ngày ban hành, đơn vị ban hành/nơi nhận, trích yếu, trạng thái.
-
-Kiểm tra cần chạy:
+Kiểm tra đã chạy:
 
 ```bash
 git diff --check
@@ -1205,7 +1203,7 @@ Sau khi hoàn thành:
 
 ### Mục Tiêu 5 - Schema Công Văn Đến/Đi
 
-Trạng thái: khóa.
+Trạng thái: chưa làm.
 
 Mục tiêu:
 - Tạo bảng metadata công văn liên kết document core.
