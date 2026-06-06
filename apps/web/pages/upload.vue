@@ -21,6 +21,7 @@ const {
   uploadZipDocument,
   clearUploadResult
 } = useDocuments()
+const { businessTypeOptions, fetchCatalogOptions } = useCatalogs()
 
 const isMultiFileMode = computed(() => uploadMode.value === 'multi')
 const isZipMode = computed(() => uploadMode.value === 'zip')
@@ -32,14 +33,6 @@ const canSubmit = computed(() => {
 })
 
 const uploadSummary = computed(() => multiFileUploadResult.value || uploadResult.value)
-const businessTypeOptions = [
-  { label: 'Chưa phân loại', value: '' },
-  { label: 'Công văn đến', value: 'incoming_dispatch' },
-  { label: 'Công văn đi', value: 'outgoing_dispatch' },
-  { label: 'Hợp đồng', value: 'contract' },
-  { label: 'Quyết định', value: 'decision' }
-]
-
 function currentMetadata(): DocumentMetadataInput {
   return {
     document_number: metadata.document_number,
@@ -76,6 +69,8 @@ watch(uploadMode, () => {
   metadata.business_type = ''
   clearUploadResult()
 })
+
+onMounted(fetchCatalogOptions)
 </script>
 
 <template>

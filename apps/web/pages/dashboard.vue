@@ -4,6 +4,7 @@ import type { ReviewQueueChunk, ReviewQueueFilters, SemanticSearchFilters } from
 const query = ref('')
 const authStore = useAuthStore()
 const { results, loading, error: searchError, hasSearched, search } = useSemanticSearch()
+const { businessTypeFilterOptions, fetchCatalogOptions, formatBusinessType } = useCatalogs()
 const {
   reviewQueue,
   reviewQueueTotal,
@@ -33,14 +34,6 @@ const reviewQueueFilters = reactive<ReviewQueueFilters>({
   document_id: '',
   max_confidence: null
 })
-
-const businessTypeOptions = [
-  { label: 'Tất cả nghiệp vụ', value: '' },
-  { label: 'Công văn đến', value: 'incoming_dispatch' },
-  { label: 'Công văn đi', value: 'outgoing_dispatch' },
-  { label: 'Hợp đồng', value: 'contract' },
-  { label: 'Quyết định', value: 'decision' }
-]
 
 const docGroupOptions = [
   { label: 'Tất cả nhóm', value: '' },
@@ -157,10 +150,6 @@ async function resetReviewQueueFilters() {
   await submitReviewQueue()
 }
 
-function formatBusinessType(value?: string | null) {
-  return businessTypeOptions.find((option) => option.value === value)?.label || value || '-'
-}
-
 function formatChunkMeta(result: { doc_group?: string | null; section_role?: string | null; section_path?: string[] }) {
   const parts = [result.doc_group, formatSectionRole(result.section_role), result.section_path?.join(' > ')].filter(Boolean)
   return parts.length ? parts.join(' · ') : 'Chưa có metadata chunk'
@@ -194,6 +183,7 @@ function normalizeReviewQueueFilters(): ReviewQueueFilters {
 }
 
 onMounted(async () => {
+  await fetchCatalogOptions()
   if (authStore.isAdmin) {
     await submitReviewQueue()
   }
@@ -346,7 +336,7 @@ onMounted(async () => {
           </div>
           <div class="grid gap-3 md:grid-cols-6">
             <select v-model="filters.business_type" class="rounded border border-slate-300 px-3 py-2 text-sm">
-              <option v-for="option in businessTypeOptions" :key="option.value" :value="option.value">
+              <option v-for="option in businessTypeFilterOptions" :key="option.value" :value="option.value">
                 {{ option.label }}
               </option>
             </select>

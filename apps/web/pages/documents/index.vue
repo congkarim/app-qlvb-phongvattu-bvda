@@ -2,6 +2,7 @@
 import type { DocumentListFilters } from '~/types/document'
 
 const { documents, documentsTotal, documentsLimit, documentsOffset, loading, error, fetchDocuments } = useDocuments()
+const { businessTypeFilterOptions, documentTypeFilterOptions, fetchCatalogOptions } = useCatalogs()
 const filters = reactive<
   Required<Pick<DocumentListFilters, 'q' | 'status' | 'document_type' | 'business_type' | 'sort_by' | 'sort_dir'>>
 >({
@@ -21,28 +22,6 @@ const statusOptions = [
   { label: 'Reprocess pending', value: 'reprocess_pending' },
   { label: 'Reprocess running', value: 'reprocess_running' },
   { label: 'Failed', value: 'failed' }
-]
-
-const typeOptions = [
-  { label: 'Tất cả loại', value: '' },
-  { label: 'Không đủ dữ liệu', value: 'UNKNOWN' },
-  { label: 'Công văn', value: 'CV' },
-  { label: 'Quyết định', value: 'QĐ' },
-  { label: 'Thông báo', value: 'TB' },
-  { label: 'Báo cáo', value: 'BC' },
-  { label: 'Biên bản', value: 'BB' },
-  { label: 'Tờ trình', value: 'TTr' },
-  { label: 'Kế hoạch', value: 'KH' },
-  { label: 'Hợp đồng', value: 'HĐ' },
-  { label: 'Giấy mời', value: 'GM' }
-]
-
-const businessTypeOptions = [
-  { label: 'Tất cả nghiệp vụ', value: '' },
-  { label: 'Công văn đến', value: 'incoming_dispatch' },
-  { label: 'Công văn đi', value: 'outgoing_dispatch' },
-  { label: 'Hợp đồng', value: 'contract' },
-  { label: 'Quyết định', value: 'decision' }
 ]
 
 const sortOptions = [
@@ -100,7 +79,9 @@ function goToNextPage() {
   void loadDocuments()
 }
 
-onMounted(loadDocuments)
+onMounted(async () => {
+  await Promise.all([fetchCatalogOptions(), loadDocuments()])
+})
 </script>
 
 <template>
@@ -133,12 +114,12 @@ onMounted(loadDocuments)
             </option>
           </select>
           <select v-model="filters.document_type" class="rounded border border-slate-300 px-3 py-2 text-sm">
-            <option v-for="option in typeOptions" :key="option.value" :value="option.value">
+            <option v-for="option in documentTypeFilterOptions" :key="option.value" :value="option.value">
               {{ option.label }}
             </option>
           </select>
           <select v-model="filters.business_type" class="rounded border border-slate-300 px-3 py-2 text-sm">
-            <option v-for="option in businessTypeOptions" :key="option.value" :value="option.value">
+            <option v-for="option in businessTypeFilterOptions" :key="option.value" :value="option.value">
               {{ option.label }}
             </option>
           </select>

@@ -21,7 +21,7 @@ Tài liệu này là checklist thực thi tuần tự bám theo `ROADMAP.md`. Kh
 
 Phase hiện tại: Phase 5 - Admin Configuration Và Governance.
 
-Mục tiêu tiếp theo phải làm: Phase 5 / Mục tiêu 3 - Frontend Dùng Option Từ API.
+Mục tiêu tiếp theo phải làm: Phase 5 / Mục tiêu 4 - Trang Status Tối Thiểu.
 
 Điều kiện chuyển sang mục tiêu kế tiếp:
 - Mục tiêu hiện tại pass tiêu chí chấp nhận.
@@ -838,7 +838,7 @@ Sau khi hoàn thành:
 
 ### Mục Tiêu 3 - Frontend Dùng Option Từ API
 
-Trạng thái: chưa làm.
+Trạng thái: hoàn thành ngày 2026-06-06.
 
 Mục tiêu:
 - Các form phù hợp lấy option từ API thay vì hardcode.
@@ -847,9 +847,31 @@ Tiêu chí chấp nhận:
 - UI vẫn có fallback hợp lý khi API lỗi.
 - Không phá upload/document metadata hiện có.
 
+Kết quả:
+- Thêm `apps/web/types/catalog.ts`.
+- Thêm `apps/web/services/catalog.service.ts` gọi `/catalogs/business-types` và `/catalogs/document-types`.
+- Thêm `apps/web/composables/useCatalogs.ts` quản lý option danh mục, fallback local và formatter dùng chung.
+- `/upload` lấy option `business_type` từ catalog API qua composable, fallback không chặn upload.
+- `/documents` lấy filter `business_type` và `document_type` từ catalog API qua composable.
+- `/documents/[id]` lấy form metadata `business_type` và `document_type` từ catalog API, vẫn hiển thị mã cũ nếu catalog không có option.
+- `/dashboard` lấy filter semantic search `business_type` từ catalog API và dùng formatter chung.
+
+Kiểm tra đã chạy:
+
+```bash
+docker compose run --rm --no-deps web npm run build
+git diff --check
+```
+
+Sau khi hoàn thành:
+- Đã đọc lại `ROADMAP.md`.
+- Đã cập nhật `PROJECT_STATUS.md` với kết quả và kiểm tra đã chạy.
+- Đã cập nhật mục tiêu này thành `hoàn thành`.
+- Đã chuyển con trỏ hiện tại sang `Phase 5 / Mục tiêu 4`.
+
 ### Mục Tiêu 4 - Trang Status Tối Thiểu
 
-Trạng thái: khóa.
+Trạng thái: chưa làm.
 
 Mục tiêu:
 - Thêm status cho OCR/model/Qdrant.

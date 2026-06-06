@@ -5,6 +5,14 @@ import { formatDate, formatDateTime, formatFileSize } from '~/utils/format'
 const route = useRoute()
 const authStore = useAuthStore()
 const {
+  businessTypeOptions,
+  documentTypeOptions,
+  fetchCatalogOptions,
+  formatBusinessType,
+  formatDocumentType,
+  hasDocumentType
+} = useCatalogs()
+const {
   document,
   loading,
   metadataLoading,
@@ -132,47 +140,6 @@ const lastDetailRefreshText = computed(() => {
   return lastDetailRefreshedAt.value ? formatDateTime(lastDetailRefreshedAt.value.toISOString()) : ''
 })
 
-const businessTypeOptions = [
-  { label: 'Chưa phân loại', value: '' },
-  { label: 'Công văn đến', value: 'incoming_dispatch' },
-  { label: 'Công văn đi', value: 'outgoing_dispatch' },
-  { label: 'Hợp đồng', value: 'contract' },
-  { label: 'Quyết định', value: 'decision' }
-]
-
-const documentTypeOptions = [
-  { label: 'Không đủ dữ liệu', value: 'UNKNOWN' },
-  { label: 'Nghị quyết', value: 'NQ' },
-  { label: 'Quyết định', value: 'QĐ' },
-  { label: 'Chỉ thị', value: 'CT' },
-  { label: 'Quy chế', value: 'QC' },
-  { label: 'Quy định', value: 'QYĐ' },
-  { label: 'Thông cáo', value: 'TC' },
-  { label: 'Thông báo', value: 'TB' },
-  { label: 'Hướng dẫn', value: 'HD' },
-  { label: 'Chương trình', value: 'CTr' },
-  { label: 'Kế hoạch', value: 'KH' },
-  { label: 'Phương án', value: 'PA' },
-  { label: 'Đề án', value: 'ĐA' },
-  { label: 'Dự án', value: 'DA' },
-  { label: 'Báo cáo', value: 'BC' },
-  { label: 'Biên bản', value: 'BB' },
-  { label: 'Tờ trình', value: 'TTr' },
-  { label: 'Hợp đồng', value: 'HĐ' },
-  { label: 'Công văn', value: 'CV' },
-  { label: 'Công điện', value: 'CĐ' },
-  { label: 'Bản ghi nhớ', value: 'BGN' },
-  { label: 'Bản thỏa thuận', value: 'BTT' },
-  { label: 'Giấy ủy quyền', value: 'GUQ' },
-  { label: 'Giấy mời', value: 'GM' },
-  { label: 'Giấy giới thiệu', value: 'GGT' },
-  { label: 'Giấy nghỉ phép', value: 'GNP' },
-  { label: 'Phiếu gửi', value: 'PG' },
-  { label: 'Phiếu chuyển', value: 'PC' },
-  { label: 'Phiếu báo', value: 'PB' },
-  { label: 'Thư công', value: 'TCg' }
-]
-
 const chunkFilterOptions = [
   { label: 'Tất cả chunks', value: 'all' },
   { label: 'Cần review', value: 'review' },
@@ -191,7 +158,7 @@ function markDetailRefreshed() {
 function syncMetadataForm() {
   if (!document.value) return
   metadataForm.title = document.value.title || ''
-  metadataForm.document_type = documentTypeOptions.some((option) => option.value === document.value?.document_type)
+  metadataForm.document_type = hasDocumentType(document.value.document_type)
     ? document.value.document_type
     : 'UNKNOWN'
   metadataForm.classification_confidence = document.value.classification_confidence ?? null
@@ -221,19 +188,6 @@ function formatAuditAction(action: string): string {
   if (action === 'document.metadata_updated') return 'Cập nhật metadata'
   if (action === 'document_chunk.reviewed') return 'Đã review chunk'
   return action
-}
-
-function formatDocumentType(value?: string | null): string {
-  const option = documentTypeOptions.find((item) => item.value === value)
-  return option ? `${option.label} (${option.value})` : value || '-'
-}
-
-function formatBusinessType(value?: string | null): string {
-  if (value === 'incoming_dispatch') return 'Công văn đến'
-  if (value === 'outgoing_dispatch') return 'Công văn đi'
-  if (value === 'contract') return 'Hợp đồng'
-  if (value === 'decision') return 'Quyết định'
-  return value || '-'
 }
 
 function formatBoolean(value?: boolean | null): string {
@@ -394,7 +348,7 @@ async function refreshAfterSourceFileMutation() {
 }
 
 onMounted(async () => {
-  await fetchDocument(documentId.value)
+  await Promise.all([fetchCatalogOptions(), fetchDocument(documentId.value)])
   syncMetadataForm()
   markDetailRefreshed()
   if (shouldPoll.value) startPolling()

@@ -143,6 +143,8 @@ Admin configuration:
 - Đã thiết kế danh mục admin tối thiểu trong `docs/ADMIN_CATEGORY_DESIGN.md`: `departments` là entity riêng; `business_type` và `document_type` dùng catalog item giới hạn, không mở thành framework cấu hình phức tạp.
 - Danh mục MVP cần CRUD tiếp theo: đơn vị/phòng ban, loại nghiệp vụ, loại văn bản; write admin-only, read cho user đã đăng nhập, soft delete và audit log.
 - Đã thêm backend Catalog API theo `router -> service -> repository`, gồm read option cho user đăng nhập và CRUD admin-only cho `departments`/`admin_catalog_items`, có soft delete và audit log create/update/delete.
+- Frontend đã thêm `catalog.service` và `useCatalogs` theo luồng `page -> composable -> service -> API`.
+- `/upload`, `/documents`, `/documents/[id]` và `/dashboard` lấy option `business_type`/`document_type` từ Catalog API, có fallback local khi API lỗi và vẫn hiển thị mã cũ nếu catalog không còn option.
 
 Ops/runbook:
 - `docs/WORKER_OPS_RUNBOOK.md` ghi command kiểm tra worker queue, chạy worker smoke, restart worker, xử lý job failed, reprocess, backup/restore PostgreSQL, Qdrant và uploaded source files.
@@ -150,6 +152,23 @@ Ops/runbook:
 ## Đã Kiểm Tra Thủ Công
 
 Các kiểm tra sau đã chạy thành công:
+
+Frontend dùng option catalog API kiểm tra ngày 2026-06-06:
+
+```bash
+docker compose run --rm --no-deps web npm run build
+git diff --check
+```
+
+Kết quả:
+- Thêm type `CatalogItem`/`CatalogOption` trong `apps/web/types/catalog.ts`.
+- Thêm service `createCatalogService` gọi `/catalogs/business-types` và `/catalogs/document-types`.
+- Thêm composable `useCatalogs` quản lý fallback option, load từ API và formatter dùng chung.
+- `/upload` lấy option loại nghiệp vụ từ catalog API qua composable.
+- `/documents` lấy filter loại văn bản và loại nghiệp vụ từ catalog API qua composable.
+- `/documents/[id]` lấy option form metadata loại văn bản và loại nghiệp vụ từ catalog API, fallback về option local và vẫn hiển thị mã cũ nếu không có trong catalog.
+- `/dashboard` lấy filter loại nghiệp vụ từ catalog API và dùng formatter chung cho kết quả search.
+- Frontend build pass qua Docker; vẫn có warning chunk PrimeVue lớn như trước, không fail.
 
 CRUD danh mục admin kiểm tra ngày 2026-06-06:
 
