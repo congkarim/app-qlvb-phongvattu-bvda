@@ -13,7 +13,9 @@ Cập nhật lần cuối: 2026-06-06
 
 ## Trạng Thái Hiện Tại
 
-**Lộ trình Phase 0–6 đã hoàn thành.** Hệ thống có thể chạy on-prem bằng Docker Compose với các service `api`, `worker`, `web`, `postgres`, `redis`, `qdrant`.
+**Lộ trình Phase 0–7 đã hoàn thành.** Hệ thống có thể chạy on-prem bằng Docker Compose với các service `api`, `worker`, `web`, `postgres`, `redis`, `qdrant`.
+
+**Phase hiện tại: Phase 8 - Worker Resilience Và Production Upgrade** (checklist chi tiết trong `TASK_NEXT.md`).
 
 Đã hoàn thành:
 - Auth local, seed admin, cookie token frontend và RBAC nhẹ cho admin/user.
@@ -21,21 +23,22 @@ Cập nhật lần cuối: 2026-06-06
 - Quản lý metadata nghiệp vụ, metadata OCR tự động và metadata manual review.
 - OCR/extract cho text, markdown, docx, xlsx, PDF có text nhúng, PDF/image scan bằng PaddleOCR/OpenCV và VietOCR.
 - Chunking văn bản hành chính tiếng Việt theo metadata pháp lý, phụ lục, confidence và flag `requires_review`.
-- Semantic search có filter metadata nghiệp vụ và filter chunk như `section_role`, `requires_review`.
+- Semantic search có filter metadata nghiệp vụ, filter chunk như `section_role`, `requires_review`, và filter metadata hợp đồng (`contract_number`, `supplier_name`, `contract_status`).
 - RAG foundation local-only: endpoint `POST /api/v1/search/answer` trả lời extractive kèm citation.
 - Document detail có preview source, OCR job audit, chunks filter và action đánh dấu chunk đã review.
-- Dashboard có semantic search và admin review queue có pagination/filter.
-- Module hợp đồng MVP: backend `contract_records`, API CRUD, frontend `/contracts`.
+- Dashboard có semantic search, admin review queue có pagination/filter.
+- Module hợp đồng MVP: backend `contract_records`, API CRUD, frontend `/contracts`; liên kết hai chiều với document detail.
+- Module công văn đến/đi MVP: backend `dispatch_records`, API CRUD, frontend `/dispatches`; liên kết hai chiều với document detail.
 - Admin catalog MVP: departments, business_type, document_type qua Catalog API; trang `/status` cho OCR/model/Qdrant/worker queue.
 - Worker claim atomic, retry policy, queue status endpoint và smoke worker operations.
 - On-prem hardening: env/secret/CORS guard, backup/restore runbook, health/readiness, log policy, compose resource limits.
 
-Giới hạn còn lại (ưu tiên cho phase mới):
+Giới hạn còn lại (ưu tiên Phase 8–9):
 - Worker chưa có lease timeout hoặc auto recovery cho job `ocr_running` khi worker crash giữa chừng.
-- RAG mới có API backend; frontend chưa có UI hỏi–đáp trên dashboard.
-- Module hợp đồng và công văn đến/đi đã có schema, API, UI MVP; document detail liên kết hai chiều và search filter theo metadata hợp đồng.
-- Chưa có module nghiệp vụ thứ hai (công văn đến/đi, quyết định, phiếu vật tư).
+- Admin chưa có endpoint/UI tối thiểu để xem và xử lý job/document bị kẹt ngoài runbook thủ công.
 - Chưa có runbook nâng cấp/migration Alembic cho production nội bộ.
+- RAG mới có API backend; frontend chưa có UI hỏi–đáp trên dashboard.
+- Chưa có module nghiệp vụ thứ ba (quyết định, phiếu vật tư).
 - Chưa có LLM/generator nội bộ nâng cao; RAG hiện extractive từ chunk truy xuất.
 
 ## Lộ Trình Ưu Tiên
@@ -142,7 +145,7 @@ Tiêu chí hoàn thành:
 
 ### Phase 8 - Worker Resilience Và Production Upgrade
 
-Trạng thái: kế hoạch.
+Trạng thái: đang làm (bắt đầu 2026-06-06).
 
 Mục tiêu: giảm rủi ro vận hành lâu dài khi worker crash hoặc khi nâng cấp phiên bản trên môi trường nội bộ.
 
@@ -179,7 +182,7 @@ Tiêu chí hoàn thành:
 
 ## Ghi Chú Lập Kế Hoạch
 
-- Checklist Phase 7 chi tiết đã có trong `TASK_NEXT.md`; bắt đầu từ mục tiêu 1 (liên kết hợp đồng ↔ document backend).
-- Ưu tiên MVP và maintainability; mỗi module mới phải có quyết định scope trong `docs/DOMAIN_MODULE_DECISION.md`.
-- Phase 8 có thể được kéo lên nếu vận hành production nội bộ gặp job kẹt trước khi cần module nghiệp vụ mới.
-- Mỗi mục tiêu Phase 7 khi hoàn thành phải auto commit theo quy tắc trong `TASK_NEXT.md`.
+- Checklist Phase 8 chi tiết nằm trong `TASK_NEXT.md`; bắt đầu từ mục tiêu 1 (khảo sát job kẹt và thiết kế lease recovery).
+- Con trỏ thực thi: `TASK_NEXT.md` → `PROJECT_STATUS.md` → commit sau mỗi mục tiêu (skill `project-git-manager`).
+- Ưu tiên MVP và maintainability; mỗi module nghiệp vụ mới phải có quyết định scope trong `docs/DOMAIN_MODULE_DECISION.md`.
+- Mỗi mục tiêu Phase 8 khi hoàn thành phải auto commit theo quy tắc trong `TASK_NEXT.md`.

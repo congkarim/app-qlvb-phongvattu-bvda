@@ -17,12 +17,15 @@ Tài liệu này là checklist thực thi tuần tự bám theo `ROADMAP.md`. Kh
   - Backend: `router -> service -> repository`.
   - Frontend: `page -> composable -> service -> API`.
 - Khi hoàn thành task, dùng skill `project-git-manager` để kiểm tra repo, cập nhật tài liệu trạng thái và commit thay đổi liên quan nếu repo đã sẵn sàng.
+- Trước mỗi mục tiêu: đọc skill kỹ thuật ghi trong mục tiêu (nếu có) và `AGENTS.md`.
 
 ## Con Trỏ Hiện Tại
 
-Phase hiện tại: Phase 7 - Domain Integration Và Module Mở Rộng.
+Phase 7: hoàn thành ngày 2026-06-06.
 
-Mục tiêu tiếp theo phải làm: Phase 8 (chưa có checklist trong `TASK_NEXT.md`).
+Phase hiện tại: Phase 8 - Worker Resilience Và Production Upgrade.
+
+Mục tiêu tiếp theo phải làm: Phase 8 / Mục tiêu 1 - Khảo Sát Job Kẹt Và Thiết Kế Lease Recovery.
 
 Điều kiện chuyển sang mục tiêu kế tiếp:
 - Mục tiêu hiện tại pass tiêu chí chấp nhận.
@@ -1288,4 +1291,134 @@ Sau khi hoàn thành:
 - Đã cập nhật `PROJECT_STATUS.md` với kết quả và kiểm tra đã chạy.
 - Đã cập nhật mục tiêu này thành `hoàn thành`.
 - Đã auto commit thay đổi liên quan.
-- Phase 7 đã đạt điều kiện hoàn thành; cập nhật trạng thái phase `hoàn thành`, commit, chờ checklist Phase 8 trong `TASK_NEXT.md`.
+- Phase 7 đã đạt điều kiện hoàn thành; cập nhật trạng thái phase `hoàn thành`, commit, mở khóa Phase 8.
+
+## Phase 8 - Worker Resilience Và Production Upgrade
+
+Trạng thái: đang làm (bắt đầu 2026-06-06).
+
+Mục tiêu phase: giảm rủi ro vận hành lâu dài khi worker crash hoặc khi nâng cấp phiên bản trên môi trường nội bộ.
+
+Điều kiện bắt đầu:
+- Phase 7 đã hoàn thành.
+- Đã đọc lại `ROADMAP.md` sau Phase 7.
+- `TASK_NEXT.md` đã cập nhật con trỏ sang `Phase 8 / Mục tiêu 1`.
+
+Điều kiện hoàn thành phase:
+- Job `ocr_running` bị kẹt có cơ chế phát hiện và recovery có kiểm soát.
+- Admin có endpoint hoặc runbook rõ ràng để xem và xử lý job/document bị kẹt.
+- Có runbook upgrade/migration Alembic có thể làm theo trên on-prem.
+- Smoke worker recovery pass trên Docker Compose.
+
+### Mục Tiêu 1 - Khảo Sát Job Kẹt Và Thiết Kế Lease Recovery
+
+Trạng thái: chưa làm.
+
+Skill bắt buộc: `backend-fastapi`, `solution-architect`.
+
+Mục tiêu:
+- Nắm rõ lifecycle job `ocr_running` hiện tại và thiết kế policy lease timeout/stale recovery trước khi đổi behavior.
+
+Phạm vi:
+- Đọc `OCRWorker`, `OCRJobRepository`, model `ocr_jobs` (`started_at`, `attempts`, `status`, `job_type`).
+- Xác định document status nào bị kẹt khi worker crash (`ocr_running`, `reprocess_running`, `chunking`).
+- Đề xuất config MVP, ví dụ `OCR_JOB_LEASE_TIMEOUT_SECONDS`, ngưỡng phát hiện stale và hành vi recovery (retry pending vs failed với `failed_reason`).
+
+Tiêu chí chấp nhận:
+- Có ghi chú kỹ thuật trong `TASK_NEXT.md` (mục Kết quả khảo sát) và `PROJECT_STATUS.md`.
+- Policy recovery không phá atomic claim và retry policy Phase 2.
+- Chưa thay đổi runtime behavior lớn trước khi hoàn tất khảo sát.
+
+### Mục Tiêu 2 - Stale-Job Recovery Backend
+
+Trạng thái: chưa làm.
+
+Skill bắt buộc: `backend-fastapi`.
+
+Mục tiêu:
+- Tự động phát hiện và recovery job `ocr_running` quá lâu theo lease timeout đã thiết kế.
+
+Phạm vi:
+- Thêm config lease timeout trong `apps/api/app/core/config.py`.
+- Thêm repository/service method recover stale jobs; đồng bộ document/source file status khi cần.
+- Worker loop hoặc task định kỳ gọi recovery trước/sau claim job (MVP: trong worker loop).
+- Ghi audit hoặc log rõ ràng cho mỗi lần recovery.
+
+Tiêu chí chấp nhận:
+- Job `ocr_running` quá `started_at + lease_timeout` được recovery có kiểm soát.
+- Job đang chạy thật (worker còn sống) không bị recover nhầm trong smoke.
+- Không làm mất job pending hợp lệ; retry policy hiện có vẫn pass.
+
+Kiểm tra bắt buộc:
+
+```bash
+PYTHONPYCACHEPREFIX=/tmp/qlvb-pycache PYTHONPATH=apps/api python3 -m py_compile <recovery-modules>
+docker compose stop worker
+docker compose exec -T api python -m app.scripts.smoke_worker_claim_atomic
+docker compose exec -T api python -m app.scripts.smoke_worker_retry_policy
+git diff --check
+```
+
+### Mục Tiêu 3 - Ops Endpoint Và Runbook Job Kẹt
+
+Trạng thái: chưa làm.
+
+Skill bắt buộc: `backend-fastapi`, `solution-architect`.
+
+Mục tiêu:
+- Admin xem và xử lý job/document bị kẹt qua endpoint ops và runbook, không cần sửa DB thủ công.
+
+Phạm vi:
+- Mở rộng `/api/v1/ops/worker-queue` hoặc thêm endpoint admin-only liệt kê job/document stale.
+- Thêm action admin-only recover/release job kẹt (nếu phù hợp MVP) hoặc ghi rõ runbook thủ công có kiểm soát.
+- Cập nhật `docs/WORKER_OPS_RUNBOOK.md` với flow phát hiện và xử lý job kẹt sau lease recovery.
+
+Tiêu chí chấp nhận:
+- Admin đăng nhập gọi được endpoint ops và thấy job/document đang kẹt.
+- User thường bị `403` ở endpoint ops nhạy cảm.
+- Runbook mô tả command kiểm tra và xử lý có thể làm theo trên Docker Compose.
+
+Kiểm tra bắt buộc:
+
+```bash
+docker compose exec -T api python -m app.scripts.smoke_worker_operations
+git diff --check
+```
+
+### Mục Tiêu 4 - Runbook Nâng Cấp Alembic Production
+
+Trạng thái: chưa làm.
+
+Skill bắt buộc: `solution-architect`, `project-git-manager`.
+
+Mục tiêu:
+- Có runbook nâng cấp phiên bản và migration Alembic cho Docker Compose production nội bộ.
+
+Phạm vi:
+- Thêm `docs/PRODUCTION_UPGRADE_RUNBOOK.md`: backup trước upgrade, `alembic upgrade head`, restart service theo thứ tự, smoke sau upgrade, rollback policy tối thiểu.
+- Liên kết tới `docs/STORAGE_BACKUP_RESTORE_RUNBOOK.md`, `docs/ON_PREM_ENV_RUNBOOK.md`, `docs/WORKER_OPS_RUNBOOK.md`.
+- Cập nhật `PROJECT_STATUS.md` và `ROADMAP.md` nếu workflow vận hành thay đổi.
+
+Tiêu chí chấp nhận:
+- Runbook có command copy-paste được cho on-prem Docker Compose.
+- Ghi rõ thứ tự dừng worker → migrate → start lại api/worker/web.
+- Không yêu cầu cloud service hoặc đổi stack.
+
+### Mục Tiêu 5 - Smoke Worker Recovery Sau Crash Mô Phỏng
+
+Trạng thái: chưa làm.
+
+Skill bắt buộc: `backend-fastapi`.
+
+Mục tiêu:
+- Có script smoke tái chạy được mô phỏng worker crash và xác nhận recovery.
+
+Phạm vi:
+- Thêm `python -m app.scripts.smoke_worker_stale_recovery` (hoặc mở rộng `smoke_worker_operations`).
+- Kịch bản: tạo job `ocr_running` stale (hoặc simulate), chạy recovery, xác nhận job/document về trạng thái hợp lệ.
+- Ghi command trong runbook và `PROJECT_STATUS.md`.
+
+Tiêu chí chấp nhận:
+- Smoke pass trên Docker Compose khi worker đang dừng.
+- Không regression `smoke_worker_claim_atomic` và `smoke_worker_retry_policy`.
+- Phase 8 đạt điều kiện hoàn thành; cập nhật trạng thái phase `hoàn thành` trong `TASK_NEXT.md`, `ROADMAP.md`, `PROJECT_STATUS.md` và auto commit.

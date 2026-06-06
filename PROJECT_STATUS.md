@@ -4,9 +4,21 @@ Cập nhật lần cuối: 2026-06-06
 
 ## Giai Đoạn Hiện Tại
 
-MVP end-to-end đã được triển khai, đã kiểm tra thủ công và workflow web cơ bản đã được hoàn thiện.
+**Phase 0–7 đã hoàn thành.** **Phase 8 - Worker Resilience Và Production Upgrade** đang là phase hiện tại; checklist thực thi trong `TASK_NEXT.md`, ưu tiên trong `ROADMAP.md`.
 
-Dự án hiện đang ở trạng thái có thể chạy đồng thời backend, worker, database, Qdrant, Redis và frontend Nuxt bằng Docker Compose. Người dùng có thể đăng nhập bằng admin local, thao tác workflow MVP từ browser: upload văn bản, mở chi tiết, theo dõi trạng thái OCR/extract, search và mở lại document nguồn.
+Hệ thống chạy on-prem bằng Docker Compose (`api`, `worker`, `web`, `postgres`, `redis`, `qdrant`). Workflow web end-to-end: upload → OCR/extract → searchable → semantic search → review chunk → audit. Module nghiệp vụ MVP: hợp đồng (`/contracts`) và công văn đến/đi (`/dispatches`), liên kết hai chiều với document detail; dashboard lọc search theo metadata hợp đồng.
+
+Con trỏ tiếp theo: `TASK_NEXT.md` → Phase 8 / Mục tiêu 1 (khảo sát job kẹt và thiết kế lease recovery).
+
+## Giới Hạn Còn Lại
+
+Ưu tiên Phase 8–9 (đồng bộ với `ROADMAP.md`):
+- Worker chưa có lease timeout hoặc auto recovery cho job `ocr_running` khi worker crash giữa chừng.
+- Admin chưa có endpoint/UI tối thiểu để xem và xử lý job/document bị kẹt ngoài runbook thủ công.
+- Chưa có runbook nâng cấp/migration Alembic cho production nội bộ.
+- RAG mới có API backend; frontend chưa có UI hỏi–đáp trên dashboard.
+- Chưa có module nghiệp vụ thứ ba (quyết định, phiếu vật tư).
+- Chưa có LLM/generator nội bộ nâng cao; RAG hiện extractive từ chunk truy xuất.
 
 ## Đã Xây Dựng
 
@@ -87,6 +99,10 @@ Frontend skeleton:
   - `/documents`
   - `/upload`
   - `/documents/[id]`
+  - `/contracts`
+  - `/dispatches`
+  - `/users` (admin)
+  - `/status` (admin)
 - Cấu trúc service/composable:
   - `page -> composable -> service -> API`
 
@@ -1541,6 +1557,7 @@ Workflow MVP hiện có:
 
 ```text
 web upload -> document detail -> OCR status refresh -> searchable -> dashboard search -> open source document
+contracts/dispatches <-> document detail (liên kết hai chiều metadata nghiệp vụ)
 ```
 
-Chi tiết task vừa hoàn thành nằm trong `TASK_NEXT.md`.
+Chi tiết phase và mục tiêu tiếp theo nằm trong `TASK_NEXT.md` và `ROADMAP.md`.
