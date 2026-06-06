@@ -118,7 +118,7 @@ Trạng thái: đang ưu tiên tiếp theo.
 Mục tiêu: mở rộng từ kho văn bản chung sang các module nghiệp vụ thực tế của phòng vật tư.
 
 Phạm vi ứng viên:
-- Hợp đồng và phụ lục hợp đồng.
+- Hợp đồng và phụ lục hợp đồng: chọn làm module đầu tiên ngày 2026-06-06.
 - Công văn đến/đi.
 - Quyết định, thông báo, đề nghị mua sắm.
 - Phiếu/đề xuất vật tư nếu cần quản lý inventory workflow.

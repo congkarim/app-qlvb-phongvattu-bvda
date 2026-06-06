@@ -132,12 +132,27 @@ Search:
 - Search response và dashboard result đã trả/hiển thị thêm `issuing_agency` để citation metadata rõ hơn.
 - RAG foundation có endpoint `POST /api/v1/search/answer` local-only, tái dùng semantic search, tạo câu trả lời extractive từ chunk truy xuất, trả `citations` gồm document/chunk/source page và fallback `insufficient_evidence` khi không đủ căn cứ.
 
+Domain modules:
+- Phase 4 chọn module đầu tiên là **Hợp đồng và phụ lục hợp đồng**.
+- Quyết định được ghi tại `docs/DOMAIN_MODULE_DECISION.md`, scope MVP chỉ quản lý metadata hợp đồng liên kết document core, chưa mở rộng sang inventory/procurement workflow.
+
 Ops/runbook:
 - `docs/WORKER_OPS_RUNBOOK.md` ghi command kiểm tra worker queue, chạy worker smoke, restart worker, xử lý job failed, reprocess, backup/restore PostgreSQL, Qdrant và uploaded source files.
 
 ## Đã Kiểm Tra Thủ Công
 
 Các kiểm tra sau đã chạy thành công:
+
+Chọn module nghiệp vụ đầu tiên kiểm tra ngày 2026-06-06:
+
+```bash
+git diff --check
+```
+
+Kết quả:
+- Chọn module `Hợp đồng và phụ lục hợp đồng` cho Phase 4.
+- Ghi rõ lý do chọn, ứng viên chưa chọn, scope MVP, boundary backend/frontend/search và hướng dẫn migration tiếp theo trong `docs/DOMAIN_MODULE_DECISION.md`.
+- Không thay đổi runtime; đây là mục tiêu quyết định kiến trúc/tài liệu.
 
 RAG answer endpoint kiểm tra ngày 2026-06-06:
 
