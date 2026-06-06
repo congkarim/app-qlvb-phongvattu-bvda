@@ -21,7 +21,7 @@ Tài liệu này là checklist thực thi tuần tự bám theo `ROADMAP.md`. Kh
 
 Phase hiện tại: Phase 5 - Admin Configuration Và Governance.
 
-Mục tiêu tiếp theo phải làm: Phase 5 / Mục tiêu 1 - Thiết Kế Danh Mục Admin.
+Mục tiêu tiếp theo phải làm: Phase 5 / Mục tiêu 2 - CRUD Danh Mục Có Audit.
 
 Điều kiện chuyển sang mục tiêu kế tiếp:
 - Mục tiêu hiện tại pass tiêu chí chấp nhận.
@@ -755,7 +755,7 @@ Mục tiêu phase: để admin cấu hình hệ thống thay vì sửa code cho 
 
 ### Mục Tiêu 1 - Thiết Kế Danh Mục Admin
 
-Trạng thái: chưa làm.
+Trạng thái: hoàn thành ngày 2026-06-06.
 
 Mục tiêu:
 - Xác định danh mục cần quản lý: đơn vị/phòng ban, loại nghiệp vụ, loại văn bản.
@@ -764,9 +764,31 @@ Tiêu chí chấp nhận:
 - Danh mục tối thiểu rõ ràng.
 - Không biến admin config thành framework phức tạp.
 
+Kết quả:
+- Thêm `docs/ADMIN_CATEGORY_DESIGN.md`.
+- Chốt danh mục MVP gồm:
+  - Đơn vị/phòng ban.
+  - Loại nghiệp vụ.
+  - Loại văn bản.
+- Giữ `departments` là bảng/entity riêng vì đã liên kết `users.department_id` và `documents.department_id`.
+- Đề xuất dùng `admin_catalog_items` giới hạn cho `business_type` và `document_type`, không tạo framework config chung.
+- Ghi rõ seed MVP, API boundary, frontend boundary, fallback khi catalog API lỗi và tiêu chí cho mục tiêu CRUD tiếp theo.
+
+Kiểm tra đã chạy:
+
+```bash
+git diff --check
+```
+
+Sau khi hoàn thành:
+- Đã đọc lại `ROADMAP.md`.
+- Đã cập nhật `PROJECT_STATUS.md` với kết quả và kiểm tra đã chạy.
+- Đã cập nhật mục tiêu này thành `hoàn thành`.
+- Đã chuyển con trỏ hiện tại sang `Phase 5 / Mục tiêu 2`.
+
 ### Mục Tiêu 2 - CRUD Danh Mục Có Audit
 
-Trạng thái: khóa.
+Trạng thái: chưa làm.
 
 Mục tiêu:
 - Admin thay đổi danh mục có audit log.

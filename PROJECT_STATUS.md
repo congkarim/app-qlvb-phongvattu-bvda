@@ -139,12 +139,29 @@ Domain modules:
 - Đã thêm backend Contract API theo `router -> service -> repository`, hỗ trợ list/filter/get/create/update/soft-delete metadata hợp đồng, audit log cho create/update/delete và smoke HTTP `python -m app.scripts.smoke_contract_api`.
 - Đã thêm frontend `/contracts` theo `page -> composable -> service -> API`, có list/filter/pagination, form tạo/sửa metadata, link document nguồn và xóa mềm admin-only.
 
+Admin configuration:
+- Đã thiết kế danh mục admin tối thiểu trong `docs/ADMIN_CATEGORY_DESIGN.md`: `departments` là entity riêng; `business_type` và `document_type` dùng catalog item giới hạn, không mở thành framework cấu hình phức tạp.
+- Danh mục MVP cần CRUD tiếp theo: đơn vị/phòng ban, loại nghiệp vụ, loại văn bản; write admin-only, read cho user đã đăng nhập, soft delete và audit log.
+
 Ops/runbook:
 - `docs/WORKER_OPS_RUNBOOK.md` ghi command kiểm tra worker queue, chạy worker smoke, restart worker, xử lý job failed, reprocess, backup/restore PostgreSQL, Qdrant và uploaded source files.
 
 ## Đã Kiểm Tra Thủ Công
 
 Các kiểm tra sau đã chạy thành công:
+
+Thiết kế danh mục admin kiểm tra ngày 2026-06-06:
+
+```bash
+git diff --check
+```
+
+Kết quả:
+- Chốt danh mục MVP gồm đơn vị/phòng ban, loại nghiệp vụ và loại văn bản.
+- Giữ `departments` là bảng/entity riêng vì đã liên kết `users` và `documents`.
+- Đề xuất bảng `admin_catalog_items` giới hạn cho `business_type` và `document_type`, có UUID, audit timestamps, `deleted_at`, `is_active`, `sort_order` và unique active theo `catalog_type/code`.
+- Ghi seed MVP cho `business_type` và `document_type` dựa trên option đang dùng trong UI.
+- Xác định boundary API/frontend cho CRUD và bước frontend lấy option từ API ở mục tiêu sau.
 
 Frontend Contract UI kiểm tra ngày 2026-06-06:
 
