@@ -73,74 +73,12 @@ Nếu worker đang xử lý job dài, ưu tiên xem log và queue status trướ
 
 ## Backup
 
-Tạo thư mục backup:
+Backup đầy đủ cho PostgreSQL, uploaded source files và Qdrant đã tách thành runbook riêng:
 
-```bash
-mkdir -p backups
-```
-
-PostgreSQL:
-
-```bash
-docker compose exec -T postgres pg_dump -U legal -d legal_doc_ai \
-  > backups/postgres_$(date +%Y%m%d_%H%M%S).sql
-```
-
-Uploaded source files:
-
-```bash
-docker run --rm \
-  -v app-qlvb-phongvattu_uploads_data:/data/uploads:ro \
-  -v "$PWD/backups:/backups" \
-  alpine tar czf /backups/uploads_$(date +%Y%m%d_%H%M%S).tgz -C /data uploads
-```
-
-Qdrant volume:
-
-```bash
-docker run --rm \
-  -v app-qlvb-phongvattu_qdrant_data:/qdrant/storage:ro \
-  -v "$PWD/backups:/backups" \
-  alpine tar czf /backups/qdrant_$(date +%Y%m%d_%H%M%S).tgz -C /qdrant storage
+```text
+docs/STORAGE_BACKUP_RESTORE_RUNBOOK.md
 ```
 
 ## Restore
 
-Restore nên chạy khi stack đang dừng hoặc chỉ bật service cần thiết.
-
-PostgreSQL:
-
-```bash
-docker compose up -d postgres
-docker compose exec -T postgres psql -U legal -d legal_doc_ai \
-  < backups/postgres_YYYYMMDD_HHMMSS.sql
-```
-
-Uploaded source files:
-
-```bash
-docker compose stop api worker web
-docker run --rm \
-  -v app-qlvb-phongvattu_uploads_data:/data \
-  -v "$PWD/backups:/backups" \
-  alpine sh -c 'rm -rf /data/uploads && tar xzf /backups/uploads_YYYYMMDD_HHMMSS.tgz -C /data'
-```
-
-Qdrant volume:
-
-```bash
-docker compose stop qdrant
-docker run --rm \
-  -v app-qlvb-phongvattu_qdrant_data:/qdrant \
-  -v "$PWD/backups:/backups" \
-  alpine sh -c 'rm -rf /qdrant/storage && tar xzf /backups/qdrant_YYYYMMDD_HHMMSS.tgz -C /qdrant'
-docker compose up -d qdrant
-```
-
-Sau restore:
-
-```bash
-docker compose up -d
-docker compose exec -T api alembic upgrade head
-docker compose exec -T api python -m app.scripts.smoke_worker_operations
-```
+Restore đầy đủ nên theo thứ tự trong `docs/STORAGE_BACKUP_RESTORE_RUNBOOK.md`, sau đó chạy lại migration và smoke worker ops.

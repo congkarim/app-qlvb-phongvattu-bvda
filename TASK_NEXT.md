@@ -21,7 +21,7 @@ Tài liệu này là checklist thực thi tuần tự bám theo `ROADMAP.md`. Kh
 
 Phase hiện tại: Phase 6 - On-Prem Production Hardening.
 
-Mục tiêu tiếp theo phải làm: Phase 6 / Mục tiêu 2 - Storage Volumes Và Backup/Restore.
+Mục tiêu tiếp theo phải làm: Phase 6 / Mục tiêu 3 - Health, Readiness Và Logs.
 
 Điều kiện chuyển sang mục tiêu kế tiếp:
 - Mục tiêu hiện tại pass tiêu chí chấp nhận.
@@ -971,7 +971,7 @@ Sau khi hoàn thành:
 
 ### Mục Tiêu 2 - Storage Volumes Và Backup/Restore
 
-Trạng thái: chưa làm.
+Trạng thái: hoàn thành ngày 2026-06-06.
 
 Mục tiêu:
 - Tài liệu storage volumes cho PostgreSQL, Qdrant và uploads.
@@ -980,9 +980,30 @@ Mục tiêu:
 Tiêu chí chấp nhận:
 - Có runbook backup/restore có thể làm theo.
 
+Kết quả:
+- Thêm `docs/STORAGE_BACKUP_RESTORE_RUNBOOK.md`.
+- Runbook ghi rõ 3 named volumes nghiệp vụ: `postgres_data`, `qdrant_data`, `uploads_data`.
+- Ghi cách kiểm tra tên volume thực tế, lưu ý prefix Docker Compose project name.
+- Backup đủ PostgreSQL, uploaded source files và Qdrant; restore theo thứ tự PostgreSQL -> uploads -> Qdrant.
+- Có post-restore checks gồm `alembic upgrade head`, health check, worker queue check và smoke worker operations.
+- README và `docs/WORKER_OPS_RUNBOOK.md` đã trỏ sang runbook storage mới.
+
+Kiểm tra đã chạy:
+
+```bash
+docker compose config
+git diff --check
+```
+
+Sau khi hoàn thành:
+- Đã đọc lại `ROADMAP.md`.
+- Đã cập nhật `PROJECT_STATUS.md` với kết quả và kiểm tra đã chạy.
+- Đã cập nhật mục tiêu này thành `hoàn thành`.
+- Đã chuyển con trỏ hiện tại sang `Phase 6 / Mục tiêu 3`.
+
 ### Mục Tiêu 3 - Health, Readiness Và Logs
 
-Trạng thái: khóa.
+Trạng thái: chưa làm.
 
 Mục tiêu:
 - Health/readiness phân biệt service sống với service sẵn sàng xử lý workflow.

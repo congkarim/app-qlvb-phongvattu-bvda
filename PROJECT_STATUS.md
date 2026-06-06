@@ -150,12 +150,26 @@ Admin configuration:
 Ops/runbook:
 - `docs/WORKER_OPS_RUNBOOK.md` ghi command kiểm tra worker queue, chạy worker smoke, restart worker, xử lý job failed, reprocess, backup/restore PostgreSQL, Qdrant và uploaded source files.
 - `docs/ON_PREM_ENV_RUNBOOK.md` ghi policy `.env`, JWT secret, admin password, CORS và database credential cho production nội bộ.
+- `docs/STORAGE_BACKUP_RESTORE_RUNBOOK.md` ghi rõ named volumes Docker Compose, dữ liệu nằm trong PostgreSQL/Qdrant/uploads, quy trình backup/restore theo thứ tự và kiểm tra sau restore.
 - Backend settings đã có production guard: `APP_ENV=production` sẽ fail nếu dùng default JWT secret, default admin password, wildcard CORS hoặc default `legal:legal` database credential.
 - Docker Compose đã đọc secret/admin/CORS/database/API URL từ `.env`, có fallback dev rõ ràng cho local.
 
 ## Đã Kiểm Tra Thủ Công
 
 Các kiểm tra sau đã chạy thành công:
+
+Storage volumes và backup/restore runbook kiểm tra ngày 2026-06-06:
+
+```bash
+docker compose config
+git diff --check
+```
+
+Kết quả:
+- Thêm `docs/STORAGE_BACKUP_RESTORE_RUNBOOK.md` cho PostgreSQL, Qdrant và uploads named volumes.
+- Runbook ghi cách kiểm tra volume thực tế, lưu ý prefix `COMPOSE_PROJECT_NAME`, policy backup đủ 3 phần và khuyến nghị dừng service ghi dữ liệu khi cần snapshot nhất quán.
+- Runbook có command backup PostgreSQL bằng `pg_dump`, backup uploads/Qdrant bằng archive volume, restore theo thứ tự PostgreSQL -> uploads -> Qdrant, migration và smoke sau restore.
+- README và worker ops runbook đã trỏ sang runbook storage mới để tránh hướng dẫn backup rời rạc.
 
 Chuẩn hóa env và secret kiểm tra ngày 2026-06-06:
 

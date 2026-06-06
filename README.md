@@ -62,6 +62,12 @@ Worker/queue ops runbook:
 docs/WORKER_OPS_RUNBOOK.md
 ```
 
+Storage volumes và backup/restore runbook:
+
+```text
+docs/STORAGE_BACKUP_RESTORE_RUNBOOK.md
+```
+
 Login admin local:
 
 ```bash
