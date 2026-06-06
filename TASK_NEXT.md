@@ -9,8 +9,9 @@ Tài liệu này là checklist thực thi tuần tự bám theo `ROADMAP.md`. Kh
 - Trước khi bắt đầu bất kỳ mục tiêu nào: đọc lại `ROADMAP.md`, `PROJECT_STATUS.md` và `TASK_NEXT.md`.
 - Chỉ làm một mục tiêu nhỏ tại một thời điểm.
 - Xong mục tiêu nào phải kiểm tra tiêu chí chấp nhận của mục tiêu đó, cập nhật `PROJECT_STATUS.md` và `TASK_NEXT.md`.
+- **Auto commit:** sau khi mục tiêu pass tiêu chí chấp nhận và kiểm tra bắt buộc đã chạy (hoặc lý do chưa chạy được đã ghi rõ), bắt buộc commit các thay đổi liên quan bằng skill `project-git-manager`; không chờ user yêu cầu riêng.
 - Sau khi xong từng mục tiêu: đọc lại `ROADMAP.md` để xác nhận ưu tiên còn đúng trước khi lập kế hoạch cho mục tiêu kế tiếp.
-- Sau khi xong một phase: đọc lại toàn bộ `ROADMAP.md`, cập nhật trạng thái phase trong `TASK_NEXT.md`, rồi mới mở khóa phase kế tiếp.
+- Sau khi xong một phase: đọc lại toàn bộ `ROADMAP.md`, cập nhật trạng thái phase trong `TASK_NEXT.md`, commit, rồi mới mở khóa phase kế tiếp.
 - Không thực hiện Phase 2 khi Phase 1 chưa hoàn thành; tương tự với các phase sau.
 - Giữ đúng stack cố định và kiến trúc:
   - Backend: `router -> service -> repository`.
@@ -19,15 +20,16 @@ Tài liệu này là checklist thực thi tuần tự bám theo `ROADMAP.md`. Kh
 
 ## Con Trỏ Hiện Tại
 
-Phase hiện tại: Phase 6 - On-Prem Production Hardening.
+Phase hiện tại: Phase 7 - Domain Integration Và Module Mở Rộng.
 
-Mục tiêu tiếp theo phải làm: không còn mục tiêu mở trong `TASK_NEXT.md`. Phase 6 đã hoàn thành; xem `ROADMAP.md` khi mở phase mới.
+Mục tiêu tiếp theo phải làm: Phase 7 / Mục tiêu 1 - Liên Kết Hợp Đồng ↔ Document (Backend).
 
 Điều kiện chuyển sang mục tiêu kế tiếp:
 - Mục tiêu hiện tại pass tiêu chí chấp nhận.
 - Các kiểm tra bắt buộc đã chạy hoặc lý do chưa chạy được đã ghi rõ.
 - `ROADMAP.md` đã được đọc lại sau khi hoàn thành mục tiêu.
-- `TASK_NEXT.md` đã được cập nhật để đánh dấu mục tiêu hoàn thành và chọn mục tiêu tiếp theo.
+- `TASK_NEXT.md` và `PROJECT_STATUS.md` đã được cập nhật.
+- Đã auto commit thay đổi liên quan của mục tiêu vừa hoàn thành.
 
 ## Phase 0 - MVP Foundation
 
@@ -1072,3 +1074,246 @@ Sau khi hoàn thành:
 - Có runbook cài đặt, nâng cấp, backup, restore và troubleshoot.
 - Cấu hình production nội bộ không dùng default secret/admin password.
 - Observability tối thiểu đủ cho vận hành on-prem.
+
+## Phase 7 - Domain Integration Và Module Mở Rộng
+
+Trạng thái: đang làm.
+
+Mục tiêu phase: tăng giá trị nghiệp vụ thực tế sau khi nền tảng on-prem đã sẵn sàng, bắt đầu từ module hợp đồng hiện có và mở module công văn đến/đi.
+
+Điều kiện hoàn thành phase:
+- Document detail và contract module liên kết hai chiều rõ ràng.
+- Có ít nhất một filter search/dashboard dùng metadata hợp đồng.
+- Module công văn đến/đi có schema, API, UI MVP và smoke script tái chạy được.
+- Không phá upload/OCR/search/review workflow hiện có.
+
+### Mục Tiêu 1 - Liên Kết Hợp Đồng ↔ Document (Backend)
+
+Trạng thái: chưa làm.
+
+Mục tiêu:
+- Cho phép tra cứu metadata hợp đồng theo `document_id` từ document core mà không copy OCR/chunk sang bảng module.
+
+Phạm vi backend:
+- Thêm repository method lấy contract active theo `document_id`.
+- Thêm endpoint read-only, ví dụ `GET /api/v1/contracts/by-document/{document_id}` hoặc mở rộng document detail response nếu gọn hơn; giữ `router -> service -> repository`.
+- Trả `404` khi document không có contract active; user đăng nhập được gọi endpoint.
+- Không sửa Qdrant payload hay OCR pipeline.
+
+Tiêu chí chấp nhận:
+- Gọi API theo `document_id` có contract trả metadata hợp đồng đúng.
+- Document không có contract trả `404` hoặc `null` rõ ràng theo thiết kế đã chọn.
+- Permission giữ nguyên rule contract hiện có.
+
+Kiểm tra cần chạy:
+
+```bash
+PYTHONPYCACHEPREFIX=/tmp/qlvb-pycache PYTHONPATH=apps/api python3 -m py_compile apps/api/app/repositories/contract_repository.py apps/api/app/services/contract_service.py apps/api/app/routers/contracts.py apps/api/app/schemas/contract.py
+docker compose exec -T api python -m app.scripts.smoke_contract_api
+git diff --check
+```
+
+Sau khi hoàn thành:
+- Đã đọc lại `ROADMAP.md`.
+- Đã cập nhật `PROJECT_STATUS.md` với kết quả và kiểm tra đã chạy.
+- Đã cập nhật mục tiêu này thành `hoàn thành`.
+- Đã auto commit thay đổi liên quan.
+- Đã chuyển con trỏ hiện tại sang `Phase 7 / Mục tiêu 2`.
+
+### Mục Tiêu 2 - Liên Kết Hợp Đồng ↔ Document (Frontend)
+
+Trạng thái: khóa.
+
+Mục tiêu:
+- Người dùng đi được hai chiều giữa document detail và contract module.
+
+Phạm vi frontend:
+- Cập nhật type/service/composable contract hoặc document để gọi lookup theo `document_id`.
+- Trên `/documents/[id]`: hiển thị card/link metadata hợp đồng nếu có; ẩn hoặc empty state nếu chưa có.
+- Trên `/contracts`: giữ hoặc cải thiện link sang document nguồn và chunks/search liên quan (ví dụ link dashboard search preset theo document).
+- Giữ luồng `page -> composable -> service -> API`; không gọi API trực tiếp trong component.
+
+Tiêu chí chấp nhận:
+- Document có contract hiển thị link sang `/contracts` hoặc detail tương ứng.
+- Contract list/detail mở lại document nguồn được.
+- Không phá upload, metadata edit, preview source, chunks filter và reprocess hiện có.
+
+Kiểm tra cần chạy:
+
+```bash
+docker compose run --rm --no-deps -e NODE_OPTIONS=--max-old-space-size=2048 web npm run build
+git diff --check
+```
+
+Sau khi hoàn thành:
+- Đã đọc lại `ROADMAP.md`.
+- Đã cập nhật `PROJECT_STATUS.md` với kết quả và kiểm tra đã chạy.
+- Đã cập nhật mục tiêu này thành `hoàn thành`.
+- Đã auto commit thay đổi liên quan.
+- Đã chuyển con trỏ hiện tại sang `Phase 7 / Mục tiêu 3`.
+
+### Mục Tiêu 3 - Search Filter Theo Metadata Hợp Đồng
+
+Trạng thái: khóa.
+
+Mục tiêu:
+- Dashboard/search lọc được theo metadata hợp đồng MVP mà không thay thế semantic search core.
+
+Phạm vi backend:
+- Mở rộng search request/filter để nhận ít nhất một trong các field: `contract_number`, `supplier_name`, `contract_status`.
+- Lọc bằng cách giới hạn tập `document_id` từ `contract_records` active trước khi query Qdrant/DB; không denormalize contract metadata vào Qdrant nếu chưa cần.
+- Giữ pagination, filter chunk hiện có (`section_role`, `requires_review`, ...).
+
+Phạm vi frontend:
+- Thêm filter contract trên `/dashboard` qua composable/service search hiện có.
+- Hiển thị metadata hợp đồng trong result nếu đã có sẵn hoặc fetch nhẹ theo document.
+
+Tiêu chí chấp nhận:
+- Search với `supplier_name` hoặc `contract_number` chỉ trả chunk thuộc document có contract khớp.
+- Search không filter contract vẫn hoạt động như trước.
+- Smoke API workflow hoặc script search contract filter pass.
+
+Kiểm tra cần chạy:
+
+```bash
+PYTHONPYCACHEPREFIX=/tmp/qlvb-pycache PYTHONPATH=apps/api python3 -m py_compile apps/api/app/schemas/search.py apps/api/app/services/search_service.py apps/api/app/routers/search.py
+docker compose exec -T api python -m app.scripts.smoke_api_workflows
+docker compose run --rm --no-deps -e NODE_OPTIONS=--max-old-space-size=2048 web npm run build
+git diff --check
+```
+
+Sau khi hoàn thành:
+- Đã đọc lại `ROADMAP.md`.
+- Đã cập nhật `PROJECT_STATUS.md` với kết quả và kiểm tra đã chạy.
+- Đã cập nhật mục tiêu này thành `hoàn thành`.
+- Đã auto commit thay đổi liên quan.
+- Đã chuyển con trỏ hiện tại sang `Phase 7 / Mục tiêu 4`.
+
+### Mục Tiêu 4 - Thiết Kế Module Công Văn Đến/Đi
+
+Trạng thái: khóa.
+
+Mục tiêu:
+- Ghi quyết định scope module nghiệp vụ thứ hai trước khi viết migration/API.
+
+Phạm vi:
+- Cập nhật `docs/DOMAIN_MODULE_DECISION.md` với module **Công văn đến/đi**.
+- Xác định metadata MVP, boundary kỹ thuật, quyền, audit action, liên kết `document_id`.
+- Liệt kê rõ không làm: inventory, workflow nhiều bước, LLM extraction.
+
+Tiêu chí chấp nhận:
+- Có tài liệu quyết định đủ để implement schema/API/UI theo pattern `contracts`.
+- Metadata MVP có ít nhất: loại công văn (đến/đi), số/ký hiệu, ngày ban hành, đơn vị ban hành/nơi nhận, trích yếu, trạng thái.
+
+Kiểm tra cần chạy:
+
+```bash
+git diff --check
+```
+
+Sau khi hoàn thành:
+- Đã đọc lại `ROADMAP.md`.
+- Đã cập nhật `PROJECT_STATUS.md` với kết quả.
+- Đã cập nhật mục tiêu này thành `hoàn thành`.
+- Đã auto commit thay đổi liên quan.
+- Đã chuyển con trỏ hiện tại sang `Phase 7 / Mục tiêu 5`.
+
+### Mục Tiêu 5 - Schema Công Văn Đến/Đi
+
+Trạng thái: khóa.
+
+Mục tiêu:
+- Tạo bảng metadata công văn liên kết document core.
+
+Phạm vi backend/database:
+- Thêm model và migration, ví dụ `dispatch_records` hoặc tên đã chọn trong tài liệu thiết kế.
+- UUID primary key, `created_at`, `updated_at`, `deleted_at`, liên kết `documents.id`.
+- Partial unique index active theo `document_id` nếu MVP giữ 1-1 như hợp đồng.
+- Index filter MVP: số/ký hiệu, loại đến/đi, đơn vị, ngày ban hành, trạng thái.
+
+Tiêu chí chấp nhận:
+- Migration chạy được bằng `alembic upgrade head`.
+- Schema khớp tài liệu thiết kế Phase 7 mục tiêu 4.
+- Không copy OCR text/chunk vào bảng module.
+
+Kiểm tra cần chạy:
+
+```bash
+PYTHONPYCACHEPREFIX=/tmp/qlvb-pycache PYTHONPATH=apps/api python3 -m py_compile apps/api/app/models/*.py apps/api/alembic/versions/*dispatch*.py
+docker compose exec -T api alembic upgrade head
+git diff --check
+```
+
+Sau khi hoàn thành:
+- Đã đọc lại `ROADMAP.md`.
+- Đã cập nhật `PROJECT_STATUS.md` với kết quả và kiểm tra đã chạy.
+- Đã cập nhật mục tiêu này thành `hoàn thành`.
+- Đã auto commit thay đổi liên quan.
+- Đã chuyển con trỏ hiện tại sang `Phase 7 / Mục tiêu 6`.
+
+### Mục Tiêu 6 - Backend API Công Văn Đến/Đi
+
+Trạng thái: khóa.
+
+Mục tiêu:
+- CRUD metadata công văn theo pattern module hợp đồng.
+
+Phạm vi backend:
+- Thêm `schemas`, `repository`, `service`, `router` cho module công văn.
+- Endpoint MVP: list/filter/get/create/update/soft-delete.
+- Audit log: `dispatch.created`, `dispatch.updated`, `dispatch.deleted` hoặc naming đã chốt trong tài liệu thiết kế.
+- Thêm smoke HTTP `python -m app.scripts.smoke_dispatch_api`.
+- Include router trong `main.py`.
+
+Tiêu chí chấp nhận:
+- Smoke dispatch API pass trên Docker Compose.
+- User đăng nhập list/get/create/update; soft delete admin-only nếu giữ parity với contracts.
+- Không phá contract API, document API và search API hiện có.
+
+Kiểm tra cần chạy:
+
+```bash
+PYTHONPYCACHEPREFIX=/tmp/qlvb-pycache PYTHONPATH=apps/api python3 -m py_compile apps/api/app/schemas/dispatch.py apps/api/app/repositories/dispatch_repository.py apps/api/app/services/dispatch_service.py apps/api/app/routers/dispatches.py apps/api/app/scripts/smoke_dispatch_api.py apps/api/app/main.py
+docker compose exec -T api python -m app.scripts.smoke_dispatch_api
+git diff --check
+```
+
+Sau khi hoàn thành:
+- Đã đọc lại `ROADMAP.md`.
+- Đã cập nhật `PROJECT_STATUS.md` với kết quả và kiểm tra đã chạy.
+- Đã cập nhật mục tiêu này thành `hoàn thành`.
+- Đã auto commit thay đổi liên quan.
+- Đã chuyển con trỏ hiện tại sang `Phase 7 / Mục tiêu 7`.
+
+### Mục Tiêu 7 - Frontend Module Công Văn Đến/Đi
+
+Trạng thái: khóa.
+
+Mục tiêu:
+- UI quản lý metadata công văn MVP theo pattern `/contracts`.
+
+Phạm vi frontend:
+- Thêm type/service/composable/page, ví dụ `/dispatches`.
+- List/filter/pagination, form tạo/sửa, link document nguồn, soft delete admin-only.
+- Thêm nav item phù hợp trong `app.vue`.
+- Liên kết document detail ↔ dispatch nếu pattern đã làm ở mục tiêu 1–2 có thể tái sử dụng.
+
+Tiêu chí chấp nhận:
+- User thao tác CRUD metadata công văn từ browser.
+- Frontend build pass.
+- Smoke dispatch API vẫn pass sau khi ghép UI.
+
+Kiểm tra cần chạy:
+
+```bash
+docker compose run --rm --no-deps -e NODE_OPTIONS=--max-old-space-size=2048 web npm run build
+docker compose exec -T api python -m app.scripts.smoke_dispatch_api
+git diff --check
+```
+
+Sau khi hoàn thành:
+- Đã đọc lại `ROADMAP.md`.
+- Đã cập nhật `PROJECT_STATUS.md` với kết quả và kiểm tra đã chạy.
+- Đã cập nhật mục tiêu này thành `hoàn thành`.
+- Đã auto commit thay đổi liên quan.
+- Phase 7 đã đạt điều kiện hoàn thành; cập nhật trạng thái phase `hoàn thành`, commit, rồi chuyển con trỏ sang Phase 8 / Mục tiêu 1 khi `TASK_NEXT.md` đã có checklist Phase 8.
