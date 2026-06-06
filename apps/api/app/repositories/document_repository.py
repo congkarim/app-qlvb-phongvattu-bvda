@@ -302,6 +302,28 @@ class DocumentRepository:
         )
         return list(self.db.scalars(stmt))
 
+    def soft_delete_all_pages_for_document(self, document_id: str) -> int:
+        deleted_at = datetime.now(timezone.utc)
+        deleted_count = 0
+        for page in self.list_pages_for_document(document_id):
+            page.deleted_at = deleted_at
+            self.db.add(page)
+            deleted_count += 1
+        if deleted_count:
+            self.db.flush()
+        return deleted_count
+
+    def soft_delete_all_chunks_for_document(self, document_id: str) -> list[DocumentChunk]:
+        deleted_at = datetime.now(timezone.utc)
+        deleted: list[DocumentChunk] = []
+        for chunk in self.list_chunks_for_document(document_id):
+            chunk.deleted_at = deleted_at
+            self.db.add(chunk)
+            deleted.append(chunk)
+        if deleted:
+            self.db.flush()
+        return deleted
+
     def replace_pages_for_document(
         self,
         *,
@@ -860,6 +882,34 @@ class OCRJobRepository:
                 OCRJob.deleted_at.is_(None),
                 OCRJob.next_run_at.is_not(None),
                 OCRJob.next_run_at > now,
+            )
+        )
+        return int(self.db.scalar(stmt) or 0)
+
+    def lock_next_stale_running_job(self, *, stale_before: datetime) -> OCRJob | None:
+        stmt = (
+            select(OCRJob)
+            .where(
+                OCRJob.status == "ocr_running",
+                OCRJob.deleted_at.is_(None),
+                OCRJob.started_at.is_not(None),
+                OCRJob.started_at < stale_before,
+            )
+            .order_by(OCRJob.started_at.asc())
+            .with_for_update(skip_locked=True)
+            .limit(1)
+        )
+        return self.db.scalar(stmt)
+
+    def count_stale_running_jobs(self, *, stale_before: datetime) -> int:
+        stmt = (
+            select(func.count())
+            .select_from(OCRJob)
+            .where(
+                OCRJob.status == "ocr_running",
+                OCRJob.deleted_at.is_(None),
+                OCRJob.started_at.is_not(None),
+                OCRJob.started_at < stale_before,
             )
         )
         return int(self.db.scalar(stmt) or 0)

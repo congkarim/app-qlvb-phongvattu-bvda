@@ -20,6 +20,7 @@ from app.services.document_content_service import (
 )
 from app.services.embedding_service import EmbeddingService
 from app.services.ocr_chunking.adapter import create_chunk_payloads
+from app.services.ocr_job_recovery_service import OCRJobRecoveryService
 from app.services.qdrant_service import QdrantService
 
 
@@ -58,6 +59,10 @@ class OCRWorker:
         self.qdrant = QdrantService()
 
     def run_once(self) -> bool:
+        recovered = OCRJobRecoveryService(self.db).recover_stale_jobs()
+        if recovered:
+            self.db.commit()
+
         job = self.ocr_jobs.claim_next_pending_job()
         if not job:
             return False

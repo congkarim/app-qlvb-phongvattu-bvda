@@ -25,7 +25,7 @@ Phase trước: Phase 7 hoàn thành ngày 2026-06-06.
 
 Phase hiện tại: Phase 8 - Worker Resilience Và Production Upgrade.
 
-Mục tiêu tiếp theo: Phase 8 / Mục tiêu 2 - Stale-Job Recovery Backend.
+Mục tiêu tiếp theo: Phase 8 / Mục tiêu 3 - Ops Endpoint Và Runbook Job Kẹt.
 
 Điều kiện chuyển sang mục tiêu kế tiếp:
 - Mục tiêu hiện tại pass tiêu chí chấp nhận.
@@ -75,7 +75,7 @@ Kết quả khảo sát:
 
 ### Mục Tiêu 2 - Stale-Job Recovery Backend
 
-Trạng thái: chưa làm.
+Trạng thái: hoàn thành (2026-06-06).
 
 Skill bắt buộc: `backend-fastapi`.
 

@@ -8,12 +8,11 @@ Cập nhật lần cuối: 2026-06-06
 
 Hệ thống chạy on-prem bằng Docker Compose (`api`, `worker`, `web`, `postgres`, `redis`, `qdrant`). Workflow web end-to-end: upload → OCR/extract → searchable → semantic search → review chunk → audit. Module nghiệp vụ MVP: hợp đồng (`/contracts`) và công văn đến/đi (`/dispatches`), liên kết hai chiều với document detail; dashboard lọc search theo metadata hợp đồng.
 
-Con trỏ tiếp theo: `TASK_NEXT.md` → Phase 8 / Mục tiêu 2 (stale-job recovery backend).
+Con trỏ tiếp theo: `TASK_NEXT.md` → Phase 8 / Mục tiêu 3 (ops endpoint và runbook job kẹt).
 
 ## Giới Hạn Còn Lại
 
 Ưu tiên Phase 8–9 (đồng bộ với `ROADMAP.md`):
-- Worker chưa có lease timeout hoặc auto recovery cho job `ocr_running` khi worker crash giữa chừng.
 - Admin chưa có endpoint/UI tối thiểu để xem và xử lý job/document bị kẹt ngoài runbook thủ công.
 - Chưa có runbook nâng cấp/migration Alembic cho production nội bộ.
 - RAG mới có API backend; frontend chưa có UI hỏi–đáp trên dashboard.
@@ -1637,5 +1636,24 @@ Rủi ro / việc cần làm ở Mục tiêu 2:
 - Ops counter `running` trên `/api/v1/ops/worker-queue` vẫn đếm job `ocr_running` kể cả stale cho đến khi recovery chạy; Mục tiêu 3 có thể thêm counter/list stale.
 
 Chưa thay đổi code runtime trong mục tiêu này (chỉ tài liệu khảo sát).
+
+Phase 8 / Mục tiêu 2 — Stale-job recovery backend (2026-06-06):
+
+```bash
+PYTHONPYCACHEPREFIX=/tmp/qlvb-pycache PYTHONPATH=apps/api python3 -m py_compile apps/api/app/core/config.py apps/api/app/repositories/document_repository.py apps/api/app/services/ocr_job_recovery_service.py apps/api/app/workers/ocr_worker.py
+docker compose stop worker
+docker compose exec -T api python -m app.scripts.smoke_worker_claim_atomic
+docker compose exec -T api python -m app.scripts.smoke_worker_retry_policy
+git diff --check
+```
+
+Kết quả:
+- Config mới: `OCR_JOB_LEASE_TIMEOUT_SECONDS` (mặc định 3600), `OCR_JOB_STALE_RECOVERY_ENABLED` (mặc định true).
+- `OCRJobRepository.lock_next_stale_running_job()` khóa job `ocr_running` có `started_at` quá hạn bằng `FOR UPDATE SKIP LOCKED`; thêm `count_stale_running_jobs()` phục vụ ops sau này.
+- `DocumentRepository.soft_delete_all_pages_for_document()` và `soft_delete_all_chunks_for_document()` hỗ trợ cleanup partial state trước retry.
+- `OCRJobRecoveryService.recover_stale_jobs()` xử lý stale job: còn lượt → `pending` + `failed_reason=worker_lease_expired` + sync document/file; hết lượt → `failed`; ghi audit `ocr_job.stale_recovered` và log INFO.
+- Cleanup có kiểm soát: job `ocr` retry xóa pages/chunks/Qdrant; job `reprocess` retry chỉ xóa chunks khi document đang `chunking`.
+- `OCRWorker.run_once()` gọi recovery trước claim; job đang chạy thật không bị recover nhầm vì lease mặc định 3600s.
+- Smoke `smoke_worker_claim_atomic` và `smoke_worker_retry_policy` pass sau thay đổi; `git diff --check` pass.
 
 Chi tiết phase và mục tiêu tiếp theo nằm trong `TASK_NEXT.md` và `ROADMAP.md`.

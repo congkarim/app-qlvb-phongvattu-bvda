@@ -49,6 +49,8 @@ class Settings(BaseSettings):
     vietocr_weight_path: Path | None = None
     vietocr_max_batch_size: int = 1
     vietocr_beamsearch: bool = False
+    ocr_job_lease_timeout_seconds: int = 3600
+    ocr_job_stale_recovery_enabled: bool = True
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
