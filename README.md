@@ -250,6 +250,32 @@ Smoke RAG answer endpoint:
 docker compose exec -T api python -m app.scripts.smoke_rag_answer
 ```
 
+## Test Contract API
+
+Module hợp đồng MVP lưu metadata nghiệp vụ liên kết với document core. Tạo/sửa/list/xem hợp đồng dùng token đăng nhập; xóa mềm metadata hợp đồng yêu cầu admin.
+
+Tạo metadata hợp đồng cho một document đã có:
+
+```bash
+curl -X POST http://localhost:8000/api/v1/contracts \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"document_id":"<document_id>","contract_number":"HD-01/VT","supplier_name":"Cong ty Vat Tu","status":"active","currency":"VND"}'
+```
+
+List/filter hợp đồng:
+
+```bash
+curl "http://localhost:8000/api/v1/contracts?status=active&supplier_name=Vat%20Tu&limit=20&offset=0" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+Smoke Contract API:
+
+```bash
+docker compose exec -T api python -m app.scripts.smoke_contract_api
+```
+
 ## Smoke Appendix Data
 
 Kiểm tra luồng phụ lục có dữ liệu thật từ document detail, review queue, semantic search và thao tác `Đã review`:

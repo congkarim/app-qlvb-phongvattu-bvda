@@ -21,7 +21,7 @@ Tài liệu này là checklist thực thi tuần tự bám theo `ROADMAP.md`. Kh
 
 Phase hiện tại: Phase 4 - Domain Modules.
 
-Mục tiêu tiếp theo phải làm: Phase 4 / Mục tiêu 3 - Backend Module API.
+Mục tiêu tiếp theo phải làm: Phase 4 / Mục tiêu 4 - Frontend Module UI.
 
 Điều kiện chuyển sang mục tiêu kế tiếp:
 - Mục tiêu hiện tại pass tiêu chí chấp nhận.
@@ -655,7 +655,7 @@ Sau khi hoàn thành:
 
 ### Mục Tiêu 3 - Backend Module API
 
-Trạng thái: chưa làm.
+Trạng thái: hoàn thành ngày 2026-06-06.
 
 Mục tiêu:
 - Thêm backend theo `router -> service -> repository`.
@@ -668,9 +668,41 @@ Phạm vi:
 Tiêu chí chấp nhận:
 - API module hoạt động độc lập với upload/OCR core nhưng liên kết document được.
 
+Kết quả:
+- Thêm `apps/api/app/schemas/contract.py`.
+- Thêm `apps/api/app/repositories/contract_repository.py`.
+- Thêm `apps/api/app/services/contract_service.py`.
+- Thêm `apps/api/app/routers/contracts.py` và include router trong `apps/api/app/main.py`.
+- API endpoints:
+  - `GET /api/v1/contracts`.
+  - `GET /api/v1/contracts/{contract_id}`.
+  - `POST /api/v1/contracts`.
+  - `PATCH /api/v1/contracts/{contract_id}`.
+  - `DELETE /api/v1/contracts/{contract_id}`.
+- List/filter hỗ trợ query, document id, số hợp đồng, nhà cung cấp, trạng thái, ngày ký, hiệu lực, sort và pagination.
+- Create/update validate document còn active, chặn trùng contract metadata active theo document, normalize currency và giữ metadata riêng trong `contract_records`.
+- User đăng nhập được list/get/create/update; soft delete yêu cầu admin.
+- Service ghi audit log `contract.created`, `contract.updated`, `contract.deleted`.
+- Thêm smoke HTTP `python -m app.scripts.smoke_contract_api`.
+
+Kiểm tra đã chạy:
+
+```bash
+PYTHONPYCACHEPREFIX=/tmp/qlvb-pycache PYTHONPATH=apps/api python3 -m py_compile apps/api/app/schemas/contract.py apps/api/app/repositories/contract_repository.py apps/api/app/services/contract_service.py apps/api/app/routers/contracts.py apps/api/app/scripts/smoke_contract_api.py apps/api/app/main.py
+docker compose up -d api postgres redis qdrant
+docker compose exec -T api python -m app.scripts.smoke_contract_api
+git diff --check
+```
+
+Sau khi hoàn thành:
+- Đã đọc lại `ROADMAP.md`.
+- Đã cập nhật `PROJECT_STATUS.md` với kết quả và kiểm tra đã chạy.
+- Đã cập nhật mục tiêu này thành `hoàn thành`.
+- Đã chuyển con trỏ hiện tại sang `Phase 4 / Mục tiêu 4`.
+
 ### Mục Tiêu 4 - Frontend Module UI
 
-Trạng thái: khóa.
+Trạng thái: chưa làm.
 
 Mục tiêu:
 - Thêm frontend theo `page -> composable -> service -> API`.

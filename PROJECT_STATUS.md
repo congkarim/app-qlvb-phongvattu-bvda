@@ -136,6 +136,7 @@ Domain modules:
 - Phase 4 chọn module đầu tiên là **Hợp đồng và phụ lục hợp đồng**.
 - Quyết định được ghi tại `docs/DOMAIN_MODULE_DECISION.md`, scope MVP chỉ quản lý metadata hợp đồng liên kết document core, chưa mở rộng sang inventory/procurement workflow.
 - Đã thêm bảng `contract_records` bằng migration `0011_contract_records`, có UUID primary key, `created_at`, `updated_at`, `deleted_at`, liên kết `documents.id` và index filter MVP cho số hợp đồng, nhà cung cấp, trạng thái, ngày ký và hiệu lực.
+- Đã thêm backend Contract API theo `router -> service -> repository`, hỗ trợ list/filter/get/create/update/soft-delete metadata hợp đồng, audit log cho create/update/delete và smoke HTTP `python -m app.scripts.smoke_contract_api`.
 
 Ops/runbook:
 - `docs/WORKER_OPS_RUNBOOK.md` ghi command kiểm tra worker queue, chạy worker smoke, restart worker, xử lý job failed, reprocess, backup/restore PostgreSQL, Qdrant và uploaded source files.
@@ -143,6 +144,23 @@ Ops/runbook:
 ## Đã Kiểm Tra Thủ Công
 
 Các kiểm tra sau đã chạy thành công:
+
+Backend Contract API kiểm tra ngày 2026-06-06:
+
+```bash
+PYTHONPYCACHEPREFIX=/tmp/qlvb-pycache PYTHONPATH=apps/api python3 -m py_compile apps/api/app/schemas/contract.py apps/api/app/repositories/contract_repository.py apps/api/app/services/contract_service.py apps/api/app/routers/contracts.py apps/api/app/scripts/smoke_contract_api.py apps/api/app/main.py
+docker compose up -d api postgres redis qdrant
+docker compose exec -T api python -m app.scripts.smoke_contract_api
+git diff --check
+```
+
+Kết quả:
+- Thêm `app.schemas.contract` cho request/response contract metadata.
+- Thêm `ContractRepository`, `ContractService`, `contracts` router và include router trong FastAPI app.
+- API hỗ trợ list/filter/get/create/update; soft delete yêu cầu admin.
+- Filter tối thiểu: query, document id, số hợp đồng, nhà cung cấp, trạng thái, ngày ký và hiệu lực.
+- Service validate document active, chặn trùng contract metadata active theo document, normalize currency và ghi audit `contract.created`, `contract.updated`, `contract.deleted`.
+- Smoke HTTP pass: user tạo/list/get/update, duplicate create trả `409`, user delete trả `403`, admin delete mềm, deleted lookup trả `404`, audit logs được ghi.
 
 Metadata/database module hợp đồng kiểm tra ngày 2026-06-06:
 

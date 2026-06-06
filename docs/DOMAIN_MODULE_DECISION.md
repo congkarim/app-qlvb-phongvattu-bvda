@@ -117,9 +117,25 @@ Ghi chú:
 
 ## Hướng Dẫn Cho Mục Tiêu Tiếp Theo
 
-Mục tiêu 3 nên thêm backend module hợp đồng theo `router -> service -> repository`:
+Mục tiêu 3 đã thêm backend module hợp đồng theo `router -> service -> repository`.
 
-- CRUD/filter tối thiểu trên `contract_records`.
-- Permission theo RBAC hiện có.
-- Audit log cho create/update/delete mềm metadata hợp đồng.
-- Không sửa OCR/search core; liên kết document qua `document_id`.
+Endpoint chính:
+
+- `GET /api/v1/contracts`.
+- `GET /api/v1/contracts/{contract_id}`.
+- `POST /api/v1/contracts`.
+- `PATCH /api/v1/contracts/{contract_id}`.
+- `DELETE /api/v1/contracts/{contract_id}`.
+
+Quyền:
+
+- User đăng nhập được list/get/create/update metadata hợp đồng.
+- Soft delete metadata hợp đồng yêu cầu admin.
+
+Audit:
+
+- `contract.created`.
+- `contract.updated`.
+- `contract.deleted`.
+
+Mục tiêu 4 nên thêm frontend module UI theo `page -> composable -> service -> API`, dùng các endpoint trên và không gọi API trực tiếp trong component.
