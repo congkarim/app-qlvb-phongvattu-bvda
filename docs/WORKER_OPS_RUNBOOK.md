@@ -32,8 +32,59 @@ Các field chính:
 - `pending_ready`: job có thể được worker claim ngay.
 - `pending_delayed`: job retry đang chờ tới `next_run_at`.
 - `running`: job đang `ocr_running`.
+- `stale_running`: job `ocr_running` quá `OCR_JOB_LEASE_TIMEOUT_SECONDS` (mặc định 3600s).
 - `failed`: job đã fail cuối cùng.
 - `active`: tổng pending/running cần theo dõi.
+- `lease_timeout_seconds`, `stale_recovery_enabled`: cấu hình recovery hiện tại.
+
+## Job Kẹt (Stale)
+
+Worker tự recovery stale job trước mỗi lần claim. Admin cũng có thể xem và recover thủ công qua API ops.
+
+Liệt kê job stale và document đang kẹt:
+
+```bash
+curl -H "Authorization: Bearer $TOKEN" \
+  "http://localhost:8000/api/v1/ops/worker-queue/stale-jobs?limit=50&offset=0"
+```
+
+Response gồm `items[]` với `job_id`, `document_id`, `document_status`, `started_at`, `stale_for_seconds`, `attempts/max_attempts`.
+
+Recover tất cả job stale (khuyến nghị dừng worker trước nếu muốn kiểm soát thủ công hoàn toàn):
+
+```bash
+docker compose stop worker
+
+curl -X POST -H "Authorization: Bearer $TOKEN" \
+  http://localhost:8000/api/v1/ops/worker-queue/recover-stale
+```
+
+Recover một job cụ thể:
+
+```bash
+curl -X POST -H "Authorization: Bearer $TOKEN" \
+  "http://localhost:8000/api/v1/ops/worker-queue/stale-jobs/<job_id>/recover"
+```
+
+Hành vi recovery:
+- Còn lượt retry: job → `pending`, `failed_reason=worker_lease_expired`, document → `ocr_pending`/`reprocess_pending`.
+- Hết lượt: job → `failed`, document → `failed` hoặc `searchable` (reprocess có chunk cũ).
+- User thường nhận `403` ở mọi endpoint `/api/v1/ops/*`.
+
+Sau recover thủ công, start lại worker:
+
+```bash
+docker compose start worker
+```
+
+Cấu hình lease (env service `api`/`worker`):
+
+```bash
+OCR_JOB_LEASE_TIMEOUT_SECONDS=3600
+OCR_JOB_STALE_RECOVERY_ENABLED=true
+```
+
+Tăng `OCR_JOB_LEASE_TIMEOUT_SECONDS` nếu job OCR scan lớn thường chạy > 1 giờ để tránh recover nhầm job đang chạy thật.
 
 ## Smoke Worker
 
@@ -49,6 +100,7 @@ Smoke trên kiểm tra:
 - Atomic claim không cho hai session claim cùng một job.
 - Retry policy không chạy lại job trước `next_run_at` và dừng ở `max_attempts`.
 - Endpoint `/api/v1/ops/worker-queue` trả queue counters cho admin và chặn request chưa đăng nhập.
+- Endpoint stale jobs liệt kê/recover job kẹt; user thường bị `403`.
 
 ## Restart Worker
 
@@ -64,7 +116,7 @@ Xem log:
 docker compose logs -f worker
 ```
 
-Nếu worker đang xử lý job dài, ưu tiên xem log và queue status trước khi restart. MVP hiện chưa có lease timeout cho job `ocr_running`; nếu container chết giữa job đang chạy, cần kiểm tra thủ công job/document tương ứng trước khi reprocess.
+Nếu worker đang xử lý job dài, ưu tiên xem log và queue status trước khi restart. Job `ocr_running` có lease timeout (`OCR_JOB_LEASE_TIMEOUT_SECONDS`, mặc định 3600s); worker tự recovery job stale trước mỗi claim. Nếu container chết giữa job, kiểm tra `stale_running` trên `/ops/worker-queue` hoặc gọi `/ops/worker-queue/stale-jobs` rồi recover theo runbook trên.
 
 ## Khi Job Failed
 

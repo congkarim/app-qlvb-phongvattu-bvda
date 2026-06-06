@@ -913,3 +913,38 @@ class OCRJobRepository:
             )
         )
         return int(self.db.scalar(stmt) or 0)
+
+    def list_stale_running_jobs(
+        self,
+        *,
+        stale_before: datetime,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> list[OCRJob]:
+        stmt = (
+            select(OCRJob)
+            .where(
+                OCRJob.status == "ocr_running",
+                OCRJob.deleted_at.is_(None),
+                OCRJob.started_at.is_not(None),
+                OCRJob.started_at < stale_before,
+            )
+            .order_by(OCRJob.started_at.asc())
+            .limit(limit)
+            .offset(offset)
+        )
+        return list(self.db.scalars(stmt))
+
+    def lock_stale_running_job(self, *, job_id: str, stale_before: datetime) -> OCRJob | None:
+        stmt = (
+            select(OCRJob)
+            .where(
+                OCRJob.id == job_id,
+                OCRJob.status == "ocr_running",
+                OCRJob.deleted_at.is_(None),
+                OCRJob.started_at.is_not(None),
+                OCRJob.started_at < stale_before,
+            )
+            .with_for_update()
+        )
+        return self.db.scalar(stmt)

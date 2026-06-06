@@ -8,12 +8,11 @@ Cập nhật lần cuối: 2026-06-06
 
 Hệ thống chạy on-prem bằng Docker Compose (`api`, `worker`, `web`, `postgres`, `redis`, `qdrant`). Workflow web end-to-end: upload → OCR/extract → searchable → semantic search → review chunk → audit. Module nghiệp vụ MVP: hợp đồng (`/contracts`) và công văn đến/đi (`/dispatches`), liên kết hai chiều với document detail; dashboard lọc search theo metadata hợp đồng.
 
-Con trỏ tiếp theo: `TASK_NEXT.md` → Phase 8 / Mục tiêu 3 (ops endpoint và runbook job kẹt).
+Con trỏ tiếp theo: `TASK_NEXT.md` → Phase 8 / Mục tiêu 4 (runbook nâng cấp Alembic production).
 
 ## Giới Hạn Còn Lại
 
 Ưu tiên Phase 8–9 (đồng bộ với `ROADMAP.md`):
-- Admin chưa có endpoint/UI tối thiểu để xem và xử lý job/document bị kẹt ngoài runbook thủ công.
 - Chưa có runbook nâng cấp/migration Alembic cho production nội bộ.
 - RAG mới có API backend; frontend chưa có UI hỏi–đáp trên dashboard.
 - Chưa có module nghiệp vụ thứ ba (quyết định, phiếu vật tư).
@@ -1655,5 +1654,22 @@ Kết quả:
 - Cleanup có kiểm soát: job `ocr` retry xóa pages/chunks/Qdrant; job `reprocess` retry chỉ xóa chunks khi document đang `chunking`.
 - `OCRWorker.run_once()` gọi recovery trước claim; job đang chạy thật không bị recover nhầm vì lease mặc định 3600s.
 - Smoke `smoke_worker_claim_atomic` và `smoke_worker_retry_policy` pass sau thay đổi; `git diff --check` pass.
+
+Phase 8 / Mục tiêu 3 — Ops endpoint và runbook job kẹt (2026-06-06):
+
+```bash
+PYTHONPYCACHEPREFIX=/tmp/qlvb-pycache PYTHONPATH=apps/api python3 -m py_compile apps/api/app/schemas/ops.py apps/api/app/repositories/document_repository.py apps/api/app/services/ocr_job_recovery_service.py apps/api/app/services/ops_service.py apps/api/app/routers/ops.py apps/api/app/scripts/smoke_worker_operations.py
+docker compose stop worker
+docker compose exec -T api python -m app.scripts.smoke_worker_operations
+git diff --check
+```
+
+Kết quả:
+- Mở rộng `GET /api/v1/ops/worker-queue` với `stale_running`, `lease_timeout_seconds`, `stale_recovery_enabled`.
+- Thêm admin-only `GET /api/v1/ops/worker-queue/stale-jobs` liệt kê job/document stale (job id, document status, `stale_for_seconds`, attempts).
+- Thêm admin-only `POST /api/v1/ops/worker-queue/recover-stale` và `POST /api/v1/ops/worker-queue/stale-jobs/{job_id}/recover` gọi `OCRJobRecoveryService` với audit `source=admin_ops`.
+- User thường bị `403` ở endpoint ops (router `require_admin`).
+- Cập nhật `docs/WORKER_OPS_RUNBOOK.md`: command curl liệt kê/recover stale, cấu hình lease, hướng dẫn dừng worker khi recover thủ công.
+- Smoke `smoke_worker_operations` pass: seed job stale, admin list/recover, user 403; `git diff --check` pass.
 
 Chi tiết phase và mục tiêu tiếp theo nằm trong `TASK_NEXT.md` và `ROADMAP.md`.

@@ -32,23 +32,38 @@ class OCRJobRecoveryService:
         self.ocr_jobs = OCRJobRepository(db)
         self.qdrant = QdrantService()
 
-    def recover_stale_jobs(self) -> int:
+    def recover_stale_jobs(self, *, actor_user_id: str | None = None) -> list[str]:
         if not self.settings.ocr_job_stale_recovery_enabled:
-            return 0
+            return []
 
-        recovered = 0
-        while self._recover_next_stale_job():
-            recovered += 1
-        return recovered
+        recovered_ids: list[str] = []
+        while True:
+            job = self.ocr_jobs.lock_next_stale_running_job(stale_before=self._stale_before())
+            if job is None:
+                break
+            self._recover_locked_job(job, actor_user_id=actor_user_id)
+            recovered_ids.append(job.id)
+        return recovered_ids
 
-    def _recover_next_stale_job(self) -> bool:
+    def recover_stale_job_by_id(self, job_id: str, *, actor_user_id: str | None = None) -> str | None:
+        if not self.settings.ocr_job_stale_recovery_enabled:
+            return None
+
+        job = self.ocr_jobs.lock_stale_running_job(job_id=job_id, stale_before=self._stale_before())
+        if job is None:
+            return None
+
+        self._recover_locked_job(job, actor_user_id=actor_user_id)
+        return job.id
+
+    def _stale_before(self, now: datetime | None = None) -> datetime:
+        current = now or datetime.now(timezone.utc)
+        lease_timeout = max(1, int(self.settings.ocr_job_lease_timeout_seconds))
+        return current - timedelta(seconds=lease_timeout)
+
+    def _recover_locked_job(self, job: OCRJob, *, actor_user_id: str | None) -> None:
         now = datetime.now(timezone.utc)
         lease_timeout = max(1, int(self.settings.ocr_job_lease_timeout_seconds))
-        stale_before = now - timedelta(seconds=lease_timeout)
-        job = self.ocr_jobs.lock_next_stale_running_job(stale_before=stale_before)
-        if job is None:
-            return False
-
         document = self.documents.get_document(job.document_id)
         should_retry = job.attempts < job.max_attempts
         previous_started_at = job.started_at
@@ -89,7 +104,7 @@ class OCRJobRecoveryService:
 
         logger.info(
             "Recovered stale OCR job: job_id=%s document_id=%s job_type=%s outcome=%s "
-            "attempts=%s/%s started_at=%s lease_timeout_seconds=%s",
+            "attempts=%s/%s started_at=%s lease_timeout_seconds=%s source=%s",
             job.id,
             job.document_id,
             job.job_type,
@@ -98,12 +113,13 @@ class OCRJobRecoveryService:
             job.max_attempts,
             previous_started_at,
             lease_timeout,
+            "admin_ops" if actor_user_id else "worker",
         )
         self.audit_logs.create(
             action="ocr_job.stale_recovered",
             entity_type="ocr_job",
             entity_id=job.id,
-            actor_user_id=None,
+            actor_user_id=actor_user_id,
             metadata={
                 "document_id": job.document_id,
                 "job_type": job.job_type,
@@ -113,9 +129,9 @@ class OCRJobRecoveryService:
                 "previous_started_at": previous_started_at.isoformat() if previous_started_at else None,
                 "lease_timeout_seconds": lease_timeout,
                 "failed_reason": STALE_JOB_FAILED_REASON,
+                "source": "admin_ops" if actor_user_id else "worker",
             },
         )
-        return True
 
     def _cleanup_partial_processing_state(
         self,

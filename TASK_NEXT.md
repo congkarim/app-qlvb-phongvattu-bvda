@@ -25,7 +25,7 @@ Phase trước: Phase 7 hoàn thành ngày 2026-06-06.
 
 Phase hiện tại: Phase 8 - Worker Resilience Và Production Upgrade.
 
-Mục tiêu tiếp theo: Phase 8 / Mục tiêu 3 - Ops Endpoint Và Runbook Job Kẹt.
+Mục tiêu tiếp theo: Phase 8 / Mục tiêu 4 - Runbook Nâng Cấp Alembic Production.
 
 Điều kiện chuyển sang mục tiêu kế tiếp:
 - Mục tiêu hiện tại pass tiêu chí chấp nhận.
@@ -105,7 +105,7 @@ git diff --check
 
 ### Mục Tiêu 3 - Ops Endpoint Và Runbook Job Kẹt
 
-Trạng thái: chưa làm.
+Trạng thái: hoàn thành (2026-06-06).
 
 Skill bắt buộc: `backend-fastapi`, `solution-architect`.
 

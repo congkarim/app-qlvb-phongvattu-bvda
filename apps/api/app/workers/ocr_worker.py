@@ -59,8 +59,8 @@ class OCRWorker:
         self.qdrant = QdrantService()
 
     def run_once(self) -> bool:
-        recovered = OCRJobRecoveryService(self.db).recover_stale_jobs()
-        if recovered:
+        recovered_ids = OCRJobRecoveryService(self.db).recover_stale_jobs()
+        if recovered_ids:
             self.db.commit()
 
         job = self.ocr_jobs.claim_next_pending_job()
