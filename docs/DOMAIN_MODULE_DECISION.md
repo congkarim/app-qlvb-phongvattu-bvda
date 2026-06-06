@@ -303,7 +303,9 @@ Mục tiêu 5 đã tạo bảng `dispatch_records` bằng migration `0013_dispat
 - `Document.dispatch_record` — `uselist=False`, tương tự `contract_record`.
 - `DispatchRecord.document` — `relationship` back_populates.
 
-## API Dự Kiến (Mục Tiêu 6)
+## API Đã Triển Khai (Mục Tiêu 6)
+
+Mục tiêu 6 đã thêm backend module theo `router -> service -> repository`.
 
 | Method | Path | Mô tả |
 |--------|------|--------|
@@ -328,6 +330,6 @@ Lỗi nghiệp vụ: `404` không tìm thấy; `409` trùng dispatch active cho 
 - Nav item `Công văn` trong app shell.
 - Smoke script: `python -m app.scripts.smoke_dispatch_api` (tái chạy được, cleanup mặc định).
 
-## Hướng Dẫn Cho Mục Tiêu Tiếp Theo (API)
+## Hướng Dẫn Cho Mục Tiêu Tiếp Theo (Frontend)
 
-Mục tiêu 6 nên thêm backend module theo `router -> service -> repository`, dùng schema `dispatch_records` ở trên và không gọi API trực tiếp từ frontend trong mục tiêu này.
+Mục tiêu 7 nên thêm frontend `/dispatches` theo `page -> composable -> service -> API`, dùng các endpoint trên và không gọi API trực tiếp trong component.

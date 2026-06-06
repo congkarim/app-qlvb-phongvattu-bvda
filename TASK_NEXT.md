@@ -22,7 +22,7 @@ Tài liệu này là checklist thực thi tuần tự bám theo `ROADMAP.md`. Kh
 
 Phase hiện tại: Phase 7 - Domain Integration Và Module Mở Rộng.
 
-Mục tiêu tiếp theo phải làm: Phase 7 / Mục tiêu 6 - Backend API Công Văn Đến/Đi.
+Mục tiêu tiếp theo phải làm: Phase 7 / Mục tiêu 7 - Frontend Module Công Văn Đến/Đi.
 
 Điều kiện chuyển sang mục tiêu kế tiếp:
 - Mục tiêu hiện tại pass tiêu chí chấp nhận.
@@ -1232,28 +1232,24 @@ Sau khi hoàn thành:
 
 ### Mục Tiêu 6 - Backend API Công Văn Đến/Đi
 
-Trạng thái: chưa làm.
+Trạng thái: hoàn thành ngày 2026-06-06.
 
 Mục tiêu:
 - CRUD metadata công văn theo pattern module hợp đồng.
 
-Phạm vi backend:
-- Thêm `schemas`, `repository`, `service`, `router` cho module công văn.
-- Endpoint MVP: list/filter/get/create/update/soft-delete.
-- Audit log: `dispatch.created`, `dispatch.updated`, `dispatch.deleted` hoặc naming đã chốt trong tài liệu thiết kế.
-- Thêm smoke HTTP `python -m app.scripts.smoke_dispatch_api`.
-- Include router trong `main.py`.
+Kết quả:
+- Thêm `schemas/dispatch.py`, `DispatchRepository`, `DispatchService`, router `/api/v1/dispatches`.
+- Endpoint: list/filter/get/create/update/soft-delete và `GET /dispatches/by-document/{document_id}`.
+- Audit log: `dispatch.created`, `dispatch.updated`, `dispatch.deleted`.
+- Smoke `python -m app.scripts.smoke_dispatch_api` kiểm tra user CRUD, admin delete, duplicate `409`, lookup by document.
+- Include router trong `main.py`; contract API smoke vẫn pass.
 
-Tiêu chí chấp nhận:
-- Smoke dispatch API pass trên Docker Compose.
-- User đăng nhập list/get/create/update; soft delete admin-only nếu giữ parity với contracts.
-- Không phá contract API, document API và search API hiện có.
-
-Kiểm tra cần chạy:
+Kiểm tra đã chạy:
 
 ```bash
 PYTHONPYCACHEPREFIX=/tmp/qlvb-pycache PYTHONPATH=apps/api python3 -m py_compile apps/api/app/schemas/dispatch.py apps/api/app/repositories/dispatch_repository.py apps/api/app/services/dispatch_service.py apps/api/app/routers/dispatches.py apps/api/app/scripts/smoke_dispatch_api.py apps/api/app/main.py
 docker compose exec -T api python -m app.scripts.smoke_dispatch_api
+docker compose exec -T api python -m app.scripts.smoke_contract_api
 git diff --check
 ```
 
@@ -1266,7 +1262,7 @@ Sau khi hoàn thành:
 
 ### Mục Tiêu 7 - Frontend Module Công Văn Đến/Đi
 
-Trạng thái: khóa.
+Trạng thái: chưa làm.
 
 Mục tiêu:
 - UI quản lý metadata công văn MVP theo pattern `/contracts`.

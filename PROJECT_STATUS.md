@@ -139,6 +139,7 @@ Domain modules:
 - Semantic search/dashboard lọc theo metadata hợp đồng (`contract_number`, `supplier_name`, `contract_status`) và hiển thị metadata hợp đồng trong kết quả (Phase 7 mục tiêu 3).
 - Đã thiết kế module nghiệp vụ thứ hai **Công văn đến/đi** (`dispatch_records`) trong `docs/DOMAIN_MODULE_DECISION.md` trước khi implement schema/API/UI (Phase 7 mục tiêu 4).
 - Đã thêm bảng `dispatch_records` bằng migration `0013_dispatch_records`, liên kết 1-1 `documents.id` và index filter MVP (Phase 7 mục tiêu 5).
+- Đã thêm Dispatch API CRUD theo pattern contracts: `/api/v1/dispatches`, audit log và smoke `smoke_dispatch_api` (Phase 7 mục tiêu 6).
 - Quyết định được ghi tại `docs/DOMAIN_MODULE_DECISION.md`, scope MVP chỉ quản lý metadata hợp đồng liên kết document core, chưa mở rộng sang inventory/procurement workflow.
 - Đã thêm bảng `contract_records` bằng migration `0011_contract_records`, có UUID primary key, `created_at`, `updated_at`, `deleted_at`, liên kết `documents.id` và index filter MVP cho số hợp đồng, nhà cung cấp, trạng thái, ngày ký và hiệu lực.
 - Đã thêm backend Contract API theo `router -> service -> repository`, hỗ trợ list/filter/get/create/update/soft-delete metadata hợp đồng, audit log cho create/update/delete và smoke HTTP `python -m app.scripts.smoke_contract_api`.
@@ -168,6 +169,20 @@ Ops/runbook:
 ## Đã Kiểm Tra Thủ Công
 
 Các kiểm tra sau đã chạy thành công:
+
+Phase 7 backend API công văn đến/đi kiểm tra ngày 2026-06-06:
+
+```bash
+PYTHONPYCACHEPREFIX=/tmp/qlvb-pycache PYTHONPATH=apps/api python3 -m py_compile apps/api/app/schemas/dispatch.py apps/api/app/repositories/dispatch_repository.py apps/api/app/services/dispatch_service.py apps/api/app/routers/dispatches.py apps/api/app/scripts/smoke_dispatch_api.py apps/api/app/main.py
+docker compose exec -T api python -m app.scripts.smoke_dispatch_api
+docker compose exec -T api python -m app.scripts.smoke_contract_api
+git diff --check
+```
+
+Kết quả:
+- Dispatch API hỗ trợ list/filter/get/create/update/soft-delete và lookup theo `document_id`.
+- User list/get/create/update; admin soft delete; audit `dispatch.created/updated/deleted`.
+- Smoke dispatch API pass; smoke contract API vẫn pass sau khi thêm router mới.
 
 Phase 7 schema công văn đến/đi kiểm tra ngày 2026-06-06:
 

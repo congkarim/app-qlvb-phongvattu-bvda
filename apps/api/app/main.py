@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import get_settings
 from app.core.logging_config import configure_logging
 from app.db.session import SessionLocal
-from app.routers import auth, catalogs, contracts, documents, health, ops, search, users
+from app.routers import auth, catalogs, contracts, dispatches, documents, health, ops, search, users
 from app.services.auth_service import AuthService
 
 
@@ -30,19 +30,23 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title=settings.app_name, lifespan=lifespan)
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.cors_origins_list,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+cors_kwargs: dict[str, object] = {
+    "allow_origins": settings.cors_origins_list,
+    "allow_credentials": True,
+    "allow_methods": ["*"],
+    "allow_headers": ["*"],
+}
+if settings.cors_origin_regex:
+    cors_kwargs["allow_origin_regex"] = settings.cors_origin_regex
+
+app.add_middleware(CORSMiddleware, **cors_kwargs)
 
 app.include_router(health.router)
 app.include_router(auth.router, prefix=settings.api_prefix)
 app.include_router(catalogs.router, prefix=settings.api_prefix)
 app.include_router(catalogs.admin_router, prefix=settings.api_prefix)
 app.include_router(contracts.router, prefix=settings.api_prefix)
+app.include_router(dispatches.router, prefix=settings.api_prefix)
 app.include_router(documents.router, prefix=settings.api_prefix)
 app.include_router(search.router, prefix=settings.api_prefix)
 app.include_router(users.router, prefix=settings.api_prefix)
