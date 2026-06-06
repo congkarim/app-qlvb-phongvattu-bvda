@@ -130,6 +130,7 @@ Search:
 - Đã thêm benchmark fixtures chạy lại được bằng `python -m app.scripts.benchmark_search_fixtures`, bao phủ truy vấn vật tư, phụ lục, điều khoản, ngày ban hành và đơn vị ban hành.
 - Benchmark search hiện báo ranking metrics và kết luận đánh giá embedding/rerank local; cấu hình local `sentence_transformers` + BKAI đạt `hit_rate=1.00`, `mrr=1.00`, `top1=5/5` trên fixture MVP nên chưa đổi model hoặc thêm reranker nặng.
 - Search response và dashboard result đã trả/hiển thị thêm `issuing_agency` để citation metadata rõ hơn.
+- RAG foundation có endpoint `POST /api/v1/search/answer` local-only, tái dùng semantic search, tạo câu trả lời extractive từ chunk truy xuất, trả `citations` gồm document/chunk/source page và fallback `insufficient_evidence` khi không đủ căn cứ.
 
 Ops/runbook:
 - `docs/WORKER_OPS_RUNBOOK.md` ghi command kiểm tra worker queue, chạy worker smoke, restart worker, xử lý job failed, reprocess, backup/restore PostgreSQL, Qdrant và uploaded source files.
@@ -137,6 +138,25 @@ Ops/runbook:
 ## Đã Kiểm Tra Thủ Công
 
 Các kiểm tra sau đã chạy thành công:
+
+RAG answer endpoint kiểm tra ngày 2026-06-06:
+
+```bash
+PYTHONPYCACHEPREFIX=/tmp/qlvb-pycache PYTHONPATH=apps/api python3 -m py_compile apps/api/app/schemas/search.py apps/api/app/services/rag_answer_service.py apps/api/app/routers/search.py apps/api/app/services/tests/test_rag_answer_service.py apps/api/app/scripts/smoke_rag_answer.py
+docker compose up -d api postgres redis qdrant
+docker compose exec -T api python -m unittest app.services.tests.test_rag_answer_service
+docker compose exec -T api python -m app.scripts.smoke_rag_answer
+git diff --check
+```
+
+Kết quả:
+- Thêm schema `RagAnswerRequest`, `RagCitation`, `RagAnswerResponse`.
+- Thêm `RagAnswerService` tách riêng khỏi `SearchService`, giữ search core là retrieval/ranking.
+- Thêm endpoint `POST /api/v1/search/answer` trong search router, vẫn yêu cầu auth như semantic search.
+- Endpoint dùng retrieval hiện có, lọc evidence theo score/overlap, trả answer extractive kèm citations và `grounded=true` khi đủ căn cứ.
+- Khi không đủ căn cứ, endpoint trả fallback `grounded=false`, `fallback_reason=insufficient_evidence`.
+- Thêm unit test cho grounded answer và fallback; thêm smoke HTTP `python -m app.scripts.smoke_rag_answer` seed benchmark fixture, gọi endpoint thật, kiểm tra citation và cleanup mặc định.
+- Phase 3 đã đạt tiêu chí hoàn thành: benchmark lặp lại được, search/RAG trả citation truy vết được, RAG không thay thế search MVP.
 
 Đánh giá embedding/rerank local kiểm tra ngày 2026-06-06:
 

@@ -235,6 +235,21 @@ curl -X POST http://localhost:8000/api/v1/search/semantic \
 Các filter hiện có: `document_type`, `department_id`, `business_type`, `document_number`, `issued_date`, `doc_group`, `section_role`, `requires_review`. Dashboard cũng có các control filter tương ứng cho metadata đã rollout.
 Với phụ lục, dùng `section_role=appendix` hoặc chọn option `Phụ lục` trong Dashboard.
 
+RAG answer MVP local-only dùng cùng retrieval với semantic search và trả citation về chunk/document/trang nguồn. Endpoint không thay thế search dashboard; nếu không đủ căn cứ, response có `grounded=false` và `fallback_reason=insufficient_evidence`.
+
+```bash
+curl -X POST http://localhost:8000/api/v1/search/answer \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"query":"nghiệm thu vật tư cần hồ sơ gì","limit":5,"max_citations":3}'
+```
+
+Smoke RAG answer endpoint:
+
+```bash
+docker compose exec -T api python -m app.scripts.smoke_rag_answer
+```
+
 ## Smoke Appendix Data
 
 Kiểm tra luồng phụ lục có dữ liệu thật từ document detail, review queue, semantic search và thao tác `Đã review`:

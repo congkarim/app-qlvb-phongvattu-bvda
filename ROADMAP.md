@@ -38,7 +38,7 @@ MVP end-to-end đã hoàn thành và đang chạy được bằng Docker Compose
 
 Giới hạn còn lại:
 - Worker ops MVP đã có; lease timeout hoặc auto recovery cho job đang `ocr_running` sau khi worker crash vẫn để Phase 6 hardening nếu cần.
-- Search benchmark fixtures đã có; còn cần dùng kết quả benchmark để đánh giá embedding/rerank local trước khi mở rộng RAG.
+- RAG MVP local-only đã có endpoint answer kèm citation; chưa có LLM/generator nội bộ nâng cao, hiện trả lời theo hướng extractive từ các chunk truy xuất.
 - Chưa có module nghiệp vụ riêng cho hợp đồng, công văn đến/đi, quyết định hoặc phiếu vật tư.
 - Chưa có bộ công cụ admin cấu hình danh mục, model status, backup/restore và ops hardening đầy đủ.
 
@@ -96,15 +96,15 @@ Tiêu chí hoàn thành:
 
 ### Phase 3 - Search Quality Và RAG Foundation
 
-Trạng thái: đang ưu tiên tiếp theo.
+Trạng thái: hoàn thành ngày 2026-06-06.
 
 Mục tiêu: tăng chất lượng retrieval và tạo nền tảng RAG local có citation mà không phụ thuộc cloud.
 
 Phạm vi:
 - Tách rerank heuristic khỏi logic core, đưa vào cấu hình/rule riêng đã hoàn thành ngày 2026-06-05.
 - Tạo benchmark fixtures cho truy vấn vật tư, phụ lục, điều khoản, ngày ban hành và đơn vị ban hành đã hoàn thành ngày 2026-06-06.
-- Đánh giá embedding local và rerank local nếu cần.
-- Thiết kế RAG answer endpoint local-only với citation chunk/document/source page.
+- Đánh giá embedding local và rerank local đã hoàn thành ngày 2026-06-06.
+- Thiết kế và triển khai RAG answer endpoint local-only với citation chunk/document/source page đã hoàn thành ngày 2026-06-06.
 
 Tiêu chí hoàn thành:
 - Có bộ benchmark search lặp lại được.
@@ -113,7 +113,7 @@ Tiêu chí hoàn thành:
 
 ### Phase 4 - Domain Modules
 
-Trạng thái: chưa bắt đầu.
+Trạng thái: đang ưu tiên tiếp theo.
 
 Mục tiêu: mở rộng từ kho văn bản chung sang các module nghiệp vụ thực tế của phòng vật tư.
 

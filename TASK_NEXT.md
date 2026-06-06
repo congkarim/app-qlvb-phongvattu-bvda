@@ -19,9 +19,9 @@ Tài liệu này là checklist thực thi tuần tự bám theo `ROADMAP.md`. Kh
 
 ## Con Trỏ Hiện Tại
 
-Phase hiện tại: Phase 3 - Search Quality Và RAG Foundation.
+Phase hiện tại: Phase 4 - Domain Modules.
 
-Mục tiêu tiếp theo phải làm: Phase 3 / Mục tiêu 4 - RAG Answer Endpoint Design.
+Mục tiêu tiếp theo phải làm: Phase 4 / Mục tiêu 1 - Chọn Module Đầu Tiên.
 
 Điều kiện chuyển sang mục tiêu kế tiếp:
 - Mục tiêu hiện tại pass tiêu chí chấp nhận.
@@ -380,7 +380,7 @@ Sau khi hoàn thành:
 
 ## Phase 3 - Search Quality Và RAG Foundation
 
-Trạng thái: đang làm.
+Trạng thái: hoàn thành ngày 2026-06-06.
 
 Mục tiêu phase: tăng chất lượng retrieval và tạo nền tảng RAG local có citation, không phụ thuộc cloud.
 
@@ -503,7 +503,7 @@ Sau khi hoàn thành:
 
 ### Mục Tiêu 4 - RAG Answer Endpoint Design
 
-Trạng thái: chưa làm.
+Trạng thái: hoàn thành ngày 2026-06-06.
 
 Mục tiêu:
 - Thiết kế nền tảng RAG local-only có citation.
@@ -517,6 +517,32 @@ Tiêu chí chấp nhận:
 - RAG nếu bắt đầu phải trả lời kèm citation.
 - Có fallback khi không đủ căn cứ trả lời.
 
+Kết quả:
+- Thêm schema `RagAnswerRequest`, `RagCitation`, `RagAnswerResponse` trong `apps/api/app/schemas/search.py`.
+- Thêm `RagAnswerService` để tách RAG answer khỏi `SearchService`; search core vẫn chỉ phụ trách retrieval/ranking.
+- Thêm endpoint `POST /api/v1/search/answer` trong search router, dùng auth hiện có và nhận cùng filter với semantic search.
+- Endpoint local-only, không gọi cloud/LLM; MVP hiện tạo answer extractive từ chunk truy xuất.
+- Citation trả về đủ `document_id`, `chunk_id`, `quote`, title, số văn bản, ngày ban hành, đơn vị ban hành, trang nguồn, `section_role` và `section_path`.
+- Khi không đủ evidence theo score/overlap, endpoint trả `grounded=false`, `fallback_reason=insufficient_evidence` và không bịa câu trả lời.
+- Thêm unit test `apps/api/app/services/tests/test_rag_answer_service.py`.
+- Thêm smoke HTTP `python -m app.scripts.smoke_rag_answer`, seed benchmark fixture, gọi endpoint thật, kiểm tra citation và fallback, cleanup mặc định.
+
+Kiểm tra đã chạy:
+
+```bash
+PYTHONPYCACHEPREFIX=/tmp/qlvb-pycache PYTHONPATH=apps/api python3 -m py_compile apps/api/app/schemas/search.py apps/api/app/services/rag_answer_service.py apps/api/app/routers/search.py apps/api/app/services/tests/test_rag_answer_service.py apps/api/app/scripts/smoke_rag_answer.py
+docker compose up -d api postgres redis qdrant
+docker compose exec -T api python -m unittest app.services.tests.test_rag_answer_service
+docker compose exec -T api python -m app.scripts.smoke_rag_answer
+git diff --check
+```
+
+Sau khi hoàn thành:
+- Đã đọc lại `ROADMAP.md`.
+- Đã cập nhật `PROJECT_STATUS.md` với kết quả và kiểm tra đã chạy.
+- Đã cập nhật mục tiêu này thành `hoàn thành`.
+- Phase 3 đã đạt điều kiện hoàn thành, đã đánh dấu Phase 3 `hoàn thành` và mở khóa Phase 4.
+
 Điều kiện hoàn thành Phase 3:
 - Có bộ benchmark search lặp lại được.
 - Search result giải thích được bằng metadata/chunk citation.
@@ -525,13 +551,13 @@ Tiêu chí chấp nhận:
 
 ## Phase 4 - Domain Modules
 
-Trạng thái: khóa đến khi Phase 3 hoàn thành.
+Trạng thái: đang làm.
 
 Mục tiêu phase: mở rộng từ kho văn bản chung sang các module nghiệp vụ thực tế của phòng vật tư.
 
 ### Mục Tiêu 1 - Chọn Module Đầu Tiên
 
-Trạng thái: khóa.
+Trạng thái: chưa làm.
 
 Mục tiêu:
 - Chọn module nghiệp vụ có giá trị cao nhất để làm trước.
