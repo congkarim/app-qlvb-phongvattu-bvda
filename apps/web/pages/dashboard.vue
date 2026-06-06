@@ -3,6 +3,7 @@ import type { ReviewQueueChunk, ReviewQueueFilters, SemanticSearchFilters } from
 
 const query = ref('')
 const authStore = useAuthStore()
+const isAdmin = computed(() => Boolean(authStore?.isAdmin))
 const { results, loading, error: searchError, hasSearched, search } = useSemanticSearch()
 const { businessTypeFilterOptions, fetchCatalogOptions, formatBusinessType } = useCatalogs()
 const {
@@ -184,7 +185,7 @@ function normalizeReviewQueueFilters(): ReviewQueueFilters {
 
 onMounted(async () => {
   await fetchCatalogOptions()
-  if (authStore.isAdmin) {
+  if (isAdmin.value) {
     await submitReviewQueue()
   }
 })
@@ -197,7 +198,7 @@ onMounted(async () => {
       <p class="mt-1 text-sm text-slate-600">Upload, OCR và semantic search skeleton.</p>
     </div>
 
-    <Card v-if="authStore.isAdmin">
+    <Card v-if="isAdmin">
       <template #title>
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
