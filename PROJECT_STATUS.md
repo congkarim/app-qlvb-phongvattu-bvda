@@ -8,7 +8,7 @@ Cập nhật lần cuối: 2026-06-06
 
 Hệ thống chạy on-prem bằng Docker Compose (`api`, `worker`, `web`, `postgres`, `redis`, `qdrant`). Workflow web end-to-end: upload → OCR/extract → searchable → semantic search → review chunk → audit. Module nghiệp vụ MVP: hợp đồng (`/contracts`) và công văn đến/đi (`/dispatches`), liên kết hai chiều với document detail; dashboard lọc search theo metadata hợp đồng.
 
-Con trỏ tiếp theo: `TASK_NEXT.md` → Phase 9 / Mục tiêu 1 (khảo sát RAG API và thiết kế UX dashboard).
+Con trỏ tiếp theo: `TASK_NEXT.md` → Phase 9 / Mục tiêu 2 (RAG Q&A UI trên dashboard).
 
 ## Giới Hạn Còn Lại
 
@@ -1701,5 +1701,75 @@ Kết quả:
 - Cập nhật `docs/WORKER_OPS_RUNBOOK.md` và `docs/PRODUCTION_UPGRADE_RUNBOOK.md` với command smoke mới.
 
 **Phase 8 hoàn thành ngày 2026-06-06.** Phase tiếp theo: Phase 9 - RAG UX Và Search Nâng Cao (`TASK_NEXT.md`).
+
+Phase 9 / Mục tiêu 1 — Khảo sát RAG API và thiết kế UX dashboard (2026-06-06):
+
+```bash
+sed -n '1,190p' apps/api/app/services/rag_answer_service.py
+sed -n '1,85p' apps/api/app/schemas/search.py
+sed -n '1,55p' apps/api/app/routers/search.py
+sed -n '1,75p' apps/api/app/scripts/smoke_rag_answer.py
+sed -n '1,35p' apps/web/services/search.service.ts
+sed -n '1,36p' apps/web/composables/useSemanticSearch.ts
+sed -n '363,441p' apps/web/pages/dashboard.vue
+git diff --check
+```
+
+Kiểm tra: khảo sát read-only, không thay đổi UI; `git diff --check` pass.
+
+Kết quả khảo sát API `POST /api/v1/search/answer`:
+
+- Router `apps/api/app/routers/search.py`: cùng router `/search`, dependency `get_current_user` (admin/user đã login đều gọi được; chưa login → 401).
+- Request `RagAnswerRequest` kế thừa `SemanticSearchRequest` (query, limit, metadata filters giống semantic search) + `min_score` (mặc định 0.35), `max_citations` (mặc định 4, max 8), `limit` retrieval mặc định 6 (max 12).
+- Response `RagAnswerResponse`: `query`, `answer`, `grounded` (bool), `confidence` (0–1), `fallback_reason` (`null` hoặc `insufficient_evidence`), `citations[]`.
+- Mỗi citation (`RagCitation`): `document_id`, `chunk_id`, `score`, `quote`, `title`, metadata văn bản (`document_number`, `issued_date`, `issuing_agency`, `business_type`), vị trí (`page_from`, `page_to`, `section_role`, `section_path`).
+- `RagAnswerService` extractive local-only: gọi `SearchService.semantic_search()` → lọc theo `min_score` và overlap term query → ghép answer dạng “Dựa trên các đoạn đã truy xuất: …” từ `quote` citation; không gọi LLM/cloud.
+- Khi không đủ căn cứ: `grounded=false`, `fallback_reason=insufficient_evidence`, `answer` là câu fallback cố định tiếng Việt trong `RagAnswerConfig`, `confidence=0`; citations vẫn có thể trả về nếu retrieval có kết quả nhưng không đạt ngưỡng evidence.
+- Smoke `python -m app.scripts.smoke_rag_answer` seed benchmark fixture, kiểm tra grounded + fallback; unit test `test_rag_answer_service.py` cover grounded/fallback.
+
+Hiện trạng frontend dashboard:
+
+- `apps/web/pages/dashboard.vue`: card **Semantic search** với `useSemanticSearch()`, filters `SemanticSearchFilters` (business_type, document_number, issued_date, doc_group, section_role, requires_review, contract_number, supplier_name, contract_status, limit).
+- `apps/web/services/search.service.ts`: chỉ `POST /search/semantic`; `normalizeSearchPayload()` đã map đủ filter metadata sang API.
+- Chưa có type `RagAnswerResponse`/`RagCitation`, service method `/search/answer`, composable RAG, hay component Q&A.
+- Document detail chưa có anchor `#chunk-{id}`; MVP citation link tới `/documents/{document_id}` (có thể bổ sung scroll-to-chunk ở phase sau).
+
+States UI MVP đề xuất (Mục tiêu 2):
+
+| State | Điều kiện | Hiển thị |
+| --- | --- | --- |
+| Idle | Chưa gửi câu hỏi | Input + gợi ý ngắn; không hiện answer cũ hoặc clear sau “Xóa” |
+| Loading | Đang gọi API | Disable submit, text “Đang trả lời…” |
+| Grounded | `grounded=true` | Answer + confidence; danh sách citation (quote + metadata + link document) |
+| Insufficient evidence | `grounded=false` && `fallback_reason=insufficient_evidence` | `Message` severity warn; hiển thị `answer` fallback như giải thích, **không** trình bày như câu trả lời chắc chắn; citations phụ (nếu có) với nhãn “Tham khảo yếu” |
+| Error | HTTP/exception | `Message` severity error (pattern giống semantic search) |
+| Empty query | Input rỗng | Validation client “Vui lòng nhập câu hỏi” |
+
+Kiến trúc frontend đề xuất (`page -> composable -> service -> API`):
+
+```text
+dashboard.vue
+  -> useRagAnswer()
+       -> createSearchService().answer()  # mở rộng search.service.ts
+            -> POST /api/v1/search/answer
+  -> (tùy chọn) component RagAnswerPanel.vue cho input/answer/citations
+```
+
+Chi tiết triển khai Mục tiêu 2:
+
+- **Types** (`apps/web/types/document.ts` hoặc `types/search.ts`): `RagCitation`, `RagAnswerResponse`; `RagAnswerFilters extends SemanticSearchFilters` + optional `min_score`, `max_citations`.
+- **Service**: thêm `answer(query, filters)` reuse `normalizeSearchPayload()` + default `min_score`/`max_citations` từ API nếu UI không expose.
+- **Composable** `useRagAnswer.ts`: state `question`, `answer`, `citations`, `grounded`, `confidence`, `fallbackReason`, `loading`, `error`, `hasAsked`; method `ask(question, filters)`.
+- **Dashboard layout**: thêm Card **Hỏi đáp (RAG)** phía trên hoặc dưới Semantic search; **tái sử dụng cùng object `filters`** cho metadata lọc retrieval (MVP không thêm bộ lọc riêng); input câu hỏi riêng `ragQuestion` để tách UX search vs Q&A.
+- **Citation row**: blockquote `quote`; meta dòng (title/link, số VB, trang, section_role/path, score); nút/link “Mở văn bản” → `/documents/{document_id}`.
+- **Không** thêm LLM/cloud; giữ extractive backend hiện có; không đổi contract API trừ khi phát sinh bug.
+
+Rủi ro / ghi chú:
+
+- Answer extractive có thể lặp quote khi nhiều citation — chấp nhận MVP; không paraphrase.
+- User có thể hiểu nhầm fallback text là câu trả lời — UI phải phân biệt rõ bằng label/warn state.
+- Semantic search và RAG dùng chung filters: sau khi đổi filter, nên clear RAG answer cũ hoặc hiện hint “Bấm Hỏi lại sau khi đổi lọc”.
+
+Chưa thay đổi code runtime/UI trong mục tiêu này (chỉ tài liệu khảo sát).
 
 Chi tiết phase và mục tiêu tiếp theo nằm trong `TASK_NEXT.md` và `ROADMAP.md`.

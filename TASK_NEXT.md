@@ -25,7 +25,7 @@ Phase trước: Phase 8 hoàn thành ngày 2026-06-06.
 
 Phase hiện tại: Phase 9 - RAG UX Và Search Nâng Cao.
 
-Mục tiêu tiếp theo: Phase 9 / Mục tiêu 1 - Khảo Sát RAG API Và Thiết Kế UX Dashboard.
+Mục tiêu tiếp theo: Phase 9 / Mục Tiêu 2 - RAG Q&A UI Trên Dashboard.
 
 Điều kiện chuyển sang mục tiêu kế tiếp:
 - Mục tiêu hiện tại pass tiêu chí chấp nhận.
@@ -48,7 +48,7 @@ Mục tiêu phase: đưa RAG foundation từ API backend lên workflow người 
 
 ### Mục Tiêu 1 - Khảo Sát RAG API Và Thiết Kế UX Dashboard
 
-Trạng thái: chưa làm.
+Trạng thái: hoàn thành (2026-06-06).
 
 Skill bắt buộc: `frontend-nuxt`, `semantic-search-rag`, `solution-architect`.
 
@@ -66,7 +66,10 @@ Tiêu chí chấp nhận:
 - Chưa thay đổi UI lớn trước khi hoàn tất khảo sát.
 
 Kết quả khảo sát:
-- (chưa có)
+- API `POST /api/v1/search/answer` đã sẵn sàng (auth bắt buộc); response `grounded`/`fallback_reason`/`citations[]`; extractive local-only, không LLM.
+- Dashboard chỉ có semantic search (`useSemanticSearch` → `/search/semantic`); chưa có type/service/composable RAG.
+- UX MVP: panel Q&A riêng trên `/dashboard`, tái dùng `SemanticSearchFilters`, states loading/grounded/insufficient_evidence/error; citation link `/documents/{id}`.
+- Chi tiết đầy đủ trong `PROJECT_STATUS.md` mục “Phase 9 / Mục tiêu 1”.
 
 ### Mục Tiêu 2 - RAG Q&A UI Trên Dashboard
 
