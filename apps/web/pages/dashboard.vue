@@ -392,6 +392,7 @@ onMounted(async () => {
               <span v-if="result.business_type"> · {{ formatBusinessType(result.business_type) }}</span>
               <span v-if="result.document_number"> · Số {{ result.document_number }}</span>
               <span v-if="result.issued_date"> · {{ result.issued_date }}</span>
+              <span v-if="result.issuing_agency"> · {{ result.issuing_agency }}</span>
               <span v-if="result.page_from"> · Trang {{ result.page_from }}{{ result.page_to && result.page_to !== result.page_from ? `-${result.page_to}` : '' }}</span>
             </p>
             <p class="mt-1 text-xs text-slate-500">

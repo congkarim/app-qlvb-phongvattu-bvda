@@ -1,6 +1,6 @@
 # Trạng Thái Dự Án
 
-Cập nhật lần cuối: 2026-06-05
+Cập nhật lần cuối: 2026-06-06
 
 ## Giai Đoạn Hiện Tại
 
@@ -127,6 +127,8 @@ Workflow web đã hoàn thiện:
 
 Search:
 - Search rerank đã được tách khỏi `SearchService` sang `SearchRerankService` với config rule riêng để dễ chỉnh mà không trộn vào orchestration search.
+- Đã thêm benchmark fixtures chạy lại được bằng `python -m app.scripts.benchmark_search_fixtures`, bao phủ truy vấn vật tư, phụ lục, điều khoản, ngày ban hành và đơn vị ban hành.
+- Search response và dashboard result đã trả/hiển thị thêm `issuing_agency` để citation metadata rõ hơn.
 
 Ops/runbook:
 - `docs/WORKER_OPS_RUNBOOK.md` ghi command kiểm tra worker queue, chạy worker smoke, restart worker, xử lý job failed, reprocess, backup/restore PostgreSQL, Qdrant và uploaded source files.
@@ -134,6 +136,23 @@ Ops/runbook:
 ## Đã Kiểm Tra Thủ Công
 
 Các kiểm tra sau đã chạy thành công:
+
+Search benchmark fixtures kiểm tra ngày 2026-06-06:
+
+```bash
+PYTHONPYCACHEPREFIX=/tmp/qlvb-pycache PYTHONPATH=apps/api python3 -m py_compile apps/api/app/services/search_service.py apps/api/app/schemas/search.py apps/api/app/scripts/benchmark_search_fixtures.py
+docker compose up -d api postgres redis qdrant
+docker compose exec -T api python -m app.scripts.benchmark_search_fixtures
+docker compose run --rm --no-deps web npm run build
+git diff --check
+```
+
+Kết quả:
+- Thêm script `python -m app.scripts.benchmark_search_fixtures` seed fixture tối thiểu, index Qdrant, chạy benchmark và cleanup mặc định.
+- Benchmark pass `5/5` query: vật tư, phụ lục, điều khoản, ngày ban hành và đơn vị ban hành; mỗi query báo pass/fail, rank kỳ vọng và top-k result.
+- Report top-k hiển thị citation metadata gồm title, số văn bản, ngày ban hành, đơn vị ban hành, trang, `section_role` và `section_path`.
+- API search response có thêm `issuing_agency`; dashboard semantic search hiển thị đơn vị ban hành trong metadata result.
+- Frontend build pass; vẫn có warning chunk PrimeVue lớn như trước, không fail.
 
 Tách rerank heuristic kiểm tra ngày 2026-06-05:
 

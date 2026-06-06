@@ -1,6 +1,6 @@
 # Kế Hoạch Task Tiếp Theo
 
-Cập nhật lần cuối: 2026-06-05
+Cập nhật lần cuối: 2026-06-06
 
 Tài liệu này là checklist thực thi tuần tự bám theo `ROADMAP.md`. Khi người dùng nói `thực hiện TASK_NEXT.md`, agent phải bắt đầu từ mục đầu tiên có trạng thái `chưa làm` hoặc `đang làm`, không nhảy sang phase sau khi phase hiện tại chưa đạt tiêu chí hoàn thành.
 
@@ -21,7 +21,7 @@ Tài liệu này là checklist thực thi tuần tự bám theo `ROADMAP.md`. Kh
 
 Phase hiện tại: Phase 3 - Search Quality Và RAG Foundation.
 
-Mục tiêu tiếp theo phải làm: Phase 3 / Mục tiêu 2 - Search Benchmark Fixtures.
+Mục tiêu tiếp theo phải làm: Phase 3 / Mục tiêu 3 - Đánh Giá Embedding/Rerank Local.
 
 Điều kiện chuyển sang mục tiêu kế tiếp:
 - Mục tiêu hiện tại pass tiêu chí chấp nhận.
@@ -423,7 +423,7 @@ Sau khi hoàn thành:
 
 ### Mục Tiêu 2 - Search Benchmark Fixtures
 
-Trạng thái: chưa làm.
+Trạng thái: hoàn thành ngày 2026-06-06.
 
 Mục tiêu:
 - Tạo benchmark fixtures cho truy vấn vật tư, phụ lục, điều khoản, ngày ban hành và đơn vị ban hành.
@@ -437,9 +437,32 @@ Tiêu chí chấp nhận:
 - Benchmark có thể chạy lại và so sánh thay đổi ranking.
 - Có output rõ query nào pass/fail.
 
+Kết quả:
+- Thêm script `python -m app.scripts.benchmark_search_fixtures`.
+- Script seed fixture tối thiểu cho truy vấn vật tư, phụ lục, điều khoản, ngày ban hành và đơn vị ban hành.
+- Script index Qdrant bằng `EmbeddingService`/`QdrantService`, chạy `SearchService`, báo pass/fail theo expected chunk trong top-k và cleanup mặc định.
+- Report top-k có metadata/citation gồm title, số văn bản, ngày ban hành, đơn vị ban hành, trang, `section_role` và `section_path`.
+- Search API response và dashboard result có thêm `issuing_agency` để citation rõ hơn.
+
+Kiểm tra đã chạy:
+
+```bash
+PYTHONPYCACHEPREFIX=/tmp/qlvb-pycache PYTHONPATH=apps/api python3 -m py_compile apps/api/app/services/search_service.py apps/api/app/schemas/search.py apps/api/app/scripts/benchmark_search_fixtures.py
+docker compose up -d api postgres redis qdrant
+docker compose exec -T api python -m app.scripts.benchmark_search_fixtures
+docker compose run --rm --no-deps web npm run build
+git diff --check
+```
+
+Sau khi hoàn thành:
+- Đã đọc lại `ROADMAP.md`.
+- Đã cập nhật `PROJECT_STATUS.md` với kết quả và kiểm tra đã chạy.
+- Đã cập nhật mục tiêu này thành `hoàn thành`.
+- Đã chuyển con trỏ hiện tại sang `Phase 3 / Mục tiêu 3`.
+
 ### Mục Tiêu 3 - Đánh Giá Embedding/Rerank Local
 
-Trạng thái: khóa.
+Trạng thái: chưa làm.
 
 Mục tiêu:
 - Đánh giá embedding local và rerank local nếu benchmark cho thấy cần.

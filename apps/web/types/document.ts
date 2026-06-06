@@ -220,6 +220,7 @@ export interface SearchResult {
   document_type?: string | null
   document_number?: string | null
   issued_date?: string | null
+  issuing_agency?: string | null
   business_type?: string | null
   page_from?: number | null
   page_to?: number | null

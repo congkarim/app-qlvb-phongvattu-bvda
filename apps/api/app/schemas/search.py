@@ -25,6 +25,7 @@ class SemanticSearchResult(BaseModel):
     document_type: str | None = None
     document_number: str | None = None
     issued_date: date | None = None
+    issuing_agency: str | None = None
     business_type: str | None = None
     page_from: int | None = None
     page_to: int | None = None
