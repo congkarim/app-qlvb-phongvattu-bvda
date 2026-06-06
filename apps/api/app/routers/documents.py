@@ -29,10 +29,22 @@ from app.services.document_service import (
     DocumentNotFoundError,
     DocumentService,
     DocumentSourceFileMissingError,
+    UploadTooLargeError,
+    UploadTooManyFilesError,
 )
 
 
 router = APIRouter(prefix="/documents", tags=["documents"], dependencies=[Depends(get_current_user)])
+
+
+def _raise_upload_error(exc: Exception) -> None:
+    if isinstance(exc, UploadTooLargeError):
+        raise HTTPException(status_code=status.HTTP_413_CONTENT_TOO_LARGE, detail=str(exc)) from exc
+    if isinstance(exc, UploadTooManyFilesError):
+        raise HTTPException(status_code=status.HTTP_413_CONTENT_TOO_LARGE, detail=str(exc)) from exc
+    if isinstance(exc, ValueError):
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+    raise exc
 
 
 @router.post("/upload", response_model=UploadResponse, status_code=status.HTTP_201_CREATED)
@@ -47,16 +59,19 @@ def upload_document(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> UploadResponse:
-    document, ocr_job = DocumentService(db).upload(
-        file=file,
-        title=title,
-        document_type=document_type,
-        document_number=document_number,
-        issued_date=issued_date,
-        issuing_agency=issuing_agency,
-        business_type=business_type,
-        actor=current_user,
-    )
+    try:
+        document, ocr_job = DocumentService(db).upload(
+            file=file,
+            title=title,
+            document_type=document_type,
+            document_number=document_number,
+            issued_date=issued_date,
+            issuing_agency=issuing_agency,
+            business_type=business_type,
+            actor=current_user,
+        )
+    except (UploadTooLargeError, UploadTooManyFilesError, ValueError) as exc:
+        _raise_upload_error(exc)
     return UploadResponse(document=document, ocr_job=ocr_job)
 
 
@@ -77,16 +92,19 @@ def upload_multi_file_document(
     if not files:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="At least one source file is required")
 
-    document, document_files, ocr_job = DocumentService(db).upload_multi_file(
-        title=title,
-        files=files,
-        document_type=document_type,
-        document_number=document_number,
-        issued_date=issued_date,
-        issuing_agency=issuing_agency,
-        business_type=business_type,
-        actor=current_user,
-    )
+    try:
+        document, document_files, ocr_job = DocumentService(db).upload_multi_file(
+            title=title,
+            files=files,
+            document_type=document_type,
+            document_number=document_number,
+            issued_date=issued_date,
+            issuing_agency=issuing_agency,
+            business_type=business_type,
+            actor=current_user,
+        )
+    except (UploadTooLargeError, UploadTooManyFilesError, ValueError) as exc:
+        _raise_upload_error(exc)
     return MultiFileUploadResponse(document=document, files=document_files, ocr_job=ocr_job)
 
 
@@ -115,8 +133,8 @@ def upload_zip_document(
             business_type=business_type,
             actor=current_user,
         )
-    except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
+    except (UploadTooLargeError, UploadTooManyFilesError, ValueError) as exc:
+        _raise_upload_error(exc)
     return MultiFileUploadResponse(document=document, files=document_files, ocr_job=ocr_job)
 
 
@@ -163,6 +181,8 @@ def add_document_source_files(
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc))
     except DocumentFileOperationError as exc:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
+    except (UploadTooLargeError, UploadTooManyFilesError) as exc:
+        _raise_upload_error(exc)
     return SourceFileMutationResponse(document=document, files=document_files, ocr_job=ocr_job)
 
 

@@ -6,7 +6,14 @@ Runbook này dành cho vận hành local/on-prem bằng Docker Compose. Không d
 
 ```bash
 docker compose ps
-curl http://localhost:8000/health
+curl http://localhost:8000/health/live
+curl http://localhost:8000/health/ready
+```
+
+Log policy và hướng dẫn xem log:
+
+```text
+docs/LOG_POLICY_RUNBOOK.md
 ```
 
 Đăng nhập admin rồi kiểm tra queue worker:

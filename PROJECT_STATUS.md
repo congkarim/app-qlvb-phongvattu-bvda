@@ -151,12 +151,50 @@ Ops/runbook:
 - `docs/WORKER_OPS_RUNBOOK.md` ghi command kiểm tra worker queue, chạy worker smoke, restart worker, xử lý job failed, reprocess, backup/restore PostgreSQL, Qdrant và uploaded source files.
 - `docs/ON_PREM_ENV_RUNBOOK.md` ghi policy `.env`, JWT secret, admin password, CORS và database credential cho production nội bộ.
 - `docs/STORAGE_BACKUP_RESTORE_RUNBOOK.md` ghi rõ named volumes Docker Compose, dữ liệu nằm trong PostgreSQL/Qdrant/uploads, quy trình backup/restore theo thứ tự và kiểm tra sau restore.
+- `docs/LOG_POLICY_RUNBOOK.md` ghi policy log tối thiểu, `LOG_LEVEL`, cách xem log Docker Compose và phân biệt `/health/live` vs `/health/ready`.
+- `docs/COMPOSE_RESOURCE_UPLOAD_RUNBOOK.md` ghi resource limits Docker Compose, upload policy và liên kết storage volumes.
+- Backend có endpoint public `/health/live`, `/health/ready` và `/health` (liveness tương thích ngược); readiness kiểm tra PostgreSQL, Redis, Qdrant và uploads writable.
+- Backend enforce upload limits qua `UPLOAD_MAX_FILE_SIZE_BYTES`, `UPLOAD_MAX_FILES_PER_REQUEST`, `UPLOAD_MAX_ZIP_SIZE_BYTES`; API trả `413` khi vượt giới hạn.
+- Docker Compose có `deploy.resources.limits` cho các service chính và healthcheck cho `api`, `redis`, `qdrant`, `worker`.
+- Worker ghi heartbeat `/tmp/worker.heartbeat`; frontend `/upload` hiển thị policy upload từ `NUXT_PUBLIC_UPLOAD_*`.
 - Backend settings đã có production guard: `APP_ENV=production` sẽ fail nếu dùng default JWT secret, default admin password, wildcard CORS hoặc default `legal:legal` database credential.
 - Docker Compose đã đọc secret/admin/CORS/database/API URL từ `.env`, có fallback dev rõ ràng cho local.
 
 ## Đã Kiểm Tra Thủ Công
 
 Các kiểm tra sau đã chạy thành công:
+
+Compose resource limits và upload policy kiểm tra ngày 2026-06-06:
+
+```bash
+PYTHONPYCACHEPREFIX=/tmp/qlvb-pycache PYTHONPATH=apps/api python3 -m py_compile apps/api/app/core/config.py apps/api/app/services/document_service.py apps/api/app/routers/documents.py apps/api/app/scripts/smoke_upload_limits.py
+docker compose config
+docker compose exec -T api python -m app.scripts.smoke_upload_limits
+docker compose run --rm --no-deps -e NODE_OPTIONS=--max-old-space-size=2048 web npm run build
+git diff --check
+```
+
+Kết quả:
+- Docker Compose render pass với resource limits và biến upload policy.
+- Smoke `python -m app.scripts.smoke_upload_limits` pass: file quá lớn và vượt số file bị từ chối đúng policy.
+- Thêm runbook `docs/COMPOSE_RESOURCE_UPLOAD_RUNBOOK.md`, cập nhật `.env.example` và hiển thị policy trên `/upload`.
+- Frontend build pass với `NODE_OPTIONS=--max-old-space-size=2048`.
+
+Health, readiness và log policy kiểm tra ngày 2026-06-06:
+
+```bash
+PYTHONPYCACHEPREFIX=/tmp/qlvb-pycache PYTHONPATH=apps/api python3 -m py_compile apps/api/app/schemas/health.py apps/api/app/services/health_service.py apps/api/app/routers/health.py apps/api/app/core/logging_config.py apps/api/app/main.py apps/api/app/workers/ocr_worker.py apps/api/app/scripts/smoke_health_checks.py apps/worker/runner.py
+docker compose config
+docker compose up -d api postgres redis qdrant worker
+PYTHONPATH=apps/api python3 -m app.scripts.smoke_health_checks --api-base http://localhost:8000
+git diff --check
+```
+
+Kết quả:
+- `/health/live` và `/health/ready` trả `status=ok` khi PostgreSQL, Redis, Qdrant và uploads sẵn sàng.
+- Docker Compose healthcheck pass cho `api`, `redis`, `qdrant`, `worker`.
+- Smoke `python -m app.scripts.smoke_health_checks` pass trên stack local đang chạy.
+- Thêm `docs/LOG_POLICY_RUNBOOK.md` và `LOG_LEVEL` config cho API/worker.
 
 Storage volumes và backup/restore runbook kiểm tra ngày 2026-06-06:
 

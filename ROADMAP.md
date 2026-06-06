@@ -147,14 +147,15 @@ Tiêu chí hoàn thành:
 
 ### Phase 6 - On-Prem Production Hardening
 
-Trạng thái: đang ưu tiên tiếp theo.
+Trạng thái: hoàn thành ngày 2026-06-06.
 
 Mục tiêu: chuẩn bị vận hành nội bộ on-prem một cách có kiểm soát.
 
 Phạm vi:
-- Chuẩn hóa `.env`, secret và CORS đã hoàn thành ngày 2026-06-06; file upload limits và log policy còn lại.
-- Tài liệu storage volumes và backup/restore đã hoàn thành ngày 2026-06-06; migration runbook còn lại.
-- Resource limits Docker Compose và storage volumes.
+- Chuẩn hóa `.env`, secret và CORS đã hoàn thành ngày 2026-06-06.
+- Tài liệu storage volumes và backup/restore đã hoàn thành ngày 2026-06-06; migration runbook còn lại nếu cần mở rộng sau MVP.
+- Health/readiness và log policy tối thiểu đã hoàn thành ngày 2026-06-06.
+- Resource limits Docker Compose và upload policy đã hoàn thành ngày 2026-06-06.
 - Observability tối thiểu: health, logs, job metrics có thể xem được.
 
 Tiêu chí hoàn thành:

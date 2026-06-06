@@ -53,7 +53,20 @@ docker compose up --build
 API:
 
 ```bash
-curl http://localhost:8000/health
+curl http://localhost:8000/health/live
+curl http://localhost:8000/health/ready
+```
+
+Health/readiness và log policy runbook:
+
+```text
+docs/LOG_POLICY_RUNBOOK.md
+```
+
+Compose resource limits và upload policy runbook:
+
+```text
+docs/COMPOSE_RESOURCE_UPLOAD_RUNBOOK.md
 ```
 
 Worker/queue ops runbook:

@@ -71,6 +71,14 @@ watch(uploadMode, () => {
 })
 
 onMounted(fetchCatalogOptions)
+
+const config = useRuntimeConfig()
+const uploadPolicyText = computed(() => {
+  const maxFileMb = config.public.uploadMaxFileSizeMb
+  const maxFiles = config.public.uploadMaxFiles
+  const maxZipMb = config.public.uploadMaxZipSizeMb
+  return `Giới hạn: tối đa ${maxFileMb} MB/tệp, ${maxFiles} tệp/request, zip tối đa ${maxZipMb} MB.`
+})
 </script>
 
 <template>
@@ -78,6 +86,7 @@ onMounted(fetchCatalogOptions)
     <div>
       <h1 class="text-2xl font-semibold">Upload văn bản</h1>
       <p class="mt-1 text-sm text-slate-600">File được lưu local và tạo OCR job pending.</p>
+      <p class="mt-1 text-sm text-slate-500">{{ uploadPolicyText }}</p>
     </div>
 
     <Card>

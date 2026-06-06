@@ -4,12 +4,14 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import get_settings
+from app.core.logging_config import configure_logging
 from app.db.session import SessionLocal
 from app.routers import auth, catalogs, contracts, documents, health, ops, search, users
 from app.services.auth_service import AuthService
 
 
 settings = get_settings()
+configure_logging()
 
 
 @asynccontextmanager

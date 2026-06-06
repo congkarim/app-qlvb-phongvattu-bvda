@@ -412,8 +412,17 @@ class OCRWorker:
         }
 
 
+WORKER_HEARTBEAT_PATH = Path("/tmp/worker.heartbeat")
+
+
+def _touch_worker_heartbeat() -> None:
+    WORKER_HEARTBEAT_PATH.parent.mkdir(parents=True, exist_ok=True)
+    WORKER_HEARTBEAT_PATH.write_text(str(time.time()), encoding="utf-8")
+
+
 def run_forever(db_factory, poll_seconds: int = 5) -> None:
     while True:
+        _touch_worker_heartbeat()
         db = db_factory()
         try:
             processed = OCRWorker(db).run_once()

@@ -21,7 +21,7 @@ Tài liệu này là checklist thực thi tuần tự bám theo `ROADMAP.md`. Kh
 
 Phase hiện tại: Phase 6 - On-Prem Production Hardening.
 
-Mục tiêu tiếp theo phải làm: Phase 6 / Mục tiêu 3 - Health, Readiness Và Logs.
+Mục tiêu tiếp theo phải làm: không còn mục tiêu mở trong `TASK_NEXT.md`. Phase 6 đã hoàn thành; xem `ROADMAP.md` khi mở phase mới.
 
 Điều kiện chuyển sang mục tiêu kế tiếp:
 - Mục tiêu hiện tại pass tiêu chí chấp nhận.
@@ -911,7 +911,7 @@ Sau khi hoàn thành:
 
 ## Phase 6 - On-Prem Production Hardening
 
-Trạng thái: đang làm.
+Trạng thái: hoàn thành ngày 2026-06-06.
 
 Mục tiêu phase: chuẩn bị vận hành nội bộ on-prem một cách có kiểm soát.
 
@@ -1003,7 +1003,7 @@ Sau khi hoàn thành:
 
 ### Mục Tiêu 3 - Health, Readiness Và Logs
 
-Trạng thái: chưa làm.
+Trạng thái: hoàn thành ngày 2026-06-06.
 
 Mục tiêu:
 - Health/readiness phân biệt service sống với service sẵn sàng xử lý workflow.
@@ -1012,15 +1012,61 @@ Mục tiêu:
 Tiêu chí chấp nhận:
 - Health check hữu ích cho api, worker và data services liên quan.
 
+Kết quả:
+- Thêm `/health/live` (liveness) và `/health/ready` (readiness) public, kiểm tra PostgreSQL, Redis, Qdrant và thư mục uploads; trả `503` khi chưa sẵn sàng.
+- Giữ `/health` tương thích ngược như liveness.
+- Thêm `HealthService`, `LOG_LEVEL` config và logging format thống nhất cho API/worker.
+- Worker ghi heartbeat `/tmp/worker.heartbeat`; Docker Compose healthcheck cho `api`, `redis`, `qdrant`, `worker`.
+- Thêm `docs/LOG_POLICY_RUNBOOK.md`, script `python -m app.scripts.smoke_health_checks` và cập nhật README/worker/storage runbook.
+
+Kiểm tra đã chạy:
+
+```bash
+PYTHONPYCACHEPREFIX=/tmp/qlvb-pycache PYTHONPATH=apps/api python3 -m py_compile apps/api/app/schemas/health.py apps/api/app/services/health_service.py apps/api/app/routers/health.py apps/api/app/core/logging_config.py apps/api/app/main.py apps/api/app/workers/ocr_worker.py apps/api/app/scripts/smoke_health_checks.py apps/worker/runner.py
+docker compose config
+docker compose up -d api postgres redis qdrant worker
+PYTHONPATH=apps/api python3 -m app.scripts.smoke_health_checks --api-base http://localhost:8000
+git diff --check
+```
+
+Sau khi hoàn thành:
+- Đã đọc lại `ROADMAP.md`.
+- Đã cập nhật `PROJECT_STATUS.md` với kết quả và kiểm tra đã chạy.
+- Đã cập nhật mục tiêu này thành `hoàn thành`.
+- Đã chuyển con trỏ hiện tại sang `Phase 6 / Mục tiêu 4`.
+
 ### Mục Tiêu 4 - Compose Resource Limits Và Upload Policy
 
-Trạng thái: khóa.
+Trạng thái: hoàn thành ngày 2026-06-06.
 
 Mục tiêu:
 - Kiểm tra resource limits Docker Compose, storage volumes và file upload limits.
 
 Tiêu chí chấp nhận:
 - Có cấu hình hoặc tài liệu rõ cho giới hạn vận hành nội bộ.
+
+Kết quả:
+- Thêm `deploy.resources.limits` cho `postgres`, `redis`, `qdrant`, `api`, `worker`, `web`, đọc từ `.env`.
+- Thêm upload policy backend: `UPLOAD_MAX_FILE_SIZE_BYTES`, `UPLOAD_MAX_FILES_PER_REQUEST`, `UPLOAD_MAX_ZIP_SIZE_BYTES`; API trả `413` khi vượt giới hạn.
+- Stream save upload theo chunk để chặn file quá lớn sớm; zip kiểm tra số member và kích thước từng file.
+- Thêm `docs/COMPOSE_RESOURCE_UPLOAD_RUNBOOK.md`, script `python -m app.scripts.smoke_upload_limits`, hiển thị policy trên `/upload` qua `NUXT_PUBLIC_UPLOAD_*`.
+- Cập nhật `.env.example`, README và runbook liên quan.
+
+Kiểm tra đã chạy:
+
+```bash
+PYTHONPYCACHEPREFIX=/tmp/qlvb-pycache PYTHONPATH=apps/api python3 -m py_compile apps/api/app/core/config.py apps/api/app/services/document_service.py apps/api/app/routers/documents.py apps/api/app/scripts/smoke_upload_limits.py
+docker compose config
+docker compose exec -T api python -m app.scripts.smoke_upload_limits
+docker compose run --rm --no-deps -e NODE_OPTIONS=--max-old-space-size=2048 web npm run build
+git diff --check
+```
+
+Sau khi hoàn thành:
+- Đã đọc lại `ROADMAP.md`.
+- Đã cập nhật `PROJECT_STATUS.md` với kết quả và kiểm tra đã chạy.
+- Đã cập nhật mục tiêu này thành `hoàn thành`.
+- Phase 6 đã đạt điều kiện hoàn thành.
 
 Điều kiện hoàn thành Phase 6:
 - Có runbook cài đặt, nâng cấp, backup, restore và troubleshoot.

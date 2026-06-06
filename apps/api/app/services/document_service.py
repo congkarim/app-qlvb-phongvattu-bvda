@@ -1,4 +1,3 @@
-import shutil
 import zipfile
 from datetime import date, datetime, timezone
 from mimetypes import guess_type
@@ -38,6 +37,14 @@ class DocumentChunkNotFoundError(ValueError):
 
 
 class DocumentSourceFileMissingError(FileNotFoundError):
+    pass
+
+
+class UploadTooLargeError(ValueError):
+    pass
+
+
+class UploadTooManyFilesError(ValueError):
     pass
 
 
@@ -130,6 +137,7 @@ class DocumentService:
             raise ValueError("Document title is required for multi-file upload")
         if not files:
             raise ValueError("At least one source file is required")
+        self._validate_file_count(len(files))
 
         upload_dir = Path(self.settings.upload_dir)
         upload_dir.mkdir(parents=True, exist_ok=True)
@@ -225,7 +233,12 @@ class DocumentService:
 
         upload_dir = Path(self.settings.upload_dir)
         upload_dir.mkdir(parents=True, exist_ok=True)
-        saved_files = self._extract_zip_source_files(zip_file, upload_dir)
+        _, zip_path, _ = self._save_upload_file(
+            zip_file,
+            upload_dir,
+            max_size_bytes=self.settings.upload_max_zip_size_bytes,
+        )
+        saved_files = self._extract_zip_source_files(zip_path, upload_dir)
         if not saved_files:
             raise ValueError("Zip file does not contain source files")
 
@@ -502,6 +515,7 @@ class DocumentService:
         document = self._get_mutable_document(document_id)
         if not files:
             raise DocumentFileOperationError("At least one source file is required")
+        self._validate_file_count(len(files))
 
         upload_dir = Path(self.settings.upload_dir)
         upload_dir.mkdir(parents=True, exist_ok=True)
@@ -612,27 +626,59 @@ class DocumentService:
         self.db.refresh(ocr_job)
         return document, self.documents.list_files_for_document(document.id), ocr_job
 
-    def _save_upload_file(self, file: UploadFile, upload_dir: Path) -> tuple[str, Path, int]:
+    def _save_upload_file(
+        self,
+        file: UploadFile,
+        upload_dir: Path,
+        *,
+        max_size_bytes: int | None = None,
+    ) -> tuple[str, Path, int]:
         safe_filename = Path(file.filename or "uploaded_file").name
         stored_name = f"{uuid4()}_{safe_filename}"
         file_path = upload_dir / stored_name
+        limit = max_size_bytes if max_size_bytes is not None else self.settings.upload_max_file_size_bytes
+        total = 0
+        try:
+            file.file.seek(0)
+            with file_path.open("wb") as output:
+                while True:
+                    chunk = file.file.read(1024 * 1024)
+                    if not chunk:
+                        break
+                    total += len(chunk)
+                    if total > limit:
+                        raise UploadTooLargeError(
+                            f"File exceeds maximum upload size of {limit} bytes"
+                        )
+                    output.write(chunk)
+        except Exception:
+            if file_path.exists():
+                file_path.unlink()
+            raise
+        return stored_name, file_path, total
 
-        with file_path.open("wb") as output:
-            shutil.copyfileobj(file.file, output)
-
-        return stored_name, file_path, file_path.stat().st_size
-
-    def _save_bytes_file(self, *, filename: str, content: bytes, upload_dir: Path) -> tuple[str, Path, int]:
+    def _save_bytes_file(
+        self,
+        *,
+        filename: str,
+        content: bytes,
+        upload_dir: Path,
+        max_size_bytes: int | None = None,
+    ) -> tuple[str, Path, int]:
+        limit = max_size_bytes if max_size_bytes is not None else self.settings.upload_max_file_size_bytes
+        if len(content) > limit:
+            raise UploadTooLargeError(f"File exceeds maximum upload size of {limit} bytes")
         safe_filename = Path(filename or "uploaded_file").name
         stored_name = f"{uuid4()}_{safe_filename}"
         file_path = upload_dir / stored_name
         file_path.write_bytes(content)
         return stored_name, file_path, len(content)
 
-    def _extract_zip_source_files(self, zip_file: UploadFile, upload_dir: Path) -> list[dict[str, str | int | None]]:
+    def _extract_zip_source_files(self, zip_path: Path, upload_dir: Path) -> list[dict[str, str | int | None]]:
+        max_files = self.settings.upload_max_files_per_request
+        max_file_size = self.settings.upload_max_file_size_bytes
         try:
-            zip_file.file.seek(0)
-            with zipfile.ZipFile(zip_file.file) as archive:
+            with zipfile.ZipFile(zip_path) as archive:
                 source_files = []
                 for member in archive.infolist():
                     if member.is_dir() or member.filename.startswith("__MACOSX/"):
@@ -640,11 +686,24 @@ class DocumentService:
                     source_name = Path(member.filename).name
                     if not source_name:
                         continue
+                    if len(source_files) >= max_files:
+                        raise UploadTooManyFilesError(
+                            f"Zip contains more than {max_files} source files"
+                        )
+                    if member.file_size > max_file_size:
+                        raise UploadTooLargeError(
+                            f"Zip member exceeds maximum upload size of {max_file_size} bytes"
+                        )
                     content = archive.read(member)
+                    if len(content) > max_file_size:
+                        raise UploadTooLargeError(
+                            f"Zip member exceeds maximum upload size of {max_file_size} bytes"
+                        )
                     stored_name, file_path, file_size = self._save_bytes_file(
                         filename=source_name,
                         content=content,
                         upload_dir=upload_dir,
+                        max_size_bytes=max_file_size,
                     )
                     content_type = guess_type(source_name)[0]
                     source_files.append(
@@ -658,6 +717,15 @@ class DocumentService:
                 return source_files
         except zipfile.BadZipFile as exc:
             raise ValueError("Invalid zip file") from exc
+        finally:
+            if zip_path.exists():
+                zip_path.unlink()
+
+    def _validate_file_count(self, count: int) -> None:
+        if count > self.settings.upload_max_files_per_request:
+            raise UploadTooManyFilesError(
+                f"Upload exceeds maximum file count of {self.settings.upload_max_files_per_request}"
+            )
 
     def _create_document_with_saved_files(
         self,

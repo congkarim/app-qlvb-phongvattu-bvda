@@ -162,7 +162,7 @@ docker compose up -d api postgres redis qdrant
 docker compose exec -T api alembic upgrade head
 docker compose up -d worker web
 docker compose ps
-curl -fsS http://localhost:8000/health
+curl -fsS http://localhost:8000/health/ready
 ```
 
 Đăng nhập admin và kiểm tra worker queue:
