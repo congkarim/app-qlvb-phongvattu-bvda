@@ -1,4 +1,4 @@
-import type { SearchResult, SemanticSearchFilters } from '~/types/document'
+import type { RagAnswerFilters, RagAnswerResponse, SearchResult, SemanticSearchFilters } from '~/types/document'
 import { useApiClient } from './api'
 
 interface SearchResponse {
@@ -15,14 +15,31 @@ export function createSearchService() {
         method: 'POST',
         body: normalizeSearchPayload(query, filters)
       })
+    },
+    answer(query: string, filters: RagAnswerFilters = {}) {
+      const payload = normalizeSearchPayload(query, filters, { defaultLimit: 6 })
+      if (filters.min_score !== undefined) {
+        payload.min_score = filters.min_score
+      }
+      if (filters.max_citations !== undefined) {
+        payload.max_citations = filters.max_citations
+      }
+      return api<RagAnswerResponse>('/search/answer', {
+        method: 'POST',
+        body: payload
+      })
     }
   }
 }
 
-function normalizeSearchPayload(query: string, filters: SemanticSearchFilters) {
+function normalizeSearchPayload(
+  query: string,
+  filters: SemanticSearchFilters,
+  options: { defaultLimit?: number } = {}
+) {
   const payload: Record<string, unknown> = {
     query,
-    limit: filters.limit || 10
+    limit: filters.limit || options.defaultLimit || 10
   }
   for (const key of [
     'document_type',

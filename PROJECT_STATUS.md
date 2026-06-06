@@ -8,12 +8,12 @@ Cập nhật lần cuối: 2026-06-06
 
 Hệ thống chạy on-prem bằng Docker Compose (`api`, `worker`, `web`, `postgres`, `redis`, `qdrant`). Workflow web end-to-end: upload → OCR/extract → searchable → semantic search → review chunk → audit. Module nghiệp vụ MVP: hợp đồng (`/contracts`) và công văn đến/đi (`/dispatches`), liên kết hai chiều với document detail; dashboard lọc search theo metadata hợp đồng.
 
-Con trỏ tiếp theo: `TASK_NEXT.md` → Phase 9 / Mục tiêu 2 (RAG Q&A UI trên dashboard).
+Con trỏ tiếp theo: `TASK_NEXT.md` → Phase 9 / Mục tiêu 3 (Smoke và runbook RAG answer trên web).
 
 ## Giới Hạn Còn Lại
 
 Ưu tiên Phase 9 (đồng bộ với `ROADMAP.md`):
-- RAG mới có API backend; frontend chưa có UI hỏi–đáp trên dashboard.
+- Chưa có smoke/checklist tái chạy cho RAG answer sau khi có UI dashboard.
 - Chưa có module nghiệp vụ thứ ba (quyết định, phiếu vật tư).
 - Chưa có LLM/generator nội bộ nâng cao; RAG hiện extractive từ chunk truy xuất.
 
@@ -1771,5 +1771,22 @@ Rủi ro / ghi chú:
 - Semantic search và RAG dùng chung filters: sau khi đổi filter, nên clear RAG answer cũ hoặc hiện hint “Bấm Hỏi lại sau khi đổi lọc”.
 
 Chưa thay đổi code runtime/UI trong mục tiêu này (chỉ tài liệu khảo sát).
+
+Phase 9 / Mục tiêu 2 — RAG Q&A UI trên dashboard (2026-06-06):
+
+```bash
+WEB_MEMORY_LIMIT=4g docker compose run --rm --no-deps -e NODE_OPTIONS=--max-old-space-size=3072 web npm run build
+git diff --check
+```
+
+Kiểm tra: `npm run build` pass (cần `WEB_MEMORY_LIMIT=4g` vì container `web` mặc định 512M bị OOM khi build SSR); `git diff --check` pass.
+
+Đã triển khai:
+
+- **Types** (`apps/web/types/document.ts`): `RagCitation`, `RagAnswerResponse`, `RagAnswerFilters`.
+- **Service** (`apps/web/services/search.service.ts`): `answer()` gọi `POST /search/answer`, tái dùng `normalizeSearchPayload()` với `defaultLimit=6`.
+- **Composable** (`apps/web/composables/useRagAnswer.ts`): state loading/grounded/citations/fallback; methods `ask`, `clear`, `resetQuestion`.
+- **Component** (`apps/web/components/RagAnswerPanel.vue`): input câu hỏi, grounded answer + confidence, warn `insufficient_evidence` (không trình bày như câu trả lời chắc chắn), citation quote + metadata + link `/documents/{id}`.
+- **Dashboard** (`apps/web/pages/dashboard.vue`): Card **Hỏi đáp (RAG)** dưới Semantic search; dùng chung `filters` metadata; watch filter → clear answer + hint “Hỏi lại”.
 
 Chi tiết phase và mục tiêu tiếp theo nằm trong `TASK_NEXT.md` và `ROADMAP.md`.

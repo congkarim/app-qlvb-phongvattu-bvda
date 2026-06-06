@@ -26,7 +26,7 @@ Cập nhật lần cuối: 2026-06-06
 - Semantic search có filter metadata nghiệp vụ, filter chunk như `section_role`, `requires_review`, và filter metadata hợp đồng (`contract_number`, `supplier_name`, `contract_status`).
 - RAG foundation local-only: endpoint `POST /api/v1/search/answer` trả lời extractive kèm citation.
 - Document detail có preview source, OCR job audit, chunks filter và action đánh dấu chunk đã review.
-- Dashboard có semantic search, admin review queue có pagination/filter.
+- Dashboard có semantic search, RAG Q&A extractive kèm citation, admin review queue có pagination/filter.
 - Module hợp đồng MVP: backend `contract_records`, API CRUD, frontend `/contracts`; liên kết hai chiều với document detail.
 - Module công văn đến/đi MVP: backend `dispatch_records`, API CRUD, frontend `/dispatches`; liên kết hai chiều với document detail.
 - Admin catalog MVP: departments, business_type, document_type qua Catalog API; trang `/status` cho OCR/model/Qdrant/worker queue.
@@ -35,7 +35,7 @@ Cập nhật lần cuối: 2026-06-06
 - Worker lease timeout, stale-job recovery, ops endpoint job kẹt, runbook upgrade Alembic production, smoke worker stale recovery.
 
 Giới hạn còn lại (ưu tiên Phase 9):
-- RAG mới có API backend; frontend chưa có UI hỏi–đáp trên dashboard.
+- Dashboard đã có UI RAG Q&A; chưa có smoke/checklist tái chạy cho workflow web.
 - Chưa có module nghiệp vụ thứ ba (quyết định, phiếu vật tư).
 - Chưa có LLM/generator nội bộ nâng cao; RAG hiện extractive từ chunk truy xuất.
 

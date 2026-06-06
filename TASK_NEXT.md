@@ -25,7 +25,7 @@ Phase trước: Phase 8 hoàn thành ngày 2026-06-06.
 
 Phase hiện tại: Phase 9 - RAG UX Và Search Nâng Cao.
 
-Mục tiêu tiếp theo: Phase 9 / Mục Tiêu 2 - RAG Q&A UI Trên Dashboard.
+Mục tiêu tiếp theo: Phase 9 / Mục Tiêu 3 - Smoke Và Runbook RAG Answer Trên Web.
 
 Điều kiện chuyển sang mục tiêu kế tiếp:
 - Mục tiêu hiện tại pass tiêu chí chấp nhận.
@@ -73,7 +73,7 @@ Kết quả khảo sát:
 
 ### Mục Tiêu 2 - RAG Q&A UI Trên Dashboard
 
-Trạng thái: chưa làm.
+Trạng thái: hoàn thành (2026-06-06).
 
 Skill bắt buộc: `frontend-nuxt`, `semantic-search-rag`.
 
@@ -93,9 +93,11 @@ Tiêu chí chấp nhận:
 Kiểm tra bắt buộc:
 
 ```bash
-docker compose run --rm --no-deps web npm run build
+WEB_MEMORY_LIMIT=4g docker compose run --rm --no-deps -e NODE_OPTIONS=--max-old-space-size=3072 web npm run build
 git diff --check
 ```
+
+Kết quả: build pass với `WEB_MEMORY_LIMIT=4g` (mặc định 512M OOM khi SSR); `git diff --check` pass.
 
 ### Mục Tiêu 3 - Smoke Và Runbook RAG Answer Trên Web
 

@@ -7,6 +7,21 @@ const route = useRoute()
 const authStore = useAuthStore()
 const isAdmin = computed(() => Boolean(authStore?.isAdmin))
 const { results, loading, error: searchError, hasSearched, search } = useSemanticSearch()
+const {
+  question: ragQuestion,
+  answer: ragAnswer,
+  citations: ragCitations,
+  grounded: ragGrounded,
+  confidence: ragConfidence,
+  fallbackReason: ragFallbackReason,
+  loading: ragLoading,
+  error: ragError,
+  hasAsked: ragHasAsked,
+  ask: askRag,
+  clear: clearRagAnswer,
+  resetQuestion: resetRagQuestion
+} = useRagAnswer()
+const ragFilterChangedHint = ref(false)
 const { businessTypeFilterOptions, fetchCatalogOptions, formatBusinessType } = useCatalogs()
 const {
   reviewQueue,
@@ -98,6 +113,16 @@ const canGoNextReviewPage = computed(() => reviewQueueOffset.value + reviewQueue
 
 async function submitSearch() {
   await search(query.value, filters)
+}
+
+async function submitRagAnswer() {
+  ragFilterChangedHint.value = false
+  await askRag(ragQuestion.value, filters)
+}
+
+function clearRagPanel() {
+  ragFilterChangedHint.value = false
+  resetRagQuestion()
 }
 
 async function submitReviewQueue(options: { resetOffset?: boolean } = {}) {
@@ -204,6 +229,16 @@ function normalizeReviewQueueFilters(): ReviewQueueFilters {
     max_confidence: reviewQueueFilters.max_confidence ?? undefined
   }
 }
+
+watch(
+  () => ({ ...filters }),
+  () => {
+    if (!ragHasAsked.value) return
+    clearRagAnswer()
+    ragFilterChangedHint.value = true
+  },
+  { deep: true }
+)
 
 onMounted(async () => {
   await fetchCatalogOptions()
@@ -437,6 +472,26 @@ onMounted(async () => {
             </p>
           </article>
         </div>
+      </template>
+    </Card>
+
+    <Card>
+      <template #title>Hỏi đáp (RAG)</template>
+      <template #content>
+        <RagAnswerPanel
+          v-model:question="ragQuestion"
+          :answer="ragAnswer"
+          :citations="ragCitations"
+          :grounded="ragGrounded"
+          :confidence="ragConfidence"
+          :fallback-reason="ragFallbackReason"
+          :loading="ragLoading"
+          :error="ragError"
+          :has-asked="ragHasAsked"
+          :filter-changed-hint="ragFilterChangedHint"
+          @ask="submitRagAnswer"
+          @clear="clearRagPanel"
+        />
       </template>
     </Card>
   </section>

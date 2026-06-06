@@ -249,3 +249,34 @@ export interface SemanticSearchFilters {
   supplier_name?: string
   contract_status?: ContractStatus | ''
 }
+
+export interface RagCitation {
+  document_id: string
+  chunk_id: string
+  score: number
+  quote: string
+  title?: string | null
+  document_type?: string | null
+  document_number?: string | null
+  issued_date?: string | null
+  issuing_agency?: string | null
+  business_type?: string | null
+  page_from?: number | null
+  page_to?: number | null
+  section_role?: string | null
+  section_path: string[]
+}
+
+export interface RagAnswerResponse {
+  query: string
+  answer: string
+  grounded: boolean
+  confidence: number
+  fallback_reason?: string | null
+  citations: RagCitation[]
+}
+
+export interface RagAnswerFilters extends SemanticSearchFilters {
+  min_score?: number
+  max_citations?: number
+}
