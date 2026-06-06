@@ -21,7 +21,7 @@ Tài liệu này là checklist thực thi tuần tự bám theo `ROADMAP.md`. Kh
 
 Phase hiện tại: Phase 4 - Domain Modules.
 
-Mục tiêu tiếp theo phải làm: Phase 4 / Mục tiêu 2 - Metadata Và Database Module.
+Mục tiêu tiếp theo phải làm: Phase 4 / Mục tiêu 3 - Backend Module API.
 
 Điều kiện chuyển sang mục tiêu kế tiếp:
 - Mục tiêu hiện tại pass tiêu chí chấp nhận.
@@ -597,7 +597,7 @@ Sau khi hoàn thành:
 
 ### Mục Tiêu 2 - Metadata Và Database Module
 
-Trạng thái: chưa làm.
+Trạng thái: hoàn thành ngày 2026-06-06.
 
 Mục tiêu:
 - Định nghĩa metadata riêng nhưng vẫn liên kết document core.
@@ -611,9 +611,51 @@ Tiêu chí chấp nhận:
 - Schema không phá document/search core.
 - Metadata module có thể filter/search được.
 
+Kết quả:
+- Thêm model `ContractRecord` tại `apps/api/app/models/contract.py`.
+- Import model vào `apps/api/app/db/base.py` và `apps/api/app/models/__init__.py`.
+- Thêm quan hệ ORM 1-1 `Document.contract_record` và `ContractRecord.document`.
+- Thêm migration `apps/api/alembic/versions/0011_contract_records.py`.
+- Bảng `contract_records` có:
+  - `id` UUID primary key.
+  - `document_id` FK tới `documents.id`.
+  - `contract_number`, `contract_title`, `supplier_name`.
+  - `sign_date`, `effective_from`, `effective_to`.
+  - `contract_value`, `currency`, `status`, `notes`.
+  - `created_at`, `updated_at`, `deleted_at`.
+- Dùng partial unique index `ux_contract_records_document_active` trên `document_id` với `deleted_at IS NULL`.
+- Thêm index filter MVP: `contract_number`, `supplier_name`, `status`, `sign_date`, `effective_to`, đều kèm `deleted_at`.
+- Cập nhật `docs/DOMAIN_MODULE_DECISION.md` với schema đã triển khai và hướng dẫn mục tiêu backend tiếp theo.
+
+Kiểm tra đã chạy:
+
+```bash
+PYTHONPYCACHEPREFIX=/tmp/qlvb-pycache PYTHONPATH=apps/api python3 -m py_compile apps/api/app/models/contract.py apps/api/app/models/document.py apps/api/app/models/__init__.py apps/api/app/db/base.py apps/api/alembic/versions/0011_contract_records.py
+docker compose up -d api postgres redis qdrant
+docker compose exec -T api alembic upgrade head
+docker compose exec -T api alembic current
+docker compose exec -T api python - <<'PY'
+from sqlalchemy.orm import configure_mappers
+from app.models.contract import ContractRecord
+from app.models.document import Document
+configure_mappers()
+print(Document.contract_record.property.uselist)
+print(ContractRecord.document.property.uselist)
+PY
+docker compose exec -T postgres psql -U legal -d legal_doc_ai -c "select column_name, data_type, is_nullable from information_schema.columns where table_name = 'contract_records' order by ordinal_position;"
+docker compose exec -T postgres psql -U legal -d legal_doc_ai -c "select indexname from pg_indexes where tablename = 'contract_records' order by indexname;"
+git diff --check
+```
+
+Sau khi hoàn thành:
+- Đã đọc lại `ROADMAP.md`.
+- Đã cập nhật `PROJECT_STATUS.md` với kết quả và kiểm tra đã chạy.
+- Đã cập nhật mục tiêu này thành `hoàn thành`.
+- Đã chuyển con trỏ hiện tại sang `Phase 4 / Mục tiêu 3`.
+
 ### Mục Tiêu 3 - Backend Module API
 
-Trạng thái: khóa.
+Trạng thái: chưa làm.
 
 Mục tiêu:
 - Thêm backend theo `router -> service -> repository`.

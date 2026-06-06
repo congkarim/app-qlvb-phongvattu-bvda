@@ -135,6 +135,7 @@ Search:
 Domain modules:
 - Phase 4 chọn module đầu tiên là **Hợp đồng và phụ lục hợp đồng**.
 - Quyết định được ghi tại `docs/DOMAIN_MODULE_DECISION.md`, scope MVP chỉ quản lý metadata hợp đồng liên kết document core, chưa mở rộng sang inventory/procurement workflow.
+- Đã thêm bảng `contract_records` bằng migration `0011_contract_records`, có UUID primary key, `created_at`, `updated_at`, `deleted_at`, liên kết `documents.id` và index filter MVP cho số hợp đồng, nhà cung cấp, trạng thái, ngày ký và hiệu lực.
 
 Ops/runbook:
 - `docs/WORKER_OPS_RUNBOOK.md` ghi command kiểm tra worker queue, chạy worker smoke, restart worker, xử lý job failed, reprocess, backup/restore PostgreSQL, Qdrant và uploaded source files.
@@ -142,6 +143,34 @@ Ops/runbook:
 ## Đã Kiểm Tra Thủ Công
 
 Các kiểm tra sau đã chạy thành công:
+
+Metadata/database module hợp đồng kiểm tra ngày 2026-06-06:
+
+```bash
+PYTHONPYCACHEPREFIX=/tmp/qlvb-pycache PYTHONPATH=apps/api python3 -m py_compile apps/api/app/models/contract.py apps/api/app/models/document.py apps/api/app/models/__init__.py apps/api/app/db/base.py apps/api/alembic/versions/0011_contract_records.py
+docker compose up -d api postgres redis qdrant
+docker compose exec -T api alembic upgrade head
+docker compose exec -T api alembic current
+docker compose exec -T api python - <<'PY'
+from sqlalchemy.orm import configure_mappers
+from app.models.contract import ContractRecord
+from app.models.document import Document
+configure_mappers()
+print(Document.contract_record.property.uselist)
+print(ContractRecord.document.property.uselist)
+PY
+docker compose exec -T postgres psql -U legal -d legal_doc_ai -c "select column_name, data_type, is_nullable from information_schema.columns where table_name = 'contract_records' order by ordinal_position;"
+docker compose exec -T postgres psql -U legal -d legal_doc_ai -c "select indexname from pg_indexes where tablename = 'contract_records' order by indexname;"
+git diff --check
+```
+
+Kết quả:
+- Thêm model `ContractRecord` và import metadata vào `app.db.base`/`app.models`.
+- Migration `0011_contract_records` tạo bảng `contract_records` liên kết `documents.id`.
+- Bảng có `id` UUID, `created_at`, `updated_at`, `deleted_at` và không dùng hard delete.
+- Partial unique index `ux_contract_records_document_active` đảm bảo mỗi document chỉ có một contract metadata active.
+- Các index filter MVP đã có cho `contract_number`, `supplier_name`, `status`, `sign_date`, `effective_to` kèm `deleted_at`.
+- Alembic current là `0011_contract_records (head)`.
 
 Chọn module nghiệp vụ đầu tiên kiểm tra ngày 2026-06-06:
 

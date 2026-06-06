@@ -81,13 +81,45 @@ Search/RAG:
 - Module hợp đồng có thể filter theo metadata module bằng API riêng ở giai đoạn sau, nhưng không sửa Qdrant payload nếu chưa cần.
 - Citation luôn trỏ về document/chunk/page nguồn.
 
-## Hướng Dẫn Cho Mục Tiêu Tiếp Theo
+## Schema Đã Triển Khai
 
-Mục tiêu 2 nên thiết kế migration bảng `contract_records` tối thiểu, liên kết `documents.id`, có audit fields/soft delete và indexes cho các filter MVP:
+Mục tiêu 2 đã tạo bảng `contract_records` bằng migration `0011_contract_records`.
 
-- `document_id` unique.
+Các cột chính:
+
+- `id`: UUID primary key.
+- `document_id`: liên kết tới `documents.id`.
 - `contract_number`.
+- `contract_title`.
 - `supplier_name`.
-- `status`.
 - `sign_date`.
 - `effective_from`, `effective_to`.
+- `contract_value`.
+- `currency`.
+- `status`.
+- `notes`.
+- `created_at`, `updated_at`, `deleted_at`.
+
+Indexes:
+
+- `ux_contract_records_document_active`: unique partial index trên `document_id` với điều kiện `deleted_at IS NULL`.
+- `ix_contract_records_contract_number_active`.
+- `ix_contract_records_supplier_active`.
+- `ix_contract_records_status_active`.
+- `ix_contract_records_sign_date_active`.
+- `ix_contract_records_effective_to_active`.
+
+Ghi chú:
+
+- Bảng chỉ lưu metadata nghiệp vụ, không copy OCR text/chunk.
+- Soft delete cho phép giữ lịch sử metadata cũ và tạo bản active mới cho cùng document sau này nếu cần.
+- API ở mục tiêu tiếp theo nên query mặc định `deleted_at IS NULL`.
+
+## Hướng Dẫn Cho Mục Tiêu Tiếp Theo
+
+Mục tiêu 3 nên thêm backend module hợp đồng theo `router -> service -> repository`:
+
+- CRUD/filter tối thiểu trên `contract_records`.
+- Permission theo RBAC hiện có.
+- Audit log cho create/update/delete mềm metadata hợp đồng.
+- Không sửa OCR/search core; liên kết document qua `document_id`.
