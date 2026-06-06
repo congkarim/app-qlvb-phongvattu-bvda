@@ -10,6 +10,7 @@ from uuid import uuid4
 
 from sqlalchemy import select
 
+from app.core.config import get_settings
 from app.db.session import SessionLocal
 from app.models.document import Document, DocumentChunk, DocumentFile, DocumentPage
 from app.repositories.document_repository import DocumentRepository
@@ -222,11 +223,25 @@ def run_benchmark(*, keep_data: bool, top_k: int, json_output: bool) -> dict[str
             for case in BENCHMARK_CASES
         ]
         passed = all(report["passed"] for report in case_reports)
+        metrics = _calculate_metrics(case_reports)
+        evaluation = _evaluate_search_quality(metrics)
+        settings = get_settings()
         summary = {
             "passed": passed,
             "total": len(case_reports),
             "passed_count": sum(1 for report in case_reports if report["passed"]),
             "failed_count": sum(1 for report in case_reports if not report["passed"]),
+            "metrics": metrics,
+            "evaluation": evaluation,
+            "embedding": {
+                "backend": settings.embedding_backend,
+                "model_name": settings.embedding_model_name,
+                "model_path": str(settings.embedding_model_path) if settings.embedding_model_path else None,
+                "dimensions": settings.embedding_dimensions,
+                "device": settings.embedding_device,
+                "local_files_only": settings.embedding_local_files_only,
+                "allow_fake_embeddings": settings.allow_fake_embeddings,
+            },
             "cases": case_reports,
             "cleanup": "kept" if keep_data else "removed",
         }
@@ -344,6 +359,67 @@ def _run_case(*, db, case: BenchmarkCase, expected_chunk_id: str, top_k: int) ->
     }
 
 
+def _calculate_metrics(case_reports: list[dict[str, Any]]) -> dict[str, Any]:
+    total = len(case_reports)
+    ranks = [int(report["rank"]) for report in case_reports if report["rank"] is not None]
+    passed_count = len(ranks)
+    if total == 0:
+        return {
+            "hit_rate": 0.0,
+            "mrr": 0.0,
+            "mean_rank": None,
+            "top1_count": 0,
+            "top1_rate": 0.0,
+        }
+
+    return {
+        "hit_rate": round(passed_count / total, 4),
+        "mrr": round(sum(1 / rank for rank in ranks) / total, 4),
+        "mean_rank": round(sum(ranks) / passed_count, 2) if ranks else None,
+        "top1_count": sum(1 for rank in ranks if rank == 1),
+        "top1_rate": round(sum(1 for rank in ranks if rank == 1) / total, 4),
+    }
+
+
+def _evaluate_search_quality(metrics: dict[str, Any]) -> dict[str, Any]:
+    hit_rate = float(metrics["hit_rate"])
+    mrr = float(metrics["mrr"])
+    top1_rate = float(metrics["top1_rate"])
+
+    if hit_rate >= 1.0 and mrr >= 0.9:
+        recommendation = (
+            "Giữ embedding/rerank hiện tại cho MVP; benchmark hiện tại chưa tạo bằng chứng cần đổi "
+            "model local hoặc thêm reranker nặng."
+        )
+        status = "pass"
+    elif hit_rate >= 1.0 and mrr >= 0.75:
+        recommendation = (
+            "Chưa đổi model ngay; ưu tiên mở rộng fixture và tinh chỉnh rerank config trước khi thêm "
+            "dependency reranker local."
+        )
+        status = "watch"
+    else:
+        recommendation = (
+            "Cần đánh giá embedding local thật hoặc reranker local trên cùng fixture trước khi mở RAG answer endpoint."
+        )
+        status = "needs_review"
+
+    return {
+        "status": status,
+        "recommendation": recommendation,
+        "thresholds": {
+            "mvp_pass": "hit_rate=1.0 and mrr>=0.9",
+            "watch": "hit_rate=1.0 and mrr>=0.75",
+        },
+        "notes": [
+            "Metric hiện đo trên fixture nhỏ, dùng để bắt regression ranking chứ chưa thay thế đánh giá nghiệp vụ thật.",
+            "Nếu chuyển EMBEDDING_BACKEND/model/dimensions, cần dùng collection Qdrant riêng hoặc reindex toàn bộ chunk.",
+            "RAG chỉ nên mở sau khi retrieval giữ được citation đúng trong benchmark.",
+        ],
+        "top1_rate": top1_rate,
+    }
+
+
 def _search_filters(filters: dict[str, Any]) -> dict[str, Any]:
     defaults = {
         "document_type": None,
@@ -390,10 +466,25 @@ def _format_page(result: dict[str, Any]) -> str | None:
 
 
 def _print_report(summary: dict[str, Any]) -> None:
+    embedding = summary["embedding"]
     print(
         "search benchmark fixtures: "
         f"{summary['passed_count']}/{summary['total']} passed, cleanup={summary['cleanup']}"
     )
+    print(
+        "embedding: "
+        f"backend={embedding['backend']} model={embedding['model_path'] or embedding['model_name']} "
+        f"dim={embedding['dimensions']} device={embedding['device']} "
+        f"fake_allowed={embedding['allow_fake_embeddings']}"
+    )
+    metrics = summary["metrics"]
+    print(
+        "ranking metrics: "
+        f"hit_rate={metrics['hit_rate']:.2f} mrr={metrics['mrr']:.2f} "
+        f"mean_rank={metrics['mean_rank'] or '-'} top1={metrics['top1_count']}/{summary['total']}"
+    )
+    evaluation = summary["evaluation"]
+    print(f"evaluation: {evaluation['status']} - {evaluation['recommendation']}")
     for case in summary["cases"]:
         status = "PASS" if case["passed"] else "FAIL"
         rank = case["rank"] or "-"

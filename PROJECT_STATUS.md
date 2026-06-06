@@ -128,6 +128,7 @@ Workflow web đã hoàn thiện:
 Search:
 - Search rerank đã được tách khỏi `SearchService` sang `SearchRerankService` với config rule riêng để dễ chỉnh mà không trộn vào orchestration search.
 - Đã thêm benchmark fixtures chạy lại được bằng `python -m app.scripts.benchmark_search_fixtures`, bao phủ truy vấn vật tư, phụ lục, điều khoản, ngày ban hành và đơn vị ban hành.
+- Benchmark search hiện báo ranking metrics và kết luận đánh giá embedding/rerank local; cấu hình local `sentence_transformers` + BKAI đạt `hit_rate=1.00`, `mrr=1.00`, `top1=5/5` trên fixture MVP nên chưa đổi model hoặc thêm reranker nặng.
 - Search response và dashboard result đã trả/hiển thị thêm `issuing_agency` để citation metadata rõ hơn.
 
 Ops/runbook:
@@ -136,6 +137,22 @@ Ops/runbook:
 ## Đã Kiểm Tra Thủ Công
 
 Các kiểm tra sau đã chạy thành công:
+
+Đánh giá embedding/rerank local kiểm tra ngày 2026-06-06:
+
+```bash
+PYTHONPYCACHEPREFIX=/tmp/qlvb-pycache PYTHONPATH=apps/api python3 -m py_compile apps/api/app/scripts/benchmark_search_fixtures.py apps/api/app/services/tests/test_search_benchmark_evaluation.py
+docker compose up -d api postgres redis qdrant
+docker compose exec -T api python -m unittest app.services.tests.test_search_benchmark_evaluation
+docker compose exec -T api python -m app.scripts.benchmark_search_fixtures
+```
+
+Kết quả:
+- Benchmark report có thêm cấu hình embedding đang dùng, `hit_rate`, `mrr`, `mean_rank`, `top1` và khuyến nghị đánh giá.
+- Với `.env` local hiện tại: `EMBEDDING_BACKEND=sentence_transformers`, model `/models/embeddings/bkai-vietnamese-bi-encoder`, `EMBEDDING_DIMENSIONS=768`, CPU, không fallback fake.
+- Benchmark pass `5/5`, `hit_rate=1.00`, `mrr=1.00`, `mean_rank=1.0`, `top1=5/5`.
+- Kết luận: giữ embedding/rerank hiện tại cho MVP; chưa có bằng chứng cần đổi model local hoặc thêm reranker nặng trước khi thiết kế RAG endpoint.
+- Unit test metric/evaluation pass trong container API; test trên host không chạy được do môi trường host thiếu dependency backend `pydantic_settings`.
 
 Search benchmark fixtures kiểm tra ngày 2026-06-06:
 

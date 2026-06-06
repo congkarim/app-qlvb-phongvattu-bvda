@@ -21,7 +21,7 @@ Tài liệu này là checklist thực thi tuần tự bám theo `ROADMAP.md`. Kh
 
 Phase hiện tại: Phase 3 - Search Quality Và RAG Foundation.
 
-Mục tiêu tiếp theo phải làm: Phase 3 / Mục tiêu 3 - Đánh Giá Embedding/Rerank Local.
+Mục tiêu tiếp theo phải làm: Phase 3 / Mục tiêu 4 - RAG Answer Endpoint Design.
 
 Điều kiện chuyển sang mục tiêu kế tiếp:
 - Mục tiêu hiện tại pass tiêu chí chấp nhận.
@@ -462,7 +462,7 @@ Sau khi hoàn thành:
 
 ### Mục Tiêu 3 - Đánh Giá Embedding/Rerank Local
 
-Trạng thái: chưa làm.
+Trạng thái: hoàn thành ngày 2026-06-06.
 
 Mục tiêu:
 - Đánh giá embedding local và rerank local nếu benchmark cho thấy cần.
@@ -475,9 +475,35 @@ Phạm vi:
 Tiêu chí chấp nhận:
 - Có kết luận dựa trên benchmark, không đổi model theo cảm tính.
 
+Kết quả:
+- Mở rộng script `python -m app.scripts.benchmark_search_fixtures` để report cấu hình embedding, `hit_rate`, `mrr`, `mean_rank`, `top1` và khuyến nghị đánh giá.
+- Thêm unit test `apps/api/app/services/tests/test_search_benchmark_evaluation.py` cho metric/evaluation.
+- Benchmark chạy với `.env` local hiện tại: `EMBEDDING_BACKEND=sentence_transformers`, model `/models/embeddings/bkai-vietnamese-bi-encoder`, `EMBEDDING_DIMENSIONS=768`, CPU, `ALLOW_FAKE_EMBEDDINGS=false`.
+- Kết quả benchmark: `5/5` pass, `hit_rate=1.00`, `mrr=1.00`, `mean_rank=1.0`, `top1=5/5`.
+- Kết luận: giữ embedding/rerank hiện tại cho MVP; chưa đổi model local hoặc thêm reranker nặng vì benchmark chưa tạo bằng chứng cần đổi.
+- Tradeoff nếu đổi model sau này: phải dùng Qdrant collection version mới hoặc reindex toàn bộ chunk khi backend/model/dimension thay đổi.
+
+Kiểm tra đã chạy:
+
+```bash
+PYTHONPYCACHEPREFIX=/tmp/qlvb-pycache PYTHONPATH=apps/api python3 -m py_compile apps/api/app/scripts/benchmark_search_fixtures.py apps/api/app/services/tests/test_search_benchmark_evaluation.py
+docker compose up -d api postgres redis qdrant
+docker compose exec -T api python -m unittest app.services.tests.test_search_benchmark_evaluation
+docker compose exec -T api python -m app.scripts.benchmark_search_fixtures
+```
+
+Ghi chú kiểm tra:
+- `PYTHONPYCACHEPREFIX=/tmp/qlvb-pycache PYTHONPATH=apps/api python3 -m unittest apps.api.app.services.tests.test_search_benchmark_evaluation` trên host không chạy được vì host thiếu dependency backend `pydantic_settings`; test đã pass trong container API.
+
+Sau khi hoàn thành:
+- Đã đọc lại `ROADMAP.md`.
+- Đã cập nhật `PROJECT_STATUS.md` với kết quả và kiểm tra đã chạy.
+- Đã cập nhật mục tiêu này thành `hoàn thành`.
+- Đã chuyển con trỏ hiện tại sang `Phase 3 / Mục tiêu 4`.
+
 ### Mục Tiêu 4 - RAG Answer Endpoint Design
 
-Trạng thái: khóa.
+Trạng thái: chưa làm.
 
 Mục tiêu:
 - Thiết kế nền tảng RAG local-only có citation.
