@@ -22,7 +22,7 @@ Tài liệu này là checklist thực thi tuần tự bám theo `ROADMAP.md`. Kh
 
 Phase hiện tại: Phase 7 - Domain Integration Và Module Mở Rộng.
 
-Mục tiêu tiếp theo phải làm: Phase 7 / Mục tiêu 5 - Schema Công Văn Đến/Đi.
+Mục tiêu tiếp theo phải làm: Phase 7 / Mục tiêu 6 - Backend API Công Văn Đến/Đi.
 
 Điều kiện chuyển sang mục tiêu kế tiếp:
 - Mục tiêu hiện tại pass tiêu chí chấp nhận.
@@ -1203,26 +1203,22 @@ Sau khi hoàn thành:
 
 ### Mục Tiêu 5 - Schema Công Văn Đến/Đi
 
-Trạng thái: chưa làm.
+Trạng thái: hoàn thành ngày 2026-06-06.
 
 Mục tiêu:
 - Tạo bảng metadata công văn liên kết document core.
 
-Phạm vi backend/database:
-- Thêm model và migration, ví dụ `dispatch_records` hoặc tên đã chọn trong tài liệu thiết kế.
-- UUID primary key, `created_at`, `updated_at`, `deleted_at`, liên kết `documents.id`.
-- Partial unique index active theo `document_id` nếu MVP giữ 1-1 như hợp đồng.
-- Index filter MVP: số/ký hiệu, loại đến/đi, đơn vị, ngày ban hành, trạng thái.
+Kết quả:
+- Thêm model `DispatchRecord` tại `apps/api/app/models/dispatch.py`.
+- Migration `0013_dispatch_records` tạo bảng `dispatch_records` với UUID, audit timestamps, soft delete.
+- Liên kết 1-1 `documents.id` qua partial unique index `ux_dispatch_records_document_active`.
+- Index filter MVP: `dispatch_type`, `document_number`, `issuing_agency`, `issued_date`, `status`.
+- Thêm `Document.dispatch_record` relationship; import model vào `app.db.base` và `app.models`.
 
-Tiêu chí chấp nhận:
-- Migration chạy được bằng `alembic upgrade head`.
-- Schema khớp tài liệu thiết kế Phase 7 mục tiêu 4.
-- Không copy OCR text/chunk vào bảng module.
-
-Kiểm tra cần chạy:
+Kiểm tra đã chạy:
 
 ```bash
-PYTHONPYCACHEPREFIX=/tmp/qlvb-pycache PYTHONPATH=apps/api python3 -m py_compile apps/api/app/models/*.py apps/api/alembic/versions/*dispatch*.py
+PYTHONPYCACHEPREFIX=/tmp/qlvb-pycache PYTHONPATH=apps/api python3 -m py_compile apps/api/app/models/dispatch.py apps/api/app/models/document.py apps/api/alembic/versions/0013_dispatch_records.py
 docker compose exec -T api alembic upgrade head
 git diff --check
 ```
@@ -1236,7 +1232,7 @@ Sau khi hoàn thành:
 
 ### Mục Tiêu 6 - Backend API Công Văn Đến/Đi
 
-Trạng thái: khóa.
+Trạng thái: chưa làm.
 
 Mục tiêu:
 - CRUD metadata công văn theo pattern module hợp đồng.

@@ -138,6 +138,7 @@ Domain modules:
 - Frontend `/documents/[id]` hiển thị card Hợp đồng và liên kết hai chiều với `/contracts`; dashboard nhận preset search từ contracts (Phase 7 mục tiêu 2).
 - Semantic search/dashboard lọc theo metadata hợp đồng (`contract_number`, `supplier_name`, `contract_status`) và hiển thị metadata hợp đồng trong kết quả (Phase 7 mục tiêu 3).
 - Đã thiết kế module nghiệp vụ thứ hai **Công văn đến/đi** (`dispatch_records`) trong `docs/DOMAIN_MODULE_DECISION.md` trước khi implement schema/API/UI (Phase 7 mục tiêu 4).
+- Đã thêm bảng `dispatch_records` bằng migration `0013_dispatch_records`, liên kết 1-1 `documents.id` và index filter MVP (Phase 7 mục tiêu 5).
 - Quyết định được ghi tại `docs/DOMAIN_MODULE_DECISION.md`, scope MVP chỉ quản lý metadata hợp đồng liên kết document core, chưa mở rộng sang inventory/procurement workflow.
 - Đã thêm bảng `contract_records` bằng migration `0011_contract_records`, có UUID primary key, `created_at`, `updated_at`, `deleted_at`, liên kết `documents.id` và index filter MVP cho số hợp đồng, nhà cung cấp, trạng thái, ngày ký và hiệu lực.
 - Đã thêm backend Contract API theo `router -> service -> repository`, hỗ trợ list/filter/get/create/update/soft-delete metadata hợp đồng, audit log cho create/update/delete và smoke HTTP `python -m app.scripts.smoke_contract_api`.
@@ -167,6 +168,21 @@ Ops/runbook:
 ## Đã Kiểm Tra Thủ Công
 
 Các kiểm tra sau đã chạy thành công:
+
+Phase 7 schema công văn đến/đi kiểm tra ngày 2026-06-06:
+
+```bash
+PYTHONPYCACHEPREFIX=/tmp/qlvb-pycache PYTHONPATH=apps/api python3 -m py_compile apps/api/app/models/dispatch.py apps/api/app/models/document.py apps/api/alembic/versions/0013_dispatch_records.py
+docker compose exec -T api alembic upgrade head
+docker compose exec -T api alembic current
+git diff --check
+```
+
+Kết quả:
+- Thêm model `DispatchRecord` và relationship `Document.dispatch_record`.
+- Migration `0013_dispatch_records` tạo bảng metadata công văn: `dispatch_type`, số/ký hiệu, ngày ban hành, đơn vị ban hành, nơi nhận, trích yếu, trạng thái, ghi chú.
+- Partial unique index `ux_dispatch_records_document_active` và các index filter MVP đã có trên PostgreSQL.
+- Alembic current là `0013_dispatch_records (head)`; bảng không lưu OCR text/chunk.
 
 Phase 7 thiết kế module công văn đến/đi kiểm tra ngày 2026-06-06:
 

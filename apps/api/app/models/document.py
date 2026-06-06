@@ -39,6 +39,7 @@ class Document(UUIDTimestampMixin, Base):
     chunks: Mapped[list["DocumentChunk"]] = relationship(back_populates="document", cascade="all, delete-orphan")
     ocr_jobs: Mapped[list["OCRJob"]] = relationship(back_populates="document", cascade="all, delete-orphan")
     contract_record: Mapped["ContractRecord | None"] = relationship(back_populates="document", uselist=False)
+    dispatch_record: Mapped["DispatchRecord | None"] = relationship(back_populates="document", uselist=False)
 
 
 class DocumentFile(UUIDTimestampMixin, Base):

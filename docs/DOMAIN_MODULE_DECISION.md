@@ -270,9 +270,9 @@ Giữ nhất quán với module hợp đồng: user quản lý metadata hàng ng
 
 `entity_type=dispatch`, `entity_id=<dispatch_record.id>`, metadata JSON gọn (ví dụ `dispatch_type`, `document_number`, `status`).
 
-## Schema Dự Kiến (Mục Tiêu 5)
+## Schema Đã Triển Khai (Mục Tiêu 5)
 
-Migration tiếp theo tạo bảng `dispatch_records` (ví dụ `0013_dispatch_records` sau các migration hiện có).
+Mục tiêu 5 đã tạo bảng `dispatch_records` bằng migration `0013_dispatch_records`.
 
 ### Các Cột Chính
 
@@ -328,13 +328,6 @@ Lỗi nghiệp vụ: `404` không tìm thấy; `409` trùng dispatch active cho 
 - Nav item `Công văn` trong app shell.
 - Smoke script: `python -m app.scripts.smoke_dispatch_api` (tái chạy được, cleanup mặc định).
 
-## Hướng Dẫn Cho Mục Tiêu Tiếp Theo (Schema)
+## Hướng Dẫn Cho Mục Tiêu Tiếp Theo (API)
 
-Mục tiêu 5 nên:
-
-1. Thêm model `DispatchRecord` và migration `dispatch_records` đúng cột/index ở trên.
-2. Import model vào `app.db.base` / `app.models`.
-3. Thêm relationship trên `Document` — không đổi OCR/chunk pipeline.
-4. Chạy `alembic upgrade head` và kiểm tra partial unique index.
-
-Không implement API/UI trong mục tiêu thiết kế này.
+Mục tiêu 6 nên thêm backend module theo `router -> service -> repository`, dùng schema `dispatch_records` ở trên và không gọi API trực tiếp từ frontend trong mục tiêu này.
