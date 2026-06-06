@@ -21,7 +21,7 @@ Tài liệu này là checklist thực thi tuần tự bám theo `ROADMAP.md`. Kh
 
 Phase hiện tại: Phase 6 - On-Prem Production Hardening.
 
-Mục tiêu tiếp theo phải làm: Phase 6 / Mục tiêu 1 - Chuẩn Hóa Env Và Secret.
+Mục tiêu tiếp theo phải làm: Phase 6 / Mục tiêu 2 - Storage Volumes Và Backup/Restore.
 
 Điều kiện chuyển sang mục tiêu kế tiếp:
 - Mục tiêu hiện tại pass tiêu chí chấp nhận.
@@ -917,7 +917,7 @@ Mục tiêu phase: chuẩn bị vận hành nội bộ on-prem một cách có k
 
 ### Mục Tiêu 1 - Chuẩn Hóa Env Và Secret
 
-Trạng thái: chưa làm.
+Trạng thái: hoàn thành ngày 2026-06-06.
 
 Mục tiêu:
 - Chuẩn hóa `.env`, secret, CORS và default admin password policy.
@@ -925,9 +925,53 @@ Mục tiêu:
 Tiêu chí chấp nhận:
 - Cài đặt production nội bộ không dùng default secret/admin password.
 
+Kết quả:
+- Thêm `.env.example` cho Docker Compose local/on-prem.
+- Thêm `APP_ENV`, `CORS_ALLOWED_ORIGINS` và helper parse CORS trong backend settings.
+- FastAPI CORS middleware dùng origin explicit từ config, không hardcode `*`.
+- Docker Compose đọc secret/admin/CORS/database/API URL từ `.env`, giữ fallback dev rõ ràng.
+- Khi `APP_ENV=production`, backend từ chối khởi động nếu dùng default JWT secret, default admin password, wildcard CORS hoặc default `legal:legal` database credential.
+- Thêm `docs/ON_PREM_ENV_RUNBOOK.md` và cập nhật `README.md` cho policy env/secret production nội bộ.
+
+Kiểm tra đã chạy:
+
+```bash
+PYTHONPYCACHEPREFIX=/tmp/qlvb-pycache PYTHONPATH=apps/api python3 -m py_compile apps/api/app/core/config.py apps/api/app/main.py
+docker compose config
+docker compose run --rm --no-deps -e APP_ENV=production -e JWT_SECRET_KEY=local-dev-secret -e ADMIN_PASSWORD=admin123 -e CORS_ALLOWED_ORIGINS='*' api python - <<'PY'
+from app.core.config import Settings
+try:
+    Settings()
+except ValueError as exc:
+    print(str(exc).splitlines()[0])
+else:
+    raise SystemExit('expected production config validation failure')
+PY
+docker compose run --rm --no-deps -e APP_ENV=production -e JWT_SECRET_KEY='prod-secret-prod-secret-prod-secret-01' -e ADMIN_PASSWORD='StrongAdminPass123' -e CORS_ALLOWED_ORIGINS='http://intranet.local:3000' -e DATABASE_URL='postgresql+psycopg://legal:strong-db-password@postgres:5432/legal_doc_ai' api python - <<'PY'
+from app.core.config import Settings
+settings = Settings()
+print(settings.is_production)
+print(settings.cors_origins_list)
+PY
+docker compose run --rm --no-deps api python - <<'PY'
+from app.core.config import get_settings
+from app.main import app
+settings = get_settings()
+print(settings.app_env)
+print(settings.cors_origins_list)
+print(app.title)
+PY
+```
+
+Sau khi hoàn thành:
+- Đã đọc lại `ROADMAP.md`.
+- Đã cập nhật `PROJECT_STATUS.md` với kết quả và kiểm tra đã chạy.
+- Đã cập nhật mục tiêu này thành `hoàn thành`.
+- Đã chuyển con trỏ hiện tại sang `Phase 6 / Mục tiêu 2`.
+
 ### Mục Tiêu 2 - Storage Volumes Và Backup/Restore
 
-Trạng thái: khóa.
+Trạng thái: chưa làm.
 
 Mục tiêu:
 - Tài liệu storage volumes cho PostgreSQL, Qdrant và uploads.

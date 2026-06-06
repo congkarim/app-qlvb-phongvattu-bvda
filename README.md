@@ -40,6 +40,12 @@ README.md
 
 ## Chạy Docker
 
+Tạo cấu hình local từ mẫu nếu cần override biến môi trường:
+
+```bash
+cp .env.example .env
+```
+
 ```bash
 docker compose up --build
 ```
@@ -65,7 +71,7 @@ curl -X POST http://localhost:8000/api/v1/auth/login \
 ```
 
 Auth/RBAC MVP:
-- Admin local mặc định: `admin@example.com` / `admin123`.
+- Admin local mặc định khi `APP_ENV=development`: `admin@example.com` / `admin123`.
 - Login response trả `user.role`.
 - Role `admin` được reprocess, quản lý source files và quản lý user tại `/users`.
 - Role `user` được upload, search, xem tài liệu/source file và sửa metadata.
@@ -165,6 +171,21 @@ Frontend:
 ```bash
 docker compose up web
 ```
+
+## Env Và Secret Nội Bộ
+
+Docker Compose đọc cấu hình từ `.env` nếu có. Dev local có fallback trong `docker-compose.yml`, nhưng production nội bộ phải đặt:
+
+```env
+APP_ENV=production
+JWT_SECRET_KEY=<random-secret-at-least-32-characters>
+ADMIN_PASSWORD=<strong-password-at-least-12-characters>
+CORS_ALLOWED_ORIGINS=http://<internal-web-host>:3000
+POSTGRES_PASSWORD=<strong-db-password>
+DATABASE_URL=postgresql+psycopg://legal:<strong-db-password>@postgres:5432/legal_doc_ai
+```
+
+API sẽ từ chối khởi động khi `APP_ENV=production` mà vẫn dùng default JWT secret, default admin password, wildcard CORS hoặc default database credential. Xem chi tiết tại `docs/ON_PREM_ENV_RUNBOOK.md`.
 
 ## Test Upload API
 
@@ -485,7 +506,7 @@ Lưu ý:
 - Office text extraction đã chạy cho `.docx`, `.xlsx`, `.xls`.
 - `.doc` legacy chưa hỗ trợ converter local trong MVP này.
 - Embedding hỗ trợ fake deterministic cho dev và local `sentence-transformers` cho semantic search thật.
-- API seed admin local mặc định `admin@example.com` / `admin123`.
+- API seed admin local mặc định `admin@example.com` / `admin123` chỉ phù hợp `APP_ENV=development`.
 - Frontend có route guard cơ bản và lưu token bằng cookie.
 - Workflow browser hiện hỗ trợ upload -> detail auto-refresh -> searchable -> dashboard search -> mở document nguồn.
 - PaddleOCR model được tải ở lần OCR đầu tiên nếu container chưa có cache model.

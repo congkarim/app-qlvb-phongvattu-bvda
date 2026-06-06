@@ -149,10 +149,50 @@ Admin configuration:
 
 Ops/runbook:
 - `docs/WORKER_OPS_RUNBOOK.md` ghi command kiểm tra worker queue, chạy worker smoke, restart worker, xử lý job failed, reprocess, backup/restore PostgreSQL, Qdrant và uploaded source files.
+- `docs/ON_PREM_ENV_RUNBOOK.md` ghi policy `.env`, JWT secret, admin password, CORS và database credential cho production nội bộ.
+- Backend settings đã có production guard: `APP_ENV=production` sẽ fail nếu dùng default JWT secret, default admin password, wildcard CORS hoặc default `legal:legal` database credential.
+- Docker Compose đã đọc secret/admin/CORS/database/API URL từ `.env`, có fallback dev rõ ràng cho local.
 
 ## Đã Kiểm Tra Thủ Công
 
 Các kiểm tra sau đã chạy thành công:
+
+Chuẩn hóa env và secret kiểm tra ngày 2026-06-06:
+
+```bash
+PYTHONPYCACHEPREFIX=/tmp/qlvb-pycache PYTHONPATH=apps/api python3 -m py_compile apps/api/app/core/config.py apps/api/app/main.py
+docker compose config
+docker compose run --rm --no-deps -e APP_ENV=production -e JWT_SECRET_KEY=local-dev-secret -e ADMIN_PASSWORD=admin123 -e CORS_ALLOWED_ORIGINS='*' api python - <<'PY'
+from app.core.config import Settings
+try:
+    Settings()
+except ValueError as exc:
+    print(str(exc).splitlines()[0])
+else:
+    raise SystemExit('expected production config validation failure')
+PY
+docker compose run --rm --no-deps -e APP_ENV=production -e JWT_SECRET_KEY='prod-secret-prod-secret-prod-secret-01' -e ADMIN_PASSWORD='StrongAdminPass123' -e CORS_ALLOWED_ORIGINS='http://intranet.local:3000' -e DATABASE_URL='postgresql+psycopg://legal:strong-db-password@postgres:5432/legal_doc_ai' api python - <<'PY'
+from app.core.config import Settings
+settings = Settings()
+print(settings.is_production)
+print(settings.cors_origins_list)
+PY
+docker compose run --rm --no-deps api python - <<'PY'
+from app.core.config import get_settings
+from app.main import app
+settings = get_settings()
+print(settings.app_env)
+print(settings.cors_origins_list)
+print(app.title)
+PY
+```
+
+Kết quả:
+- Thêm `.env.example`.
+- Thêm `APP_ENV`, `CORS_ALLOWED_ORIGINS`, explicit CORS middleware config và production validation trong backend settings.
+- Compose render pass và services nhận biến từ `.env` với fallback dev.
+- Production validation chặn default secret/password/CORS/database credential và nhận cấu hình tối thiểu hợp lệ.
+- README và `docs/ON_PREM_ENV_RUNBOOK.md` đã ghi policy vận hành nội bộ.
 
 Trang status tối thiểu kiểm tra ngày 2026-06-06:
 

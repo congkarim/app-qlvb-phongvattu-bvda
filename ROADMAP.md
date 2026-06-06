@@ -152,7 +152,7 @@ Trạng thái: đang ưu tiên tiếp theo.
 Mục tiêu: chuẩn bị vận hành nội bộ on-prem một cách có kiểm soát.
 
 Phạm vi:
-- Chuẩn hóa `.env`, secret, CORS, file upload limits và log policy.
+- Chuẩn hóa `.env`, secret và CORS đã hoàn thành ngày 2026-06-06; file upload limits và log policy còn lại.
 - Tài liệu backup/restore và migration runbook.
 - Resource limits Docker Compose và storage volumes.
 - Observability tối thiểu: health, logs, job metrics có thể xem được.

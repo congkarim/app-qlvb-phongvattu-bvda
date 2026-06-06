@@ -1,11 +1,13 @@
 from functools import lru_cache
 from pathlib import Path
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     app_name: str = "Legal Document AI API"
+    app_env: str = "development"
     api_prefix: str = "/api/v1"
     database_url: str = "postgresql+psycopg://legal:legal@postgres:5432/legal_doc_ai"
     redis_url: str = "redis://redis:6379/0"
@@ -15,6 +17,7 @@ class Settings(BaseSettings):
     jwt_secret_key: str = "change-me-in-production"
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 60
+    cors_allowed_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
     admin_email: str = "admin@example.com"
     admin_password: str = "admin123"
     admin_full_name: str = "System Admin"
@@ -44,6 +47,38 @@ class Settings(BaseSettings):
     vietocr_beamsearch: bool = False
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+
+    @property
+    def is_production(self) -> bool:
+        return self.app_env.strip().lower() in {"prod", "production"}
+
+    @property
+    def cors_origins_list(self) -> list[str]:
+        return [
+            origin.strip()
+            for origin in self.cors_allowed_origins.split(",")
+            if origin.strip()
+        ]
+
+    @model_validator(mode="after")
+    def validate_production_security(self) -> "Settings":
+        if not self.is_production:
+            return self
+
+        default_jwt_secrets = {"change-me-in-production", "local-dev-secret"}
+        if self.jwt_secret_key in default_jwt_secrets or len(self.jwt_secret_key) < 32:
+            raise ValueError("JWT_SECRET_KEY must be changed to a strong value when APP_ENV=production")
+
+        if self.admin_password == "admin123" or len(self.admin_password) < 12:
+            raise ValueError("ADMIN_PASSWORD must be changed to a strong value when APP_ENV=production")
+
+        if not self.cors_origins_list or "*" in self.cors_origins_list:
+            raise ValueError("CORS_ALLOWED_ORIGINS must list explicit origins when APP_ENV=production")
+
+        if "legal:legal@" in self.database_url:
+            raise ValueError("DATABASE_URL must not use the default legal:legal credential when APP_ENV=production")
+
+        return self
 
 
 @lru_cache
