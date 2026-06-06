@@ -18,6 +18,15 @@ export function createContractService() {
     get(id: string) {
       return api<ContractItem>(`/contracts/${id}`)
     },
+    async getByDocumentId(documentId: string) {
+      try {
+        return await api<ContractItem>(`/contracts/by-document/${documentId}`)
+      } catch (error: unknown) {
+        const statusCode = (error as { statusCode?: number })?.statusCode
+        if (statusCode === 404) return null
+        throw error
+      }
+    },
     create(input: ContractInput) {
       return api<ContractItem>('/contracts', {
         method: 'POST',

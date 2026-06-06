@@ -3,6 +3,7 @@ import type { ContractInput, ContractItem, ContractListFilters, ContractStatus }
 import { formatDate, formatDateTime } from '~/utils/format'
 
 const authStore = useAuthStore()
+const route = useRoute()
 const {
   contracts,
   contractsTotal,
@@ -17,12 +18,13 @@ const {
   deleteContract
 } = useContracts()
 
-const filters = reactive<Required<Pick<ContractListFilters, 'q' | 'supplier_name' | 'status' | 'sort_by' | 'sort_dir'>>>({
+const filters = reactive<Required<Pick<ContractListFilters, 'q' | 'supplier_name' | 'status' | 'sort_by' | 'sort_dir'>> & { document_id: string }>({
   q: '',
   supplier_name: '',
   status: '',
   sort_by: 'created_at',
-  sort_dir: 'desc'
+  sort_dir: 'desc',
+  document_id: ''
 })
 
 const form = reactive<ContractInput>({
@@ -74,6 +76,7 @@ function currentFilters(): ContractListFilters {
     status: filters.status,
     sort_by: filters.sort_by,
     sort_dir: filters.sort_dir,
+    document_id: filters.document_id || undefined,
     limit: contractsLimit.value,
     offset: contractsOffset.value
   }
@@ -90,7 +93,16 @@ function resetFilters() {
   filters.status = ''
   filters.sort_by = 'created_at'
   filters.sort_dir = 'desc'
+  filters.document_id = ''
   void loadContracts(true)
+}
+
+function dashboardSearchLink(item: ContractItem) {
+  const params = new URLSearchParams()
+  const searchQuery = item.contract_title || item.contract_number || item.document_title || 'hợp đồng'
+  params.set('q', searchQuery)
+  if (item.document_number) params.set('document_number', item.document_number)
+  return `/dashboard?${params.toString()}`
 }
 
 function resetForm() {
@@ -168,7 +180,14 @@ function formatCurrency(value?: string | number | null, currency = 'VND') {
   }).format(amount)
 }
 
-onMounted(loadContracts)
+onMounted(async () => {
+  const documentId = typeof route.query.document_id === 'string' ? route.query.document_id : ''
+  if (documentId) filters.document_id = documentId
+  await loadContracts(Boolean(documentId))
+  if (route.query.create === '1' && documentId) {
+    form.document_id = documentId
+  }
+})
 </script>
 
 <template>
@@ -255,6 +274,10 @@ onMounted(loadContracts)
     </Card>
 
     <Message v-if="error" severity="error">{{ error }}</Message>
+    <Message v-if="filters.document_id" severity="info">
+      Đang lọc theo văn bản nguồn: {{ filters.document_id }}
+      <Button class="ml--2" label="Bỏ lọc" text size="small" @click="() => { filters.document_id = ''; void loadContracts(true) }" />
+    </Message>
 
     <div class="flex flex-col gap-3 rounded border border-slate-200 bg-white px-4 py-3 md:flex-row md:items-center md:justify-between">
       <p class="text-sm text-slate-600">
@@ -313,9 +336,14 @@ onMounted(loadContracts)
           </Column>
           <Column header="Document">
             <template #body="{ data }">
-              <NuxtLink :to="`/documents/${data.document_id}`" class="text-sm font-medium text-blue-700">
-                {{ data.document_number || data.document_title || 'Mở văn bản' }}
-              </NuxtLink>
+              <div class="space-y-1">
+                <NuxtLink :to="`/documents/${data.document_id}`" class="block text-sm font-medium text-blue-700">
+                  {{ data.document_number || data.document_title || 'Mở văn bản' }}
+                </NuxtLink>
+                <NuxtLink :to="dashboardSearchLink(data)" class="block text-xs text-sky-700">
+                  Search trong văn bản
+                </NuxtLink>
+              </div>
             </template>
           </Column>
           <Column field="updated_at" header="Cập nhật">

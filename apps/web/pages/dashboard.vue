@@ -2,6 +2,7 @@
 import type { ReviewQueueChunk, ReviewQueueFilters, SemanticSearchFilters } from '~/types/document'
 
 const query = ref('')
+const route = useRoute()
 const authStore = useAuthStore()
 const isAdmin = computed(() => Boolean(authStore?.isAdmin))
 const { results, loading, error: searchError, hasSearched, search } = useSemanticSearch()
@@ -185,8 +186,15 @@ function normalizeReviewQueueFilters(): ReviewQueueFilters {
 
 onMounted(async () => {
   await fetchCatalogOptions()
+  const presetQuery = typeof route.query.q === 'string' ? route.query.q : ''
+  const presetDocumentNumber = typeof route.query.document_number === 'string' ? route.query.document_number : ''
+  if (presetDocumentNumber) filters.document_number = presetDocumentNumber
   if (isAdmin.value) {
     await submitReviewQueue()
+  }
+  if (presetQuery.trim()) {
+    query.value = presetQuery
+    await submitSearch()
   }
 })
 </script>

@@ -7,6 +7,8 @@ export function useContracts() {
   const contractsTotal = ref(0)
   const contractsLimit = ref(20)
   const contractsOffset = ref(0)
+  const contractByDocument = ref<ContractItem | null>(null)
+  const contractByDocumentLoading = ref(false)
   const loading = ref(false)
   const saving = ref(false)
   const deleting = ref('')
@@ -44,6 +46,19 @@ export function useContracts() {
       return null
     } finally {
       loading.value = false
+    }
+  }
+
+  async function fetchContractByDocumentId(documentId: string) {
+    contractByDocumentLoading.value = true
+    try {
+      contractByDocument.value = await service.getByDocumentId(documentId)
+      return contractByDocument.value
+    } catch {
+      contractByDocument.value = null
+      return null
+    } finally {
+      contractByDocumentLoading.value = false
     }
   }
 
@@ -97,12 +112,15 @@ export function useContracts() {
     contractsTotal,
     contractsLimit,
     contractsOffset,
+    contractByDocument,
+    contractByDocumentLoading,
     loading,
     saving,
     deleting,
     error,
     fetchContracts,
     fetchContract,
+    fetchContractByDocumentId,
     saveContract,
     deleteContract
   }

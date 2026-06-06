@@ -135,6 +135,7 @@ Search:
 Domain modules:
 - Phase 4 chọn module đầu tiên là **Hợp đồng và phụ lục hợp đồng**.
 - Đã thêm endpoint `GET /api/v1/contracts/by-document/{document_id}` để tra cứu metadata hợp đồng active theo document core (Phase 7 mục tiêu 1).
+- Frontend `/documents/[id]` hiển thị card Hợp đồng và liên kết hai chiều với `/contracts`; dashboard nhận preset search từ contracts (Phase 7 mục tiêu 2).
 - Quyết định được ghi tại `docs/DOMAIN_MODULE_DECISION.md`, scope MVP chỉ quản lý metadata hợp đồng liên kết document core, chưa mở rộng sang inventory/procurement workflow.
 - Đã thêm bảng `contract_records` bằng migration `0011_contract_records`, có UUID primary key, `created_at`, `updated_at`, `deleted_at`, liên kết `documents.id` và index filter MVP cho số hợp đồng, nhà cung cấp, trạng thái, ngày ký và hiệu lực.
 - Đã thêm backend Contract API theo `router -> service -> repository`, hỗ trợ list/filter/get/create/update/soft-delete metadata hợp đồng, audit log cho create/update/delete và smoke HTTP `python -m app.scripts.smoke_contract_api`.
@@ -164,6 +165,19 @@ Ops/runbook:
 ## Đã Kiểm Tra Thủ Công
 
 Các kiểm tra sau đã chạy thành công:
+
+Phase 7 liên kết hợp đồng ↔ document (frontend) kiểm tra ngày 2026-06-06:
+
+```bash
+docker compose run --rm --no-deps -e NODE_OPTIONS=--max-old-space-size=2048 web npm run build
+git diff --check
+```
+
+Kết quả:
+- Document detail hiển thị card Hợp đồng khi có metadata; empty state có link tạo mới trên `/contracts`.
+- Contracts list có link document nguồn và preset search sang dashboard.
+- Dashboard đọc query `q`/`document_number` để chạy search nhanh.
+- Frontend build pass.
 
 Phase 7 liên kết hợp đồng ↔ document (backend) kiểm tra ngày 2026-06-06:
 

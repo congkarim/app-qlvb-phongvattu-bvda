@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { ContractStatus } from '~/types/contract'
 import type { DocumentChunk, DocumentMetadataUpdateInput } from '~/types/document'
 import { formatDate, formatDateTime, formatFileSize } from '~/utils/format'
 
@@ -12,6 +13,11 @@ const {
   formatDocumentType,
   hasDocumentType
 } = useCatalogs()
+const {
+  contractByDocument,
+  contractByDocumentLoading,
+  fetchContractByDocumentId
+} = useContracts()
 const {
   document,
   loading,
@@ -196,6 +202,32 @@ function formatBoolean(value?: boolean | null): string {
   return '-'
 }
 
+const contractStatusLabels: Record<ContractStatus, string> = {
+  draft: 'Nháp',
+  active: 'Đang hiệu lực',
+  expired: 'Hết hạn',
+  terminated: 'Chấm dứt',
+  completed: 'Hoàn thành'
+}
+
+function formatContractStatus(status?: ContractStatus | null) {
+  return status ? contractStatusLabels[status] || status : '-'
+}
+
+function formatContractValue(value?: string | number | null, currency = 'VND') {
+  if (value === undefined || value === null || value === '') return '-'
+  const amount = Number(value)
+  if (Number.isNaN(amount)) return `${value} ${currency}`
+  return new Intl.NumberFormat('vi-VN', {
+    style: 'currency',
+    currency,
+    maximumFractionDigits: 0
+  }).format(amount)
+}
+
+const contractsPageLink = computed(() => `/contracts?document_id=${encodeURIComponent(documentId.value)}`)
+const createContractLink = computed(() => `${contractsPageLink.value}&create=1`)
+
 function formatConfidence(value?: number | null): string {
   if (value === null || value === undefined) return '-'
   return `${Math.round(value * 100)}%`
@@ -348,10 +380,22 @@ async function refreshAfterSourceFileMutation() {
 }
 
 onMounted(async () => {
-  await Promise.all([fetchCatalogOptions(), fetchDocument(documentId.value)])
+  await Promise.all([
+    fetchCatalogOptions(),
+    fetchDocument(documentId.value),
+    fetchContractByDocumentId(documentId.value)
+  ])
   syncMetadataForm()
   markDetailRefreshed()
   if (shouldPoll.value) startPolling()
+})
+
+watch(documentId, async (value) => {
+  await Promise.all([fetchDocument(value), fetchContractByDocumentId(value)])
+  syncMetadataForm()
+  markDetailRefreshed()
+  if (shouldPoll.value) startPolling()
+  else stopPolling()
 })
 
 watch(shouldPoll, (value) => {
@@ -381,6 +425,54 @@ onBeforeUnmount(() => {
         </div>
         <BaseStatusBadge :status="document.status" />
       </div>
+
+      <Card>
+        <template #title>Hợp đồng</template>
+        <template #content>
+          <p v-if="contractByDocumentLoading" class="text-sm text-slate-600">Đang kiểm tra metadata hợp đồng...</p>
+          <div v-else-if="contractByDocument" class="space-y-3">
+            <div class="grid gap-3 sm:grid-cols-2">
+              <div>
+                <p class="text-xs text-slate-500">Số hợp đồng</p>
+                <p class="font-medium">{{ contractByDocument.contract_number || '-' }}</p>
+              </div>
+              <div>
+                <p class="text-xs text-slate-500">Nhà cung cấp</p>
+                <p class="font-medium">{{ contractByDocument.supplier_name || '-' }}</p>
+              </div>
+              <div>
+                <p class="text-xs text-slate-500">Trạng thái</p>
+                <p class="font-medium">{{ formatContractStatus(contractByDocument.status) }}</p>
+              </div>
+              <div>
+                <p class="text-xs text-slate-500">Giá trị</p>
+                <p class="font-medium">{{ formatContractValue(contractByDocument.contract_value, contractByDocument.currency) }}</p>
+              </div>
+              <div>
+                <p class="text-xs text-slate-500">Ngày ký</p>
+                <p class="font-medium">{{ formatDate(contractByDocument.sign_date) }}</p>
+              </div>
+              <div>
+                <p class="text-xs text-slate-500">Hiệu lực</p>
+                <p class="font-medium">
+                  {{ formatDate(contractByDocument.effective_from) }} - {{ formatDate(contractByDocument.effective_to) }}
+                </p>
+              </div>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <NuxtLink :to="contractsPageLink">
+                <Button label="Mở Contracts" icon="pi pi-briefcase" severity="secondary" size="small" />
+              </NuxtLink>
+            </div>
+          </div>
+          <div v-else class="space-y-3">
+            <p class="text-sm text-slate-600">Văn bản này chưa có metadata hợp đồng liên kết.</p>
+            <NuxtLink :to="createContractLink">
+              <Button label="Tạo metadata hợp đồng" icon="pi pi-plus" size="small" />
+            </NuxtLink>
+          </div>
+        </template>
+      </Card>
 
       <Card>
         <template #title>

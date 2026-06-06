@@ -22,7 +22,7 @@ Tài liệu này là checklist thực thi tuần tự bám theo `ROADMAP.md`. Kh
 
 Phase hiện tại: Phase 7 - Domain Integration Và Module Mở Rộng.
 
-Mục tiêu tiếp theo phải làm: Phase 7 / Mục tiêu 2 - Liên Kết Hợp Đồng ↔ Document (Frontend).
+Mục tiêu tiếp theo phải làm: Phase 7 / Mục tiêu 3 - Search Filter Theo Metadata Hợp Đồng.
 
 Điều kiện chuyển sang mục tiêu kế tiếp:
 - Mục tiêu hiện tại pass tiêu chí chấp nhận.
@@ -1118,23 +1118,18 @@ Sau khi hoàn thành:
 
 ### Mục Tiêu 2 - Liên Kết Hợp Đồng ↔ Document (Frontend)
 
-Trạng thái: chưa làm.
+Trạng thái: hoàn thành ngày 2026-06-06.
 
 Mục tiêu:
 - Người dùng đi được hai chiều giữa document detail và contract module.
 
-Phạm vi frontend:
-- Cập nhật type/service/composable contract hoặc document để gọi lookup theo `document_id`.
-- Trên `/documents/[id]`: hiển thị card/link metadata hợp đồng nếu có; ẩn hoặc empty state nếu chưa có.
-- Trên `/contracts`: giữ hoặc cải thiện link sang document nguồn và chunks/search liên quan (ví dụ link dashboard search preset theo document).
-- Giữ luồng `page -> composable -> service -> API`; không gọi API trực tiếp trong component.
+Kết quả:
+- Thêm `contract.service.getByDocumentId` và `useContracts.fetchContractByDocumentId`.
+- `/documents/[id]` hiển thị card Hợp đồng với metadata, link sang `/contracts?document_id=...` hoặc tạo mới qua `create=1`.
+- `/contracts` đọc query `document_id`/`create`, lọc danh sách theo văn bản nguồn, thêm link `Search trong văn bản` sang dashboard preset.
+- `/dashboard` đọc query `q` và `document_number` để preset semantic search.
 
-Tiêu chí chấp nhận:
-- Document có contract hiển thị link sang `/contracts` hoặc detail tương ứng.
-- Contract list/detail mở lại document nguồn được.
-- Không phá upload, metadata edit, preview source, chunks filter và reprocess hiện có.
-
-Kiểm tra cần chạy:
+Kiểm tra đã chạy:
 
 ```bash
 docker compose run --rm --no-deps -e NODE_OPTIONS=--max-old-space-size=2048 web npm run build
@@ -1150,7 +1145,7 @@ Sau khi hoàn thành:
 
 ### Mục Tiêu 3 - Search Filter Theo Metadata Hợp Đồng
 
-Trạng thái: khóa.
+Trạng thái: chưa làm.
 
 Mục tiêu:
 - Dashboard/search lọc được theo metadata hợp đồng MVP mà không thay thế semantic search core.
