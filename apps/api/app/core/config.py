@@ -64,6 +64,18 @@ class Settings(BaseSettings):
             if origin.strip()
         ]
 
+    @property
+    def cors_origin_regex(self) -> str | None:
+        if self.is_production:
+            return None
+        # Docker dev: browser may use LAN IP or 0.0.0.0 instead of localhost.
+        return (
+            r"https?://"
+            r"(localhost|127\.0\.0\.1|0\.0\.0\.0|"
+            r"192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2[0-9]|3[0-1])\.\d+\.\d+)"
+            r"(:\d+)?"
+        )
+
     @model_validator(mode="after")
     def validate_production_security(self) -> "Settings":
         if not self.is_production:
