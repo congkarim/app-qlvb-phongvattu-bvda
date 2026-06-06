@@ -15,7 +15,7 @@ Cập nhật lần cuối: 2026-06-06
 
 **Lộ trình Phase 0–7 đã hoàn thành.** Hệ thống có thể chạy on-prem bằng Docker Compose với các service `api`, `worker`, `web`, `postgres`, `redis`, `qdrant`.
 
-**Phase hiện tại: Phase 8 - Worker Resilience Và Production Upgrade** (checklist chi tiết trong `TASK_NEXT.md`).
+**Phase hiện tại: Phase 9 - RAG UX Và Search Nâng Cao** (checklist chi tiết trong `TASK_NEXT.md`).
 
 Đã hoàn thành:
 - Auth local, seed admin, cookie token frontend và RBAC nhẹ cho admin/user.
@@ -32,9 +32,9 @@ Cập nhật lần cuối: 2026-06-06
 - Admin catalog MVP: departments, business_type, document_type qua Catalog API; trang `/status` cho OCR/model/Qdrant/worker queue.
 - Worker claim atomic, retry policy, queue status endpoint và smoke worker operations.
 - On-prem hardening: env/secret/CORS guard, backup/restore runbook, health/readiness, log policy, compose resource limits.
+- Worker lease timeout, stale-job recovery, ops endpoint job kẹt, runbook upgrade Alembic production, smoke worker stale recovery.
 
-Giới hạn còn lại (ưu tiên Phase 8–9):
-- Chưa có smoke/script chuyên dụng mô phỏng worker crash và xác nhận stale recovery end-to-end (Phase 8 mục tiêu 5).
+Giới hạn còn lại (ưu tiên Phase 9):
 - RAG mới có API backend; frontend chưa có UI hỏi–đáp trên dashboard.
 - Chưa có module nghiệp vụ thứ ba (quyết định, phiếu vật tư).
 - Chưa có LLM/generator nội bộ nâng cao; RAG hiện extractive từ chunk truy xuất.
@@ -143,15 +143,9 @@ Tiêu chí hoàn thành:
 
 ### Phase 8 - Worker Resilience Và Production Upgrade
 
-Trạng thái: đang làm (bắt đầu 2026-06-06).
+Trạng thái: hoàn thành ngày 2026-06-06.
 
 Mục tiêu: giảm rủi ro vận hành lâu dài khi worker crash hoặc khi nâng cấp phiên bản trên môi trường nội bộ.
-
-Phạm vi đề xuất:
-- Lease timeout hoặc stale-job recovery cho OCR job đang `ocr_running` quá lâu.
-- Admin có cách xem và xử lý job/document bị kẹt (UI tối thiểu hoặc runbook + endpoint ops).
-- Runbook nâng cấp/migration Alembic cho Docker Compose production nội bộ.
-- Smoke/script kiểm tra recovery sau worker crash mô phỏng.
 
 Tiêu chí hoàn thành:
 - Job `ocr_running` bị kẹt có cơ chế phát hiện và recovery có kiểm soát.
@@ -160,7 +154,7 @@ Tiêu chí hoàn thành:
 
 ### Phase 9 - RAG UX Và Search Nâng Cao
 
-Trạng thái: kế hoạch.
+Trạng thái: đang làm (bắt đầu 2026-06-06).
 
 Mục tiêu: đưa RAG foundation từ API backend lên workflow người dùng và cải thiện search theo dữ liệu thật.
 
@@ -180,7 +174,7 @@ Tiêu chí hoàn thành:
 
 ## Ghi Chú Lập Kế Hoạch
 
-- `TASK_NEXT.md` chỉ chứa checklist phase đang làm (hiện Phase 8); lịch sử phase đã xong nằm trong `PROJECT_STATUS.md`.
+- `TASK_NEXT.md` chỉ chứa checklist phase đang làm (hiện Phase 9); lịch sử phase đã xong nằm trong `PROJECT_STATUS.md`.
 - Con trỏ thực thi: `TASK_NEXT.md` → `PROJECT_STATUS.md` → commit sau mỗi mục tiêu (skill `project-git-manager`).
 - Ưu tiên MVP và maintainability; mỗi module nghiệp vụ mới phải có quyết định scope trong `docs/DOMAIN_MODULE_DECISION.md`.
-- Mỗi mục tiêu Phase 8 khi hoàn thành phải auto commit theo quy tắc trong `TASK_NEXT.md`.
+- Mỗi mục tiêu Phase 9 khi hoàn thành phải auto commit theo quy tắc trong `TASK_NEXT.md`.

@@ -141,6 +141,7 @@ curl -fsS http://localhost:8000/health/ready
 
 docker compose stop worker
 docker compose exec -T api python -m app.scripts.smoke_worker_operations
+docker compose exec -T api python -m app.scripts.smoke_worker_stale_recovery
 docker compose start worker
 ```
 
@@ -254,5 +255,6 @@ curl -fsS http://localhost:8000/health/ready
 # Smoke
 docker compose stop worker
 docker compose exec -T api python -m app.scripts.smoke_worker_operations
+docker compose exec -T api python -m app.scripts.smoke_worker_stale_recovery
 docker compose start worker
 ```

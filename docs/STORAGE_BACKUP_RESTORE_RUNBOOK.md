@@ -182,6 +182,7 @@ Smoke phù hợp sau restore:
 ```bash
 docker compose stop worker
 docker compose exec -T api python -m app.scripts.smoke_worker_operations
+docker compose exec -T api python -m app.scripts.smoke_worker_stale_recovery
 docker compose start worker
 ```
 

@@ -93,6 +93,7 @@ Trước khi chạy smoke worker, dừng worker thật để tránh tranh job sm
 ```bash
 docker compose stop worker
 docker compose exec -T api python -m app.scripts.smoke_worker_operations
+docker compose exec -T api python -m app.scripts.smoke_worker_stale_recovery
 docker compose start worker
 ```
 
@@ -101,6 +102,7 @@ Smoke trên kiểm tra:
 - Retry policy không chạy lại job trước `next_run_at` và dừng ở `max_attempts`.
 - Endpoint `/api/v1/ops/worker-queue` trả queue counters cho admin và chặn request chưa đăng nhập.
 - Endpoint stale jobs liệt kê/recover job kẹt; user thường bị `403`.
+- `smoke_worker_stale_recovery` mô phỏng worker crash: job stale được recovery qua worker loop, job đang chạy thật không bị recover nhầm.
 
 ## Restart Worker
 

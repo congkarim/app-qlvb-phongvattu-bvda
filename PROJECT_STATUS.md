@@ -4,16 +4,15 @@ Cập nhật lần cuối: 2026-06-06
 
 ## Giai Đoạn Hiện Tại
 
-**Phase 0–7 đã hoàn thành.** **Phase 8 - Worker Resilience Và Production Upgrade** đang là phase hiện tại; checklist thực thi trong `TASK_NEXT.md` (chỉ phase đang làm), ưu tiên trong `ROADMAP.md`.
+**Phase 0–8 đã hoàn thành.** **Phase 9 - RAG UX Và Search Nâng Cao** đang là phase hiện tại; checklist thực thi trong `TASK_NEXT.md` (chỉ phase đang làm), ưu tiên trong `ROADMAP.md`.
 
 Hệ thống chạy on-prem bằng Docker Compose (`api`, `worker`, `web`, `postgres`, `redis`, `qdrant`). Workflow web end-to-end: upload → OCR/extract → searchable → semantic search → review chunk → audit. Module nghiệp vụ MVP: hợp đồng (`/contracts`) và công văn đến/đi (`/dispatches`), liên kết hai chiều với document detail; dashboard lọc search theo metadata hợp đồng.
 
-Con trỏ tiếp theo: `TASK_NEXT.md` → Phase 8 / Mục tiêu 5 (smoke worker recovery sau crash mô phỏng).
+Con trỏ tiếp theo: `TASK_NEXT.md` → Phase 9 / Mục tiêu 1 (khảo sát RAG API và thiết kế UX dashboard).
 
 ## Giới Hạn Còn Lại
 
-Ưu tiên Phase 8–9 (đồng bộ với `ROADMAP.md`):
-- Chưa có smoke/script chuyên dụng mô phỏng worker crash và xác nhận stale recovery end-to-end (Phase 8 mục tiêu 5).
+Ưu tiên Phase 9 (đồng bộ với `ROADMAP.md`):
 - RAG mới có API backend; frontend chưa có UI hỏi–đáp trên dashboard.
 - Chưa có module nghiệp vụ thứ ba (quyết định, phiếu vật tư).
 - Chưa có LLM/generator nội bộ nâng cao; RAG hiện extractive từ chunk truy xuất.
@@ -1684,5 +1683,23 @@ Kết quả:
 - Thêm `docs/PRODUCTION_UPGRADE_RUNBOOK.md`: checklist trước upgrade, backup PostgreSQL, thứ tự **dừng worker → migrate → start api/worker/web**, smoke sau upgrade, rollback application và restore DB tối thiểu.
 - Liên kết tới `docs/STORAGE_BACKUP_RESTORE_RUNBOOK.md`, `docs/ON_PREM_ENV_RUNBOOK.md`, `docs/WORKER_OPS_RUNBOOK.md`.
 - Command copy-paste cho on-prem Docker Compose: `alembic current/heads/upgrade head`, `docker compose stop worker web`, `docker compose up -d api worker web`, `smoke_worker_operations`, health checks.
+
+Phase 8 / Mục tiêu 5 — Smoke worker recovery sau crash mô phỏng (2026-06-06):
+
+```bash
+PYTHONPYCACHEPREFIX=/tmp/qlvb-pycache PYTHONPATH=apps/api python3 -m py_compile apps/api/app/scripts/smoke_worker_stale_recovery.py
+docker compose stop worker
+docker compose exec -T api python -m app.scripts.smoke_worker_stale_recovery
+docker compose exec -T api python -m app.scripts.smoke_worker_claim_atomic
+docker compose exec -T api python -m app.scripts.smoke_worker_retry_policy
+git diff --check
+```
+
+Kết quả:
+- Thêm `python -m app.scripts.smoke_worker_stale_recovery`: seed job `ocr_running` stale + job đang chạy thật, gọi `OCRWorker.run_once()` recovery path, xác nhận stale → `pending`/`ocr_pending`/`worker_lease_expired`, partial pages cleanup, fresh job vẫn `ocr_running`, audit `ocr_job.stale_recovered` source `worker`.
+- Smoke pass với worker dừng; `smoke_worker_claim_atomic` và `smoke_worker_retry_policy` không regression.
+- Cập nhật `docs/WORKER_OPS_RUNBOOK.md` và `docs/PRODUCTION_UPGRADE_RUNBOOK.md` với command smoke mới.
+
+**Phase 8 hoàn thành ngày 2026-06-06.** Phase tiếp theo: Phase 9 - RAG UX Và Search Nâng Cao (`TASK_NEXT.md`).
 
 Chi tiết phase và mục tiêu tiếp theo nằm trong `TASK_NEXT.md` và `ROADMAP.md`.
