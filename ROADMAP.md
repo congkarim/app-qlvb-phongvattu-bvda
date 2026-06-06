@@ -182,7 +182,7 @@ Tiêu chí hoàn thành:
 
 ## Ghi Chú Lập Kế Hoạch
 
-- Checklist Phase 8 chi tiết nằm trong `TASK_NEXT.md`; bắt đầu từ mục tiêu 1 (khảo sát job kẹt và thiết kế lease recovery).
+- `TASK_NEXT.md` chỉ chứa checklist phase đang làm (hiện Phase 8); lịch sử phase đã xong nằm trong `PROJECT_STATUS.md`.
 - Con trỏ thực thi: `TASK_NEXT.md` → `PROJECT_STATUS.md` → commit sau mỗi mục tiêu (skill `project-git-manager`).
 - Ưu tiên MVP và maintainability; mỗi module nghiệp vụ mới phải có quyết định scope trong `docs/DOMAIN_MODULE_DECISION.md`.
 - Mỗi mục tiêu Phase 8 khi hoàn thành phải auto commit theo quy tắc trong `TASK_NEXT.md`.

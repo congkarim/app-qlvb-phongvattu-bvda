@@ -67,7 +67,7 @@ Khi task hoàn thành:
 
 2. Cập nhật tài liệu repo:
    - `PROJECT_STATUS.md`: trạng thái hiện tại, hạng mục đã làm, giới hạn còn lại, kiểm tra đã chạy.
-   - `TASK_NEXT.md`: task vừa hoàn thành hoặc task tiếp theo, nếu kế hoạch thay đổi.
+   - `TASK_NEXT.md`: chỉ giữ checklist phase đang làm; cập nhật trạng thái mục tiêu hoặc thay bằng phase kế tiếp khi phase hiện tại hoàn thành. Lịch sử phase ghi trong `PROJECT_STATUS.md`.
    - `README.md`: chỉ cập nhật khi cách chạy/test/workflow thay đổi.
 
 3. Kiểm tra diff:

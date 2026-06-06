@@ -4,7 +4,7 @@ Cập nhật lần cuối: 2026-06-06
 
 ## Giai Đoạn Hiện Tại
 
-**Phase 0–7 đã hoàn thành.** **Phase 8 - Worker Resilience Và Production Upgrade** đang là phase hiện tại; checklist thực thi trong `TASK_NEXT.md`, ưu tiên trong `ROADMAP.md`.
+**Phase 0–7 đã hoàn thành.** **Phase 8 - Worker Resilience Và Production Upgrade** đang là phase hiện tại; checklist thực thi trong `TASK_NEXT.md` (chỉ phase đang làm), ưu tiên trong `ROADMAP.md`.
 
 Hệ thống chạy on-prem bằng Docker Compose (`api`, `worker`, `web`, `postgres`, `redis`, `qdrant`). Workflow web end-to-end: upload → OCR/extract → searchable → semantic search → review chunk → audit. Module nghiệp vụ MVP: hợp đồng (`/contracts`) và công văn đến/đi (`/dispatches`), liên kết hai chiều với document detail; dashboard lọc search theo metadata hợp đồng.
 
