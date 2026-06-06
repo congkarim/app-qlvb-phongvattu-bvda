@@ -145,6 +145,7 @@ Admin configuration:
 - Đã thêm backend Catalog API theo `router -> service -> repository`, gồm read option cho user đăng nhập và CRUD admin-only cho `departments`/`admin_catalog_items`, có soft delete và audit log create/update/delete.
 - Frontend đã thêm `catalog.service` và `useCatalogs` theo luồng `page -> composable -> service -> API`.
 - `/upload`, `/documents`, `/documents/[id]` và `/dashboard` lấy option `business_type`/`document_type` từ Catalog API, có fallback local khi API lỗi và vẫn hiển thị mã cũ nếu catalog không còn option.
+- Đã thêm endpoint admin-only `/api/v1/ops/system-status` và trang `/status` theo luồng `page -> composable -> service -> API` để xem trạng thái tối thiểu của OCR, model embedding, Qdrant và worker queue.
 
 Ops/runbook:
 - `docs/WORKER_OPS_RUNBOOK.md` ghi command kiểm tra worker queue, chạy worker smoke, restart worker, xử lý job failed, reprocess, backup/restore PostgreSQL, Qdrant và uploaded source files.
@@ -152,6 +153,23 @@ Ops/runbook:
 ## Đã Kiểm Tra Thủ Công
 
 Các kiểm tra sau đã chạy thành công:
+
+Trang status tối thiểu kiểm tra ngày 2026-06-06:
+
+```bash
+PYTHONPYCACHEPREFIX=/tmp/qlvb-pycache PYTHONPATH=apps/api python3 -m py_compile apps/api/app/schemas/ops.py apps/api/app/services/ops_service.py apps/api/app/routers/ops.py
+docker compose run --rm --no-deps web npm run build
+docker compose up -d api postgres redis qdrant
+TOKEN=$(curl -fsS -X POST http://localhost:8000/api/v1/auth/login -H 'Content-Type: application/json' -d '{"email":"admin@example.com","password":"admin123"}' | python3 -c 'import json,sys; print(json.load(sys.stdin)["access_token"])') && curl -fsS http://localhost:8000/api/v1/ops/system-status -H "Authorization: Bearer $TOKEN"
+```
+
+Kết quả:
+- Thêm endpoint admin-only `/api/v1/ops/system-status`.
+- Status trả `ocr`, `embedding`, `qdrant` và `worker_queue`, gồm cấu hình chính, collection Qdrant, dimension kỳ vọng và lỗi degradation nếu có.
+- Thêm type/service/composable frontend cho ops status.
+- Thêm page `/status` và nav admin `Status`.
+- Frontend build pass; vẫn có warning chunk PrimeVue lớn như trước, không fail.
+- Curl endpoint sau login admin trả `status=ok` với Qdrant collection hiện tại và worker queue counters.
 
 Frontend dùng option catalog API kiểm tra ngày 2026-06-06:
 

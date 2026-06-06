@@ -130,23 +130,24 @@ Tiêu chí hoàn thành:
 
 ### Phase 5 - Admin Configuration Và Governance
 
-Trạng thái: đang ưu tiên tiếp theo.
+Trạng thái: hoàn thành ngày 2026-06-06.
 
 Mục tiêu: để admin cấu hình hệ thống thay vì sửa code cho các danh mục và rule cơ bản.
 
 Phạm vi:
 - Quản lý danh mục đơn vị/phòng ban, loại nghiệp vụ, loại văn bản.
-- Trang trạng thái model/OCR/Qdrant.
+- Trang trạng thái model/OCR/Qdrant đã hoàn thành ngày 2026-06-06.
 - Cấu hình nhẹ cho threshold review, page size mặc định và rule smoke/dev.
 - Mở rộng permission nếu workflow nghiệp vụ yêu cầu.
 
 Tiêu chí hoàn thành:
 - Admin thay đổi danh mục có audit log.
 - Frontend lấy option từ API thay vì hardcode nhưng không làm quá phức tạp MVP.
+- Admin xem được trạng thái OCR/model/Qdrant tối thiểu.
 
 ### Phase 6 - On-Prem Production Hardening
 
-Trạng thái: chưa bắt đầu.
+Trạng thái: đang ưu tiên tiếp theo.
 
 Mục tiêu: chuẩn bị vận hành nội bộ on-prem một cách có kiểm soát.
 

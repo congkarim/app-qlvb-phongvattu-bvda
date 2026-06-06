@@ -9,3 +9,18 @@ class WorkerQueueStatusRead(BaseModel):
     failed: int
     completed: int
     active: int
+
+
+class StatusDetailRead(BaseModel):
+    status: str
+    name: str
+    details: dict[str, str | int | bool | float | None]
+    error: str | None = None
+
+
+class SystemStatusRead(BaseModel):
+    status: str
+    ocr: StatusDetailRead
+    embedding: StatusDetailRead
+    qdrant: StatusDetailRead
+    worker_queue: WorkerQueueStatusRead

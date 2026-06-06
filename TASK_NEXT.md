@@ -19,9 +19,9 @@ Tài liệu này là checklist thực thi tuần tự bám theo `ROADMAP.md`. Kh
 
 ## Con Trỏ Hiện Tại
 
-Phase hiện tại: Phase 5 - Admin Configuration Và Governance.
+Phase hiện tại: Phase 6 - On-Prem Production Hardening.
 
-Mục tiêu tiếp theo phải làm: Phase 5 / Mục tiêu 4 - Trang Status Tối Thiểu.
+Mục tiêu tiếp theo phải làm: Phase 6 / Mục tiêu 1 - Chuẩn Hóa Env Và Secret.
 
 Điều kiện chuyển sang mục tiêu kế tiếp:
 - Mục tiêu hiện tại pass tiêu chí chấp nhận.
@@ -749,7 +749,7 @@ Sau khi hoàn thành:
 
 ## Phase 5 - Admin Configuration Và Governance
 
-Trạng thái: đang làm.
+Trạng thái: hoàn thành ngày 2026-06-06.
 
 Mục tiêu phase: để admin cấu hình hệ thống thay vì sửa code cho danh mục và rule cơ bản.
 
@@ -871,7 +871,7 @@ Sau khi hoàn thành:
 
 ### Mục Tiêu 4 - Trang Status Tối Thiểu
 
-Trạng thái: chưa làm.
+Trạng thái: hoàn thành ngày 2026-06-06.
 
 Mục tiêu:
 - Thêm status cho OCR/model/Qdrant.
@@ -879,6 +879,29 @@ Mục tiêu:
 Tiêu chí chấp nhận:
 - Admin xem được trạng thái cơ bản.
 - Không thêm observability phức tạp quá MVP.
+
+Kết quả:
+- Thêm schema response `SystemStatusRead` và `StatusDetailRead`.
+- Thêm endpoint admin-only `GET /api/v1/ops/system-status`.
+- Status trả cấu hình/khả dụng cơ bản cho OCR, embedding model, Qdrant collection và worker queue.
+- Thêm frontend service `ops.service`, composable `useOpsStatus` và type `ops`.
+- Thêm trang admin `/status` và nav `Status`, hiển thị tổng quan queue, OCR, model embedding và Qdrant.
+- Không thêm storage metrics, log aggregation hoặc observability framework ngoài phạm vi MVP.
+
+Kiểm tra đã chạy:
+
+```bash
+PYTHONPYCACHEPREFIX=/tmp/qlvb-pycache PYTHONPATH=apps/api python3 -m py_compile apps/api/app/schemas/ops.py apps/api/app/services/ops_service.py apps/api/app/routers/ops.py
+docker compose run --rm --no-deps web npm run build
+docker compose up -d api postgres redis qdrant
+TOKEN=$(curl -fsS -X POST http://localhost:8000/api/v1/auth/login -H 'Content-Type: application/json' -d '{"email":"admin@example.com","password":"admin123"}' | python3 -c 'import json,sys; print(json.load(sys.stdin)["access_token"])') && curl -fsS http://localhost:8000/api/v1/ops/system-status -H "Authorization: Bearer $TOKEN"
+```
+
+Sau khi hoàn thành:
+- Đã đọc lại `ROADMAP.md`.
+- Đã cập nhật `PROJECT_STATUS.md` với kết quả và kiểm tra đã chạy.
+- Đã cập nhật mục tiêu này thành `hoàn thành`.
+- Phase 5 đã đạt điều kiện hoàn thành, đã đánh dấu Phase 5 `hoàn thành` và mở khóa Phase 6.
 
 Điều kiện hoàn thành Phase 5:
 - Admin thay đổi danh mục có audit log.
@@ -888,13 +911,13 @@ Tiêu chí chấp nhận:
 
 ## Phase 6 - On-Prem Production Hardening
 
-Trạng thái: khóa đến khi Phase 5 hoàn thành.
+Trạng thái: đang làm.
 
 Mục tiêu phase: chuẩn bị vận hành nội bộ on-prem một cách có kiểm soát.
 
 ### Mục Tiêu 1 - Chuẩn Hóa Env Và Secret
 
-Trạng thái: khóa.
+Trạng thái: chưa làm.
 
 Mục tiêu:
 - Chuẩn hóa `.env`, secret, CORS và default admin password policy.
