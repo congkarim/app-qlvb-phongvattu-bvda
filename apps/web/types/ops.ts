@@ -20,5 +20,6 @@ export interface SystemStatus {
   ocr: StatusDetail
   embedding: StatusDetail
   qdrant: StatusDetail
+  llm: StatusDetail
   worker_queue: WorkerQueueStatus
 }

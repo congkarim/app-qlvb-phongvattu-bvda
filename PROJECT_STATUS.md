@@ -10,12 +10,12 @@ Cập nhật lần cuối: 2026-06-07
 
 Hệ thống chạy on-prem bằng Docker Compose (`api`, `worker`, `web`, `postgres`, `redis`, `qdrant`). Workflow web end-to-end: upload → OCR/extract → searchable → semantic search → RAG Q&A (extractive) → review chunk → audit. Module nghiệp vụ MVP: hợp đồng, công văn, quyết định, mua sắm — liên kết document detail; gợi ý liên kết document rule-based (Phase 16).
 
-Con trỏ tiếp theo: Phase 17 / Mục tiêu 6 — frontend dashboard + `/status` (`TASK_NEXT.md`).
+Con trỏ tiếp theo: Phase 17 / Mục tiêu 7 — runbook dev/deploy (`TASK_NEXT.md`).
 
 ## Giới Hạn Còn Lại
 
 Giới hạn còn lại (đồng bộ `ROADMAP.md`):
-- RAG generative local LLM (Ollama) đang triển khai Phase 17 — hiện extractive-only trên production path.
+- RAG generative local LLM (Ollama) đang triển khai Phase 17 — backend + frontend dashboard/status đã có; runbook và smoke generative còn lại.
 - Inventory/tồn kho, workflow phê duyệt nhiều bước, line items procurement: ngoài scope MVP hiện tại.
 
 ## Đã Xây Dựng
@@ -2869,3 +2869,22 @@ git diff --check
 ```
 
 Kết quả: unit + smoke pass; `system_status_llm.generation_backend=extractive`; `git diff --check` pass.
+
+### Mục tiêu 6 — Frontend dashboard và trang `/status` (2026-06-07)
+
+**Triển khai**
+
+- Types `RagAnswerResponse`: `generation_mode`, `model_name`, `latency_ms`, `fallback_reason` typed.
+- `useRagAnswer`: expose `generationMode`, `modelName`, `latencyMs` từ API.
+- `RagAnswerPanel`: badge **Extractive** / **Generative (local)**; message fallback `llm_unavailable`, `validation_failed`; loading “Đang tổng hợp câu trả lời…”; disable nút Hỏi khi pending.
+- `dashboard.vue`: truyền props mới từ composable.
+- `SystemStatus.llm` + card LLM trên `/status` (backend, model, reachable).
+
+**Kiểm tra**
+
+```bash
+WEB_MEMORY_LIMIT=4g docker compose run --rm --no-deps -e NODE_OPTIONS=--max-old-space-size=3072 web npm run build
+git diff --check
+```
+
+Kết quả: web build pass; `git diff --check` pass.

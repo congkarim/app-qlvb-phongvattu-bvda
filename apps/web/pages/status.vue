@@ -9,13 +9,15 @@ const components = computed(() => {
   return [
     { key: 'ocr', title: 'OCR', value: status.value.ocr },
     { key: 'embedding', title: 'Model embedding', value: status.value.embedding },
-    { key: 'qdrant', title: 'Qdrant', value: status.value.qdrant }
+    { key: 'qdrant', title: 'Qdrant', value: status.value.qdrant },
+    { key: 'llm', title: 'LLM (RAG)', value: status.value.llm }
   ]
 })
 
 function severityFor(value?: string) {
   if (value === 'ok') return 'success'
   if (value === 'degraded') return 'warn'
+  if (value === 'unavailable') return 'warn'
   return 'info'
 }
 
@@ -45,7 +47,7 @@ onMounted(() => {
     <div class="flex flex-wrap items-center justify-between gap-3">
       <div>
         <h1 class="text-2xl font-semibold">Status</h1>
-        <p class="mt-1 text-sm text-slate-600">Trạng thái tối thiểu cho OCR, model và Qdrant.</p>
+        <p class="mt-1 text-sm text-slate-600">Trạng thái tối thiểu cho OCR, embedding, Qdrant và LLM RAG.</p>
       </div>
       <Button label="Refresh" icon="pi pi-refresh" severity="secondary" :loading="loading" @click="fetchSystemStatus" />
     </div>

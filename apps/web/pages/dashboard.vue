@@ -18,6 +18,9 @@ const {
   grounded: ragGrounded,
   confidence: ragConfidence,
   fallbackReason: ragFallbackReason,
+  generationMode: ragGenerationMode,
+  modelName: ragModelName,
+  latencyMs: ragLatencyMs,
   loading: ragLoading,
   error: ragError,
   hasAsked: ragHasAsked,
@@ -753,6 +756,9 @@ onMounted(async () => {
           :grounded="ragGrounded"
           :confidence="ragConfidence"
           :fallback-reason="ragFallbackReason"
+          :generation-mode="ragGenerationMode"
+          :model-name="ragModelName"
+          :latency-ms="ragLatencyMs"
           :loading="ragLoading"
           :error="ragError"
           :has-asked="ragHasAsked"

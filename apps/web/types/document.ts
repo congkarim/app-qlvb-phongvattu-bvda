@@ -298,13 +298,19 @@ export interface RagCitation {
   section_path: string[]
 }
 
+export type RagGenerationMode = 'extractive' | 'generative'
+export type RagFallbackReason = 'insufficient_evidence' | 'llm_unavailable' | 'validation_failed'
+
 export interface RagAnswerResponse {
   query: string
   answer: string
   grounded: boolean
   confidence: number
-  fallback_reason?: string | null
+  fallback_reason?: RagFallbackReason | null
   citations: RagCitation[]
+  generation_mode?: RagGenerationMode
+  model_name?: string | null
+  latency_ms?: number | null
 }
 
 export interface RagAnswerFilters extends SemanticSearchFilters {

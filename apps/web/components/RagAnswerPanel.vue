@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { RagCitation } from '~/types/document'
+import type { RagCitation, RagFallbackReason, RagGenerationMode } from '~/types/document'
 import { buildDocumentChunkUrl } from '~/utils/documentLinks'
 
 const props = defineProps<{
@@ -8,7 +8,10 @@ const props = defineProps<{
   citations: RagCitation[]
   grounded: boolean
   confidence: number
-  fallbackReason: string | null
+  fallbackReason: RagFallbackReason | null
+  generationMode: RagGenerationMode | null
+  modelName: string | null
+  latencyMs: number | null
   loading: boolean
   error: string
   hasAsked: boolean
@@ -26,6 +29,24 @@ const { formatBusinessType } = useCatalogs()
 const isInsufficientEvidence = computed(
   () => !props.grounded && props.fallbackReason === 'insufficient_evidence'
 )
+
+const isLlmUnavailable = computed(() => props.fallbackReason === 'llm_unavailable')
+
+const isValidationFailed = computed(() => props.fallbackReason === 'validation_failed')
+
+const generationBadge = computed(() => {
+  if (props.generationMode === 'generative') {
+    return { label: 'Generative (local)', severity: 'success' as const }
+  }
+  return { label: 'Extractive', severity: 'secondary' as const }
+})
+
+const helperText = computed(() => {
+  if (props.generationMode === 'generative') {
+    return 'Trả lời tổng hợp bằng mô hình local (Ollama), có trích dẫn chunk. Dùng chung bộ lọc semantic search phía trên.'
+  }
+  return 'Trả lời dựa trên các đoạn văn bản đã truy xuất (RAG extractive). Dùng chung bộ lọc semantic search phía trên.'
+})
 
 function formatSectionRole(value?: string | null) {
   if (value === 'article') return 'Điều'
@@ -65,11 +86,22 @@ function citationUrl(citation: RagCitation) {
 <template>
   <div class="space-y-3">
     <form class="space-y-3" @submit.prevent="emit('ask')">
+      <div class="flex flex-wrap items-center gap-2">
+        <Tag
+          v-if="hasAsked && generationMode"
+          :value="generationBadge.label"
+          :severity="generationBadge.severity"
+        />
+        <span v-if="hasAsked && modelName" class="text-xs text-slate-500">{{ modelName }}</span>
+        <span v-if="hasAsked && latencyMs != null" class="text-xs text-slate-500">{{ latencyMs }} ms</span>
+      </div>
+
       <div class="flex gap-3">
         <InputText
           :model-value="question"
           class="w-full"
           placeholder="Hỏi về nội dung văn bản, điều khoản, trách nhiệm..."
+          :disabled="loading"
           @update:model-value="emit('update:question', $event ?? '')"
         />
         <Button
@@ -77,11 +109,11 @@ function citationUrl(citation: RagCitation) {
           label="Hỏi"
           icon="pi pi-comments"
           :loading="loading"
-          :disabled="!question.trim()"
+          :disabled="loading || !question.trim()"
         />
       </div>
       <p class="text-xs text-slate-500">
-        Trả lời dựa trên các đoạn văn bản đã truy xuất (RAG extractive). Dùng chung bộ lọc semantic search phía trên.
+        {{ helperText }}
       </p>
       <div class="flex flex-wrap gap-2">
         <Button
@@ -99,11 +131,17 @@ function citationUrl(citation: RagCitation) {
     <Message v-else-if="filterChangedHint" severity="info">
       Bộ lọc đã thay đổi. Bấm Hỏi lại để truy xuất với điều kiện mới.
     </Message>
-    <p v-else-if="loading" class="text-sm text-slate-600">Đang trả lời...</p>
+    <p v-else-if="loading" class="text-sm text-slate-600">Đang tổng hợp câu trả lời...</p>
 
     <template v-else-if="hasAsked && !error">
       <Message v-if="isInsufficientEvidence" severity="warn" :closable="false">
         Không đủ căn cứ trong kho văn bản để trả lời chắc chắn.
+      </Message>
+      <Message v-else-if="isLlmUnavailable" severity="info" :closable="false">
+        Mô hình local không sẵn sàng. Đã trả lời bằng chế độ extractive.
+      </Message>
+      <Message v-else-if="isValidationFailed" severity="warn" :closable="false">
+        Không xác thực được trích dẫn từ mô hình. Đã trả lời bằng chế độ extractive.
       </Message>
 
       <div

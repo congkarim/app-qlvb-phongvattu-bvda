@@ -1,4 +1,4 @@
-import type { RagAnswerFilters, RagCitation } from '~/types/document'
+import type { RagAnswerFilters, RagCitation, RagFallbackReason, RagGenerationMode } from '~/types/document'
 import { createSearchService } from '~/services/search.service'
 
 export function useRagAnswer() {
@@ -7,7 +7,10 @@ export function useRagAnswer() {
   const citations = ref<RagCitation[]>([])
   const grounded = ref(false)
   const confidence = ref(0)
-  const fallbackReason = ref<string | null>(null)
+  const fallbackReason = ref<RagFallbackReason | null>(null)
+  const generationMode = ref<RagGenerationMode | null>(null)
+  const modelName = ref<string | null>(null)
+  const latencyMs = ref<number | null>(null)
   const loading = ref(false)
   const error = ref('')
   const hasAsked = ref(false)
@@ -19,6 +22,9 @@ export function useRagAnswer() {
     grounded.value = false
     confidence.value = 0
     fallbackReason.value = null
+    generationMode.value = null
+    modelName.value = null
+    latencyMs.value = null
     error.value = ''
     hasAsked.value = false
   }
@@ -46,6 +52,9 @@ export function useRagAnswer() {
       grounded.value = response.grounded
       confidence.value = response.confidence
       fallbackReason.value = response.fallback_reason ?? null
+      generationMode.value = response.generation_mode ?? 'extractive'
+      modelName.value = response.model_name ?? null
+      latencyMs.value = response.latency_ms ?? null
     } catch {
       error.value = 'Không trả lời được câu hỏi'
       answer.value = ''
@@ -53,6 +62,9 @@ export function useRagAnswer() {
       grounded.value = false
       confidence.value = 0
       fallbackReason.value = null
+      generationMode.value = null
+      modelName.value = null
+      latencyMs.value = null
     } finally {
       loading.value = false
     }
@@ -65,6 +77,9 @@ export function useRagAnswer() {
     grounded,
     confidence,
     fallbackReason,
+    generationMode,
+    modelName,
+    latencyMs,
     loading,
     error,
     hasAsked,

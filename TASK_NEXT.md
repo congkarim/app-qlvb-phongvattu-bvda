@@ -208,7 +208,7 @@ git diff --check
 
 ### Mục Tiêu 6 - Frontend Dashboard Và Trang Status
 
-Trạng thái: chưa làm (tiếp theo).
+Trạng thái: hoàn thành (2026-06-07).
 
 Skill bắt buộc: `frontend-nuxt`, `project-git-manager`.
 
@@ -234,7 +234,7 @@ git diff --check
 
 ### Mục Tiêu 7 - Runbook Dev/Deploy Và Env Documentation
 
-Trạng thái: chưa làm.
+Trạng thái: chưa làm (tiếp theo).
 
 Skill bắt buộc: `solution-architect`, `project-git-manager`.
 
