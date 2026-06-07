@@ -51,6 +51,13 @@ class Settings(BaseSettings):
     vietocr_beamsearch: bool = False
     ocr_job_lease_timeout_seconds: int = 3600
     ocr_job_stale_recovery_enabled: bool = True
+    rag_generation_backend: str = "extractive"
+    ollama_base_url: str = "http://ollama:11434"
+    rag_llm_model: str = "qwen2.5:3b-instruct"
+    rag_llm_timeout_seconds: int = 120
+    rag_llm_max_context_chars: int = 8000
+    rag_llm_max_output_tokens: int = 512
+    rag_llm_temperature: float = 0.1
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
@@ -77,6 +84,25 @@ class Settings(BaseSettings):
             r"192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2[0-9]|3[0-1])\.\d+\.\d+)"
             r"(:\d+)?"
         )
+
+    @model_validator(mode="after")
+    def validate_rag_generation_backend(self) -> "Settings":
+        backend = self.rag_generation_backend.strip().lower()
+        if backend not in {"extractive", "ollama"}:
+            raise ValueError(
+                "RAG_GENERATION_BACKEND must be 'extractive' or 'ollama', "
+                f"got {self.rag_generation_backend!r}"
+            )
+        self.rag_generation_backend = backend
+        if self.rag_llm_timeout_seconds < 1:
+            raise ValueError("RAG_LLM_TIMEOUT_SECONDS must be >= 1")
+        if self.rag_llm_max_context_chars < 512:
+            raise ValueError("RAG_LLM_MAX_CONTEXT_CHARS must be >= 512")
+        if self.rag_llm_max_output_tokens < 32:
+            raise ValueError("RAG_LLM_MAX_OUTPUT_TOKENS must be >= 32")
+        if not 0.0 <= self.rag_llm_temperature <= 2.0:
+            raise ValueError("RAG_LLM_TEMPERATURE must be between 0.0 and 2.0")
+        return self
 
     @model_validator(mode="after")
     def validate_production_security(self) -> "Settings":
