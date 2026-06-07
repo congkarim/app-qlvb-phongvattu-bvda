@@ -10,7 +10,7 @@ Cập nhật lần cuối: 2026-06-07
 
 Hệ thống chạy on-prem bằng Docker Compose (`api`, `worker`, `web`, `postgres`, `redis`, `qdrant`). Workflow web end-to-end: upload → OCR/extract → searchable → semantic search → RAG Q&A (extractive) → review chunk → audit. Module nghiệp vụ MVP: hợp đồng, công văn, quyết định, mua sắm — liên kết document detail; gợi ý liên kết document rule-based (Phase 16).
 
-Con trỏ tiếp theo: Phase 17 / Mục tiêu 3 — Docker Compose profile `llm` (`TASK_NEXT.md`).
+Con trỏ tiếp theo: Phase 17 / Mục tiêu 4 — `RagAnswerService` generative + fallback (`TASK_NEXT.md`).
 
 ## Giới Hạn Còn Lại
 
@@ -2809,3 +2809,22 @@ git diff --check
 ```
 
 Kết quả: py_compile pass; 6 unit tests pass; `git diff --check` pass.
+
+### Mục tiêu 3 — Docker Compose profile `llm` và Ollama service (2026-06-07)
+
+**Triển khai**
+
+- Service `ollama` (`ollama/ollama`), `profiles: [llm]`, volume `ollama_data`, healthcheck `ollama list`, limits `OLLAMA_CPU_LIMIT` / `OLLAMA_MEMORY_LIMIT`.
+- `api` nhận env RAG/LLM; **không** `depends_on` ollama — readiness api không phụ thuộc LLM.
+- `docker-compose.llm-gpu.yml` override NVIDIA (tùy chọn).
+- Cập nhật `.env.example`, `docs/COMPOSE_RESOURCE_UPLOAD_RUNBOOK.md`.
+
+**Kiểm tra**
+
+```bash
+docker compose config
+docker compose --profile llm config
+git diff --check
+```
+
+Kết quả: config pass; profile `llm` render service ollama + volume; `git diff --check` pass.

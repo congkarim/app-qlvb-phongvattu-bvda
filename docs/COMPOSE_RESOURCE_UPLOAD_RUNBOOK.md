@@ -20,6 +20,7 @@ Các service chính có `deploy.resources.limits` đọc từ `.env`:
 | `api` | 1 | 2G | FastAPI + upload |
 | `worker` | 2 | 4G | OCR/extract nặng nhất |
 | `web` | 0.5 | 512M | Nuxt frontend |
+| `ollama` | 2 | 6G | Local LLM (profile `llm`, optional) |
 
 Biến môi trường tương ứng:
 
@@ -36,12 +37,24 @@ WORKER_CPU_LIMIT=2
 WORKER_MEMORY_LIMIT=4G
 WEB_CPU_LIMIT=0.5
 WEB_MEMORY_LIMIT=512M
+OLLAMA_CPU_LIMIT=2
+OLLAMA_MEMORY_LIMIT=6G
 ```
+
+Service `ollama` chỉ start khi dùng profile Compose `llm`:
+
+```bash
+docker compose --profile llm up -d
+docker compose exec ollama ollama pull qwen2.5:3b-instruct
+```
+
+Stack mặc định (`docker compose up -d`) **không** kéo Ollama — RAG vẫn extractive. GPU tùy chọn: `docker compose -f docker-compose.yml -f docker-compose.llm-gpu.yml --profile llm up -d`.
 
 Kiểm tra cấu hình render:
 
 ```bash
 docker compose config
+docker compose --profile llm config
 docker compose ps
 ```
 
@@ -54,6 +67,7 @@ Named volumes nghiệp vụ:
 - `postgres_data`
 - `qdrant_data`
 - `uploads_data`
+- `ollama_data` (profile `llm` — model local LLM)
 
 Chi tiết backup/restore và kiểm tra volume thực tế:
 

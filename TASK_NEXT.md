@@ -25,7 +25,7 @@ Phase trước: Phase 16 hoàn thành ngày 2026-06-07.
 
 Phase hiện tại: Phase 17 - RAG Generative Local LLM (Ollama On-Prem).
 
-Mục tiêu tiếp theo: Phase 17 / Mục Tiêu 3 - Docker Compose Profile `llm` Và Ollama Service.
+Mục tiêu tiếp theo: Phase 17 / Mục Tiêu 4 - RagAnswerService Generative, Context Builder Và Fallback.
 
 Điều kiện chuyển sang mục tiêu kế tiếp:
 - Mục tiêu hiện tại pass tiêu chí chấp nhận.
@@ -117,7 +117,7 @@ git diff --check
 
 ### Mục Tiêu 3 - Docker Compose Profile `llm` Và Ollama Service
 
-Trạng thái: chưa làm (tiếp theo).
+Trạng thái: hoàn thành (2026-06-07).
 
 Skill bắt buộc: `solution-architect`, `project-git-manager`.
 
@@ -146,7 +146,7 @@ git diff --check
 
 ### Mục Tiêu 4 - RagAnswerService Generative, Context Builder Và Fallback
 
-Trạng thái: chưa làm.
+Trạng thái: chưa làm (tiếp theo).
 
 Skill bắt buộc: `backend-fastapi`, `semantic-search-rag`.
 
