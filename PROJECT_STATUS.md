@@ -4,18 +4,19 @@ Cập nhật lần cuối: 2026-06-07
 
 ## Giai Đoạn Hiện Tại
 
-**Phase 0–10 đã hoàn thành.** Chưa có phase mới trong `ROADMAP.md` / `TASK_NEXT.md`.
+**Phase 0–10 đã hoàn thành.** **Phase 11 đang làm** (bắt đầu 2026-06-07): Search filter metadata dispatch và decision trên dashboard/RAG.
 
 Hệ thống chạy on-prem bằng Docker Compose (`api`, `worker`, `web`, `postgres`, `redis`, `qdrant`). Workflow web end-to-end: upload → OCR/extract → searchable → semantic search → RAG Q&A → review chunk → audit. Module nghiệp vụ MVP: hợp đồng (`/contracts`), công văn (`/dispatches`), quyết định/thông báo (`/decisions`) — liên kết hai chiều với document detail; dashboard lọc search theo metadata hợp đồng.
 
-Con trỏ tiếp theo: cập nhật `ROADMAP.md` với phase mới trước khi mở checklist trong `TASK_NEXT.md`.
+Con trỏ tiếp theo: Phase 11 / Mục tiêu 2 — `DispatchRepository` và `DecisionRepository.list_document_ids_by_metadata()`.
 
 ## Giới Hạn Còn Lại
 
-Giới hạn còn lại (gợi ý phase sau, đồng bộ `ROADMAP.md`):
-- Chưa có search filter metadata decision trên dashboard.
+Giới hạn còn lại (đồng bộ `ROADMAP.md`):
+- Dashboard/RAG chưa lọc theo metadata dispatch/decision (đang triển khai Phase 11).
+- RAG citation chưa deep-link chunk trên document detail (Phase 12).
+- Chưa có module sổ đề xuất/kế hoạch mua sắm (Phase 13).
 - Chưa có LLM/generator nội bộ nâng cao; RAG hiện extractive từ chunk truy xuất.
-- Chưa có inventory/procurement workflow nhiều bước.
 
 ## Đã Xây Dựng
 
@@ -1884,4 +1885,95 @@ Kiểm tra:
 - Document detail: card Quyết định & thông báo, liên kết hai chiều (`document_id`/`create=1`, nút Mở Quyết định).
 - Dashboard search preset từ decisions (`business_type=decision`).
 
-**Phase 10 hoàn thành ngày 2026-06-07.** Chưa có phase tiếp theo trong `ROADMAP.md`.
+**Phase 10 hoàn thành ngày 2026-06-07.**
+
+---
+
+## Phase 11 — Search Filter Metadata Dispatch Và Decision
+
+### Mục tiêu 1 — Khảo sát contract filter và thiết kế tham số dispatch/decision (2026-06-07)
+
+Kiểm tra bắt buộc:
+
+```bash
+git diff --check
+```
+
+Kết quả: pass.
+
+#### Khảo sát pattern contract filter hiện có
+
+| Thành phần | Hành vi hiện tại |
+|------------|------------------|
+| `SemanticSearchRequest` | Filter document core (`business_type`, `document_number`, `issued_date`, `doc_group`, `section_role`, `requires_review`) + filter module hợp đồng (`contract_number`, `supplier_name`, `contract_status`). **Chưa có** `issuing_agency` ở request (chỉ trả trong result từ Qdrant payload). |
+| `SearchService._resolve_contract_document_ids()` | Kích hoạt khi **bất kỳ** `contract_number` / `supplier_name` / `contract_status` có giá trị. Trả `None` nếu không có filter hợp đồng; trả `set()` rỗng → `semantic_search()` trả `[]` sớm. |
+| `ContractRepository.list_document_ids_by_metadata()` | Query `contract_records` active (`deleted_at IS NULL`), join `documents` active; `contract_number`/`supplier_name` dùng `ilike`, `status` exact match. |
+| Luồng search | Pre-resolve `document_id` → truyền `document_ids` vào Qdrant post-filter, `_matching_chunk_ids`, `_keyword_candidates`. **Không** sửa Qdrant payload. |
+| `SearchService._attach_contract_metadata()` | Sau ranking, batch `map_active_by_document_ids()` → enrich `contract_id`, `contract_number`, `supplier_name`, `contract_status` trên `SemanticSearchResult`. |
+| `RagAnswerService` | Kế thừa toàn bộ filter qua `SearchBackend` protocol; không logic filter riêng. |
+| `dashboard.vue` | Filter hợp đồng luôn hiển thị (chưa conditional theo `business_type`). Preset route: `q`, `document_number`, `contract_number`, `supplier_name`. |
+| `/contracts` preset | `dashboardSearchLink()` truyền `q` + `document_number` (chưa truyền `contract_number`). |
+| `/dispatches` preset | `q` + `document_number` (chưa `dispatch_type` / `dispatch_status`). |
+| `/decisions` preset | `q` + `document_number` + `business_type=decision` (chưa `decision_kind` / `decision_status`). |
+
+#### Quyết định thiết kế tham số API/UI (draft triển khai mục tiêu 2–5)
+
+**Nguyên tắc:** Không sửa Qdrant payload / không re-index. Pre-resolve `document_id` từ PostgreSQL (`dispatch_records`, `decision_records`) giống `contract_records`. Prefix tên field cho trường chỉ thuộc module (mirror `contract_status`); tái dùng field document core khi semantics trùng list API module.
+
+**Bảng tham số filter mới trên `SemanticSearchRequest` / `RagAnswerRequest`:**
+
+| Tham số API | Kiểu | Dispatch | Decision | Ghi chú |
+|-------------|------|:--------:|:--------:|---------|
+| `dispatch_type` | `incoming` \| `outgoing` | ✓ | — | Kích hoạt nhóm pre-resolve dispatch khi có giá trị |
+| `dispatch_status` | enum MVP dispatch | ✓ | — | Tên API `dispatch_status` (không dùng `status` chung) |
+| `decision_kind` | `decision` \| `notification` | — | ✓ | Kích hoạt nhóm pre-resolve decision khi có giá trị |
+| `decision_status` | enum MVP decision | — | ✓ | Tên API `decision_status` |
+| `effective_from` | `date` | — | ✓ (opt) | Chỉ decision; `>=` trên `decision_records.effective_from` |
+| `effective_to` | `date` | — | ✓ (opt) | Chỉ decision; `<=` trên `decision_records.effective_to` |
+| `document_number` | `string` | ✓ (kèm) | ✓ (kèm) | **Tái dùng** field hiện có — filter Qdrant/document **và** truyền vào repo module khi nhóm tương ứng active |
+| `issuing_agency` | `string` | ✓ (kèm) | ✓ (kèm) | **Thêm mới** ở request — filter document layer (mục tiêu 3) **và** repo module khi nhóm active; `ilike` như list API |
+
+**Không thêm** `dispatch_document_number` / `decision_document_number` — trùng semantics với `document_number` đã có; contract đã tách `contract_number` vì khác cột DB.
+
+**Giá trị enum status (đồng bộ module list API):**
+
+- `dispatch_status`: `draft`, `registered`, `processing`, `completed`, `archived`
+- `decision_status`: `draft`, `registered`, `effective`, `expired`, `revoked`, `archived`
+
+**Điều kiện kích hoạt pre-resolve theo nhóm module:**
+
+| Nhóm | Kích hoạt khi có bất kỳ | Tham số bổ sung truyền vào repo (nếu client gửi) |
+|------|-------------------------|---------------------------------------------------|
+| Contract (giữ nguyên) | `contract_number`, `supplier_name`, `contract_status` | — |
+| Dispatch | `dispatch_type`, `dispatch_status` | `document_number`, `issuing_agency` |
+| Decision | `decision_kind`, `decision_status`, `effective_from`, `effective_to` | `document_number`, `issuing_agency` |
+
+`document_number` / `issuing_agency` **một mình** không kích hoạt pre-resolve module (giống `document_number` không kích hoạt contract pre-resolve hôm nay).
+
+**Giao `document_id` khi nhiều nhóm filter module cùng lúc:**
+
+```text
+contract_ids  = _resolve_contract_document_ids()   # None | set
+dispatch_ids  = _resolve_dispatch_document_ids()   # None | set
+decision_ids  = _resolve_decision_document_ids()   # None | set
+
+active_sets = [s for s in (contract_ids, dispatch_ids, decision_ids) if s is not None]
+if any(s == set() for s in active_sets): return []   # sớm
+module_document_ids = intersection(active_sets) if active_sets else None
+```
+
+Intersection áp dụng **chỉ** giữa các nhóm module đã kích hoạt; filter document core (`business_type`, `doc_group`, …) vẫn chạy song song như hiện tại.
+
+**Enrich kết quả search (mục tiêu 3):** `_attach_dispatch_metadata()` / `_attach_decision_metadata()` mirror `_attach_contract_metadata()` — batch theo `document_id`, chỉ bản ghi active.
+
+| Trường response (`SemanticSearchResult`) | Nguồn |
+|------------------------------------------|-------|
+| `dispatch_id`, `dispatch_type`, `dispatch_status` | `dispatch_records` |
+| `decision_id`, `decision_kind`, `decision_status`, `effective_from`, `effective_to` | `decision_records` |
+
+**Frontend (mục tiêu 4–5):** Mở rộng `SemanticSearchFilters`, `normalizeSearchPayload()`. UI conditional: nhóm dispatch khi `business_type` ∈ `{incoming_dispatch, outgoing_dispatch, ''}`; nhóm decision khi `business_type` ∈ `{decision, ''}`. Preset route query:
+
+- `/dispatches` → `q`, `document_number`, `dispatch_type`, `dispatch_status`, `business_type` (map `incoming`→`incoming_dispatch`, `outgoing`→`outgoing_dispatch`)
+- `/decisions` → `q`, `document_number`, `business_type=decision`, `decision_kind`, `decision_status`
+
+Chi tiết draft: `docs/DOMAIN_MODULE_DECISION.md` mục **Thiết kế search filter dispatch/decision (draft)**.

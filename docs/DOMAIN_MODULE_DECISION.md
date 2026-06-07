@@ -550,3 +550,77 @@ Mục tiêu 4 đã thêm page `/decisions` theo `page -> composable -> service -
 ## Hướng Dẫn Cho Phase Sau
 
 Search filter dashboard theo metadata decision (`decision_kind`, hiệu lực, trạng thái) có thể làm theo pattern contract filter Phase 7 — không bắt buộc trong Phase 10.
+
+---
+
+## Thiết Kế Search Filter Dispatch/Decision (Draft — Phase 11 Mục Tiêu 1)
+
+Cập nhật: 2026-06-07. Chưa triển khai code; bám pattern contract filter Phase 7.
+
+### Nguyên Tắc
+
+- Search/RAG vẫn retrieval trên document/chunk core + Qdrant vector.
+- **Không** sửa Qdrant payload, **không** re-index chunk.
+- Filter metadata module: pre-resolve danh sách `document_id` từ PostgreSQL (`dispatch_records`, `decision_records`) trước khi lọc hit vector/keyword — giống `contract_records`.
+- Citation vẫn trỏ `document_id` + `chunk_id`; enrich metadata module chỉ để hiển thị dashboard.
+
+### Tham Số API (`POST /search/semantic`, `POST /search/answer`)
+
+| Tham số | Module | Repository param | Match logic (giống list API) |
+|---------|--------|------------------|------------------------------|
+| `dispatch_type` | Dispatch | `dispatch_type` | Exact `incoming` \| `outgoing` |
+| `dispatch_status` | Dispatch | `status` | Exact enum MVP |
+| `decision_kind` | Decision | `decision_kind` | Exact `decision` \| `notification` |
+| `decision_status` | Decision | `status` | Exact enum MVP |
+| `effective_from` | Decision | `effective_from` | `decision_records.effective_from >= value` |
+| `effective_to` | Decision | `effective_to` | `decision_records.effective_to <= value` |
+| `document_number` | Dispatch + Decision + document core | `document_number` | `ilike %value%` trên bảng module; đồng thời filter Qdrant/document khi có giá trị |
+| `issuing_agency` | Dispatch + Decision + document core | `issuing_agency` | `ilike %value%` — **field mới** trên search request |
+
+Field contract hiện có (`contract_number`, `supplier_name`, `contract_status`) giữ nguyên, không đổi semantics.
+
+### Pre-Resolve Và Giao `document_id`
+
+1. Mỗi nhóm module có helper `_resolve_*_document_ids()` → `None` (không filter) hoặc `set[str]`.
+2. Nhóm active khi có ít nhất một tham số “kích hoạt” (xem bảng trong `PROJECT_STATUS.md` Phase 11 mục tiêu 1).
+3. Nhiều nhóm active → **intersection** các set; set rỗng ở bất kỳ nhóm nào → trả `[]` sớm.
+4. `document_number` / `issuing_agency` chỉ thắt chặt repo module khi nhóm đó đã active (không tự kích hoạt nhóm).
+
+### Repository (Mục Tiêu 2)
+
+```text
+DispatchRepository.list_document_ids_by_metadata(
+  dispatch_type?, document_number?, issuing_agency?, status?  # status từ dispatch_status API
+)
+DecisionRepository.list_document_ids_by_metadata(
+  decision_kind?, document_number?, issuing_agency?, status?, effective_from?, effective_to?
+)
+```
+
+Chỉ bản ghi `deleted_at IS NULL`; join `documents` active. Filter rỗng → không giới hạn (caller quyết định có gọi hay không).
+
+### Enrich Response (Mục Tiêu 3)
+
+`SemanticSearchResult` bổ sung (nullable khi không có bản ghi module active):
+
+- Dispatch: `dispatch_id`, `dispatch_type`, `dispatch_status`
+- Decision: `decision_id`, `decision_kind`, `decision_status`, `effective_from`, `effective_to`
+
+### Frontend Dashboard (Mục Tiêu 4–5)
+
+- `SemanticSearchFilters` / `RagAnswerFilters`: thêm cột tương ứng bảng API.
+- `normalizeSearchPayload()`: map `dispatch_status` → API, không gửi field rỗng.
+- `dashboard.vue`: hiện nhóm filter dispatch/decision có điều kiện theo `business_type`; preset đọc route query khi mount.
+- Preset từ module pages (pattern `/contracts`):
+  - `/dispatches`: `q`, `document_number`, `dispatch_type`, `dispatch_status`, `business_type`
+  - `/decisions`: `q`, `document_number`, `business_type=decision`, `decision_kind`, `decision_status`
+
+### Không Làm (Phase 11)
+
+- Không đổi Qdrant collection schema / worker upsert.
+- Không LLM; RAG extractive giữ nguyên.
+- Không deep-link citation `#chunk-{id}` (Phase 12).
+
+### Search Filter Đã Triển Khai
+
+*(Cập nhật khi hoàn thành Phase 11 mục tiêu 5.)*

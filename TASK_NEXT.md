@@ -25,7 +25,7 @@ Phase trước: Phase 10 hoàn thành ngày 2026-06-07.
 
 Phase hiện tại: Phase 11 - Search Filter Metadata Dispatch Và Decision.
 
-Mục tiêu tiếp theo: Phase 11 / Mục Tiêu 1 - Khảo Sát Contract Filter Và Thiết Kế Tham Số Dispatch/Decision.
+Mục tiêu tiếp theo: Phase 11 / Mục Tiêu 2 - Repository `list_document_ids_by_metadata` Dispatch Và Decision.
 
 Điều kiện chuyển sang mục tiêu kế tiếp:
 - Mục tiêu hiện tại pass tiêu chí chấp nhận.
@@ -55,7 +55,7 @@ Không làm trong phase này:
 
 ### Mục Tiêu 1 - Khảo Sát Contract Filter Và Thiết Kế Tham Số Dispatch/Decision
 
-Trạng thái: chưa làm.
+Trạng thái: hoàn thành (2026-06-07).
 
 Skill bắt buộc: `solution-architect`, `semantic-search-rag`.
 
@@ -80,7 +80,7 @@ git diff --check
 
 ### Mục Tiêu 2 - Repository `list_document_ids_by_metadata` Dispatch Và Decision
 
-Trạng thái: chưa làm.
+Trạng thái: chưa làm (tiếp theo).
 
 Skill bắt buộc: `backend-fastapi`, `database-designer`.
 
