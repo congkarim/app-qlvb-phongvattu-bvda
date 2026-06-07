@@ -2,6 +2,7 @@
 import type { ContractStatus } from '~/types/contract'
 import type { DecisionKind, DecisionStatus } from '~/types/decision'
 import type { DispatchStatus, DispatchType } from '~/types/dispatch'
+import type { ProcurementKind, ProcurementStatus } from '~/types/procurement'
 import type { DocumentChunk, DocumentMetadataUpdateInput } from '~/types/document'
 import { formatDate, formatDateTime, formatFileSize } from '~/utils/format'
 
@@ -30,6 +31,11 @@ const {
   decisionByDocumentLoading,
   fetchDecisionByDocumentId
 } = useDecisions()
+const {
+  procurementByDocument,
+  procurementByDocumentLoading,
+  fetchProcurementByDocumentId
+} = useProcurements()
 const {
   document,
   loading,
@@ -249,6 +255,20 @@ const dispatchesPageLink = computed(() => `/dispatches?document_id=${encodeURICo
 const createDispatchLink = computed(() => `${dispatchesPageLink.value}&create=1`)
 const decisionsPageLink = computed(() => `/decisions?document_id=${encodeURIComponent(documentId.value)}`)
 const createDecisionLink = computed(() => `${decisionsPageLink.value}&create=1`)
+const procurementsPageLink = computed(() => `/procurements?document_id=${encodeURIComponent(documentId.value)}`)
+const createProcurementLink = computed(() => `${procurementsPageLink.value}&create=1`)
+
+const procurementDashboardSearchLink = computed(() => {
+  const item = procurementByDocument.value
+  if (!item) return '/dashboard'
+  const params = new URLSearchParams()
+  const searchQuery = item.title_summary || item.reference_number || document.value?.title || 'mua sam vat tu'
+  params.set('q', searchQuery)
+  params.set('business_type', 'procurement')
+  if (item.reference_number) params.set('document_number', item.reference_number)
+  if (item.requesting_unit) params.set('issuing_agency', item.requesting_unit)
+  return `/dashboard?${params.toString()}`
+})
 
 const decisionKindLabels: Record<DecisionKind, string> = {
   decision: 'Quyết định',
@@ -291,6 +311,40 @@ function formatDispatchType(type?: DispatchType | null) {
 
 function formatDispatchStatus(status?: DispatchStatus | null) {
   return status ? dispatchStatusLabels[status] || status : '-'
+}
+
+const procurementKindLabels: Record<ProcurementKind, string> = {
+  proposal: 'Đề xuất mua sắm',
+  plan: 'Kế hoạch / dự toán',
+  acceptance: 'Biên bản nghiệm thu'
+}
+
+const procurementStatusLabels: Record<ProcurementStatus, string> = {
+  draft: 'Nháp',
+  submitted: 'Đã trình',
+  approved: 'Đã duyệt',
+  rejected: 'Từ chối',
+  completed: 'Hoàn thành',
+  archived: 'Lưu trữ'
+}
+
+function formatProcurementKind(kind?: ProcurementKind | null) {
+  return kind ? procurementKindLabels[kind] || kind : '-'
+}
+
+function formatProcurementStatus(status?: ProcurementStatus | null) {
+  return status ? procurementStatusLabels[status] || status : '-'
+}
+
+function formatProcurementValue(value?: string | number | null, currency = 'VND') {
+  if (value === undefined || value === null || value === '') return '-'
+  const amount = Number(value)
+  if (Number.isNaN(amount)) return `${value} ${currency}`
+  return new Intl.NumberFormat('vi-VN', {
+    style: 'currency',
+    currency,
+    maximumFractionDigits: 0
+  }).format(amount)
 }
 
 function formatConfidence(value?: number | null): string {
@@ -450,7 +504,8 @@ onMounted(async () => {
     fetchDocument(documentId.value),
     fetchContractByDocumentId(documentId.value),
     fetchDispatchByDocumentId(documentId.value),
-    fetchDecisionByDocumentId(documentId.value)
+    fetchDecisionByDocumentId(documentId.value),
+    fetchProcurementByDocumentId(documentId.value)
   ])
   syncMetadataForm()
   markDetailRefreshed()
@@ -463,7 +518,8 @@ watch(documentId, async (value) => {
     fetchDocument(value),
     fetchContractByDocumentId(value),
     fetchDispatchByDocumentId(value),
-    fetchDecisionByDocumentId(value)
+    fetchDecisionByDocumentId(value),
+    fetchProcurementByDocumentId(value)
   ])
   syncMetadataForm()
   markDetailRefreshed()
@@ -645,6 +701,61 @@ onBeforeUnmount(() => {
             <p class="text-sm text-slate-600">Văn bản này chưa có metadata quyết định/thông báo liên kết.</p>
             <NuxtLink :to="createDecisionLink">
               <Button label="Tạo metadata quyết định/thông báo" icon="pi pi-plus" size="small" />
+            </NuxtLink>
+          </div>
+        </template>
+      </Card>
+
+      <Card>
+        <template #title>Mua sắm</template>
+        <template #content>
+          <p v-if="procurementByDocumentLoading" class="text-sm text-slate-600">Đang kiểm tra metadata mua sắm...</p>
+          <div v-else-if="procurementByDocument" class="space-y-3">
+            <div class="grid gap-3 sm:grid-cols-2">
+              <div>
+                <p class="text-xs text-slate-500">Loại</p>
+                <p class="font-medium">{{ formatProcurementKind(procurementByDocument.procurement_kind) }}</p>
+              </div>
+              <div>
+                <p class="text-xs text-slate-500">Số tham chiếu</p>
+                <p class="font-medium">{{ procurementByDocument.reference_number || '-' }}</p>
+              </div>
+              <div>
+                <p class="text-xs text-slate-500">Đơn vị đề xuất</p>
+                <p class="font-medium">{{ procurementByDocument.requesting_unit || '-' }}</p>
+              </div>
+              <div>
+                <p class="text-xs text-slate-500">Trạng thái</p>
+                <p class="font-medium">{{ formatProcurementStatus(procurementByDocument.status) }}</p>
+              </div>
+              <div>
+                <p class="text-xs text-slate-500">Ngày lập</p>
+                <p class="font-medium">{{ formatDate(procurementByDocument.requested_date) }}</p>
+              </div>
+              <div>
+                <p class="text-xs text-slate-500">Giá trị dự kiến</p>
+                <p class="font-medium">
+                  {{ formatProcurementValue(procurementByDocument.estimated_value, procurementByDocument.currency) }}
+                </p>
+              </div>
+              <div class="sm:col-span-2">
+                <p class="text-xs text-slate-500">Trích yếu</p>
+                <p class="font-medium">{{ procurementByDocument.title_summary || '-' }}</p>
+              </div>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <NuxtLink :to="procurementsPageLink">
+                <Button label="Mở Mua sắm" icon="pi pi-shopping-cart" severity="secondary" size="small" />
+              </NuxtLink>
+              <NuxtLink :to="procurementDashboardSearchLink">
+                <Button label="Search trong văn bản" icon="pi pi-search" severity="secondary" size="small" outlined />
+              </NuxtLink>
+            </div>
+          </div>
+          <div v-else class="space-y-3">
+            <p class="text-sm text-slate-600">Văn bản này chưa có metadata mua sắm liên kết.</p>
+            <NuxtLink :to="createProcurementLink">
+              <Button label="Tạo metadata mua sắm" icon="pi pi-plus" size="small" />
             </NuxtLink>
           </div>
         </template>

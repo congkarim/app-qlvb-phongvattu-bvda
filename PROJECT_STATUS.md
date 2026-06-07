@@ -8,12 +8,12 @@ Cập nhật lần cuối: 2026-06-07
 
 Hệ thống chạy on-prem bằng Docker Compose (`api`, `worker`, `web`, `postgres`, `redis`, `qdrant`). Workflow web end-to-end: upload → OCR/extract → searchable → semantic search → RAG Q&A → review chunk → audit. Module nghiệp vụ MVP: hợp đồng (`/contracts`), công văn (`/dispatches`), quyết định/thông báo (`/decisions`) — liên kết hai chiều với document detail; dashboard lọc search/RAG theo metadata hợp đồng, công văn và quyết định. RAG citation và search result deep-link tới `#chunk-{id}` trên document detail.
 
-Con trỏ tiếp theo: Phase 13 / Mục tiêu 5 — liên kết document detail hai chiều.
+Con trỏ tiếp theo: Phase 13 / Mục tiêu 6 — (tùy chọn) search filter procurement và hoàn tất phase.
 
 ## Giới Hạn Còn Lại
 
 Giới hạn còn lại (đồng bộ `ROADMAP.md`):
-- UI `/procurements` đã có; chưa liên kết hai chiều document detail — Phase 13 mục tiêu 5.
+- Module procurement MVP đã có API/UI và liên kết document detail; search filter procurement (mục tiêu 6 tùy chọn) chưa triển khai.
 - Chưa có LLM/generator nội bộ nâng cao; RAG hiện extractive từ chunk truy xuất.
 
 ## Đã Xây Dựng
@@ -2334,3 +2334,20 @@ Kết quả: frontend build pass; `git diff --check` pass.
 - `types/procurement.ts`, `procurement.service.ts`, `useProcurements.ts`, page `/procurements` (list/filter/form CRUD, pagination).
 - Nav `Mua sắm` trong app shell; preset search dashboard `business_type=procurement`.
 - Query `document_id` / `create=1` sẵn sàng cho liên kết document detail mục tiêu 5.
+
+### Mục tiêu 5 — Liên kết document detail hai chiều (2026-06-07)
+
+Kiểm tra bắt buộc:
+
+```bash
+docker compose exec -T api python -m app.scripts.smoke_procurement_api
+docker compose build web && docker run --rm --memory=4g -e NODE_OPTIONS=--max-old-space-size=3072 app-qlvb-phongvattu-web:latest npm run build
+git diff --check
+```
+
+Kết quả: smoke procurement API pass; frontend build pass; `git diff --check` pass.
+
+**Đã triển khai**
+
+- `documents/[...id].vue`: card **Mua sắm** — hiển thị metadata procurement, nút "Mở Mua sắm", "Search trong văn bản", "Tạo metadata mua sắm" khi chưa có; fetch `by-document` on mount/đổi `documentId`.
+- `/procurements` → document detail (link cột Document) và preset dashboard `business_type=procurement` (đã có mục tiêu 4).
