@@ -1,6 +1,6 @@
 # Trạng Thái Dự Án
 
-Cập nhật lần cuối: 2026-06-06
+Cập nhật lần cuối: 2026-06-07
 
 ## Giai Đoạn Hiện Tại
 
@@ -8,7 +8,7 @@ Cập nhật lần cuối: 2026-06-06
 
 Hệ thống chạy on-prem bằng Docker Compose (`api`, `worker`, `web`, `postgres`, `redis`, `qdrant`). Workflow web end-to-end: upload → OCR/extract → searchable → semantic search → review chunk → audit. Module nghiệp vụ MVP: hợp đồng (`/contracts`) và công văn đến/đi (`/dispatches`), liên kết hai chiều với document detail; dashboard lọc search theo metadata hợp đồng.
 
-Con trỏ tiếp theo: `TASK_NEXT.md` → Phase 10 / Mục tiêu 1 (Khảo sát và thiết kế module quyết định).
+Con trỏ tiếp theo: `TASK_NEXT.md` → Phase 10 / Mục tiêu 2 (Schema và migration `decision_records`).
 
 ## Giới Hạn Còn Lại
 
@@ -1807,3 +1807,23 @@ Kiểm tra: `smoke_rag_answer` pass; `npm run build` pass với `WEB_MEMORY_LIMI
 - **Smoke** `smoke_rag_answer.py`: in gợi ý runbook khi `--keep-data`.
 
 Chi tiết phase và mục tiêu tiếp theo nằm trong `TASK_NEXT.md` và `ROADMAP.md`.
+
+Phase 10 / Mục tiêu 1 — Khảo sát và thiết kế module quyết định/thông báo (2026-06-07):
+
+```bash
+git diff --check
+```
+
+Kiểm tra: `git diff --check` pass.
+
+Kết quả khảo sát:
+
+- Đọc pattern `contract_records`, `dispatch_records`: metadata 1-1 `documents`, partial unique index active, audit soft delete admin-only, API `by-document`, frontend drill-down từ document detail.
+- Catalog hiện có `business_type=decision`; `document_type` OCR có `QĐ` và `TB`; chunking nhóm A đã hỗ trợ quyết định theo `Điều`.
+- Quyết định scope MVP trong `docs/DOMAIN_MODULE_DECISION.md` (module thứ ba Phase 10):
+  - Bảng `decision_records`, model `DecisionRecord`, API `/api/v1/decisions`, UI `/decisions`, audit entity `decision`.
+  - Trường MVP: `decision_kind` (`decision` | `notification`), số/ký hiệu, ngày ban hành, đơn vị ban hành, trích yếu, `effective_from`/`effective_to`, trạng thái, ghi chú.
+  - Mapping: cả quyết định và thông báo dùng `business_type=decision`; phân biệt bằng `decision_kind` và/hoặc `document_type` OCR — không thêm catalog `notification` ở MVP.
+  - Status: `draft`, `registered`, `effective`, `expired`, `revoked`, `archived`.
+  - Quyền/audit giống contracts/dispatches; search filter metadata decision để sau MVP.
+- Không thay đổi runtime (không schema/API/UI); không cloud/LLM.

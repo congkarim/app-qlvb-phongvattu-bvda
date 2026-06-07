@@ -25,7 +25,7 @@ Phase trước: Phase 9 hoàn thành ngày 2026-06-06.
 
 Phase hiện tại: Phase 10 - Module Quyết Định Và Thông Báo.
 
-Mục tiêu tiếp theo: Phase 10 / Mục Tiêu 1 - Khảo Sát Và Thiết Kế Module Quyết Định.
+Mục tiêu tiếp theo: Phase 10 / Mục Tiêu 2 - Schema Và Migration.
 
 Điều kiện chuyển sang mục tiêu kế tiếp:
 - Mục tiêu hiện tại pass tiêu chí chấp nhận.
@@ -48,7 +48,7 @@ Mục tiêu phase: module nghiệp vụ thứ ba cho quyết định/thông báo
 
 ### Mục Tiêu 1 - Khảo Sát Và Thiết Kế Module Quyết Định
 
-Trạng thái: chưa làm.
+Trạng thái: hoàn thành (2026-06-07).
 
 Skill bắt buộc: `solution-architect`, `database-designer`, `backend-fastapi`.
 

@@ -1,6 +1,6 @@
 # Domain Module Decision
 
-Cập nhật lần cuối: 2026-06-06
+Cập nhật lần cuối: 2026-06-07
 
 ## Module Đầu Tiên
 
@@ -335,3 +335,214 @@ Mục tiêu 7 đã thêm page `/dispatches` theo `page -> composable -> service 
 ## Hướng Dẫn Cho Mục Tiêu Tiếp Theo (Frontend)
 
 Mục tiêu 7 nên thêm frontend `/dispatches` theo `page -> composable -> service -> API`, dùng các endpoint trên và không gọi API trực tiếp trong component.
+
+---
+
+## Module Thứ Ba (Phase 10)
+
+Chọn module nghiệp vụ thứ ba cho Phase 10: **Quyết định và thông báo**.
+
+## Lý Do Chọn
+
+- Phòng vật tư thường ban hành và lưu trữ quyết định nội bộ (phân công, quy chế vật tư, phê duyệt danh mục) và thông báo (triển khai, hướng dẫn, nhắc việc); cần sổ theo dõi metadata tách khỏi danh sách document thuần OCR.
+- Hệ thống đã có `business_type=decision` trong catalog upload/search; OCR classifier nhận diện `QĐ` (Quyết định) và `TB` (Thông báo); chunking nhóm A đã cắt theo `Điều` cho quyết định — module mới tận dụng nền này mà không trùng lặp text/chunk.
+- Pattern `contract_records` / `dispatch_records` đã chứng minh: metadata 1-1 với `documents`, CRUD/filter UI, audit log, liên kết hai chiều document detail.
+- Module quyết định/thông báo tạo giá trị tra cứu theo số/ký hiệu, đơn vị ban hành, trích yếu, hiệu lực và trạng thái nội bộ mà document list chưa đủ chuyên biệt.
+
+## Ứng Viên Không Chọn Ở Phase 10
+
+- Phiếu/đề xuất vật tư: dễ kéo sang inventory/procurement workflow nhiều bước, vượt scope Phase 10.
+- Tách thành hai module riêng (quyết định vs thông báo): trùng metadata và workflow; gộp một module với `decision_kind` đơn giản hơn cho MVP.
+
+## Tên Kỹ Thuật
+
+- Bảng: `decision_records`
+- Model: `DecisionRecord`
+- API prefix: `/api/v1/decisions`
+- Frontend route: `/decisions`
+- Entity audit: `decision`
+
+`decision` ở đây là tên module nghiệp vụ (quyết định/thông báo), không nhầm với quyết định kiến trúc hay business rule engine.
+
+## Scope MVP
+
+MVP chỉ quản lý sổ quyết định/thông báo như lớp metadata nghiệp vụ liên kết document core, không thay thế OCR/search/document workflow.
+
+### Metadata Tối Thiểu
+
+| Trường | Mô tả | Ghi chú |
+|--------|--------|---------|
+| `document_id` | Liên kết 1-1 tới `documents` | Bắt buộc; partial unique index active |
+| `decision_kind` | Loại văn bản module: `decision` (quyết định) hoặc `notification` (thông báo) | Map `document_type` OCR `QĐ` / `TB` khi pre-fill |
+| `document_number` | Số quyết định/thông báo | Ví dụ `02/QĐ-VT` |
+| `document_symbol` | Ký hiệu | Ví dụ `QĐ-VT`; optional |
+| `issued_date` | Ngày ban hành | Date |
+| `issuing_agency` | Đơn vị ban hành | Ví dụ tên phòng/ban |
+| `excerpt` | Trích yếu | Text ngắn, không copy full OCR |
+| `effective_from` | Ngày có hiệu lực | Optional; quan trọng với quyết định |
+| `effective_to` | Ngày hết hiệu lực | Optional |
+| `status` | Trạng thái xử lý nghiệp vụ module | Xem bảng status bên dưới |
+| `notes` | Ghi chú nội bộ | Optional |
+
+Trường bổ sung khi tạo từ document (read-only trong response, join từ `documents` — không lưu trùng vào bảng module):
+
+- `document_title`, `document_status`, `document_type` (mã OCR `QĐ`/`TB` nếu có).
+
+Không lưu `recipient`, `signer_name`, `signer_title` trong bảng module MVP — đã có trên `documents` và hiển thị qua document detail; form có thể pre-fill trích yếu/số/ngày từ metadata document.
+
+### Mapping `business_type`
+
+| `decision_kind` | `documents.business_type` khuyến nghị | `documents.document_type` OCR thường gặp |
+|-----------------|--------------------------------------|----------------------------------------|
+| `decision` | `decision` | `QĐ` |
+| `notification` | `decision` | `TB` |
+
+MVP **không** thêm `business_type=notification` vào catalog — cả quyết định và thông báo dùng `business_type=decision`; phân biệt bằng `decision_kind` và/hoặc `document_type`. Validate `decision_kind` ∈ `{decision, notification}`; khuyến nghị (không hard-fail MVP) khớp `document_type` tương ứng khi document đã có classification.
+
+### Trạng Thái MVP (`status`)
+
+| Giá trị | Nhãn UI | Ý nghĩa |
+|---------|---------|---------|
+| `draft` | Nháp | Metadata chưa chốt |
+| `registered` | Đã vào sổ | Đã ghi nhận vào sổ quyết định/thông báo |
+| `effective` | Đang hiệu lực | Văn bản đang có hiệu lực thực thi |
+| `expired` | Hết hiệu lực | Quá `effective_to` hoặc đánh dấu hết hiệu lực |
+| `revoked` | Đã thu hồi | Bãi bỏ/thu hồi nội bộ |
+| `archived` | Lưu trữ | Đóng hồ sơ, chỉ tra cứu |
+
+Không mở workflow chuyển trạng thái nhiều bước có rule engine; user/admin cập nhật `status` trực tiếp qua form PATCH.
+
+### Workflow MVP
+
+- User đăng nhập upload hoặc chọn document có `business_type=decision`.
+- Tạo/cập nhật metadata quyết định/thông báo liên kết `document_id`; form pre-fill từ metadata document (`document_number`, `issued_date`, `issuing_agency`, `excerpt`, gợi ý `decision_kind` từ `document_type` `QĐ`/`TB`).
+- List/filter theo: `decision_kind`, số/ký hiệu, ngày ban hành, đơn vị ban hành, trích yếu (`q`), trạng thái, khoảng `effective_from`/`effective_to`, `document_id`.
+- Detail/link document nguồn, drill-down sang chunks/search dashboard (preset `q`, `document_number`).
+- Audit log cho create/update/delete mềm metadata.
+
+### Không Làm Trong MVP
+
+- Không quản lý inventory, đề xuất mua sắm, phiếu xuất kho hoặc luồng phê duyệt nhiều bước (trình ký, chuyển phòng, SLA).
+- Không tạo bảng file đính kèm riêng — file vẫn nằm ở `document_files` / document core.
+- Không tự động trích xuất toàn bộ metadata bằng LLM; chỉ pre-fill từ metadata document/OCR đã có.
+- Không denormalize OCR text/chunk vào `decision_records` hoặc Qdrant payload ở giai đoạn schema/API MVP.
+- Không thêm `business_type` mới vào catalog admin (ví dụ `notification`) — dùng `decision` + `decision_kind`.
+- Không thêm service ngoài PostgreSQL/Qdrant/Redis hiện có.
+
+## Boundary Kỹ Thuật
+
+### Backend
+
+```text
+router -> service -> repository
+```
+
+- Module có `decisions` router, `DecisionService`, `DecisionRepository` riêng.
+- Bảng `decision_records`: UUID primary key, `created_at`, `updated_at`, `deleted_at`.
+- Không hard delete metadata.
+- Liên kết document core qua `document_id`; validate document active và chưa có decision active khác (1-1 như hợp đồng/công văn).
+- Validate `decision_kind` ∈ `{decision, notification}`.
+
+### Frontend
+
+```text
+page -> composable -> service -> API
+```
+
+- Page `/decisions` dùng `useDecisions` + `decision.service.ts`.
+- Không gọi API trực tiếp trong component.
+- Tái sử dụng layout list/filter/pagination/form từ `/contracts` và `/dispatches`.
+
+### Search/RAG
+
+- Search/RAG tiếp tục dựa trên document/chunk core; filter `business_type=decision` đã có trên dashboard.
+- Filter search theo metadata decision (`decision_kind`, `document_number`, `issuing_agency`, `status`, hiệu lực) là hạng mục sau schema/API/UI MVP — theo pattern contract/dispatch filter Phase 7.
+- Citation luôn trỏ về document/chunk/page nguồn; chunking nhóm A (quyết định theo `Điều`) không đổi.
+
+## Quyền Và Audit
+
+### Quyền
+
+| Hành động | User đăng nhập | Admin |
+|-----------|----------------|-------|
+| List / get | Có | Có |
+| Get by `document_id` | Có | Có |
+| Create / update metadata | Có | Có |
+| Soft delete | Không (`403`) | Có |
+
+Giữ nhất quán với module hợp đồng và công văn: user quản lý metadata hàng ngày; admin xóa mềm khi cần.
+
+### Audit Actions
+
+- `decision.created`
+- `decision.updated`
+- `decision.deleted`
+
+`entity_type=decision`, `entity_id=<decision_record.id>`, metadata JSON gọn (ví dụ `decision_kind`, `document_number`, `status`).
+
+## Schema Dự Kiến (Mục Tiêu 2)
+
+Migration đề xuất: `0014_decision_records` (hoặc số tiếp theo trên head hiện tại).
+
+### Các Cột Chính
+
+- `id`: UUID primary key.
+- `document_id`: FK `documents.id`, not null.
+- `decision_kind`: `String(16)`, not null — `decision` | `notification`.
+- `document_number`: `String(128)`, nullable.
+- `document_symbol`: `String(128)`, nullable.
+- `issued_date`: `Date`, nullable.
+- `issuing_agency`: `String(255)`, nullable.
+- `excerpt`: `Text`, nullable.
+- `effective_from`: `Date`, nullable.
+- `effective_to`: `Date`, nullable.
+- `status`: `String(32)`, not null, default `draft`.
+- `notes`: `Text`, nullable.
+- `created_at`, `updated_at`, `deleted_at`.
+
+### Indexes Dự Kiến
+
+- `ux_decision_records_document_active`: unique partial trên `document_id` WHERE `deleted_at IS NULL`.
+- `ix_decision_records_decision_kind_active`: (`decision_kind`, `deleted_at`).
+- `ix_decision_records_document_number_active`: (`document_number`, `deleted_at`).
+- `ix_decision_records_issuing_agency_active`: (`issuing_agency`, `deleted_at`).
+- `ix_decision_records_issued_date_active`: (`issued_date`, `deleted_at`).
+- `ix_decision_records_effective_from_active`: (`effective_from`, `deleted_at`).
+- `ix_decision_records_effective_to_active`: (`effective_to`, `deleted_at`).
+- `ix_decision_records_status_active`: (`status`, `deleted_at`).
+
+### Quan Hệ Model
+
+- `Document.decision_record` — `uselist=False`, tương tự `contract_record` / `dispatch_record`.
+- `DecisionRecord.document` — `relationship` back_populates.
+
+## API Dự Kiến (Mục Tiêu 3)
+
+| Method | Path | Mô tả |
+|--------|------|--------|
+| `GET` | `/api/v1/decisions` | List + filter + pagination |
+| `GET` | `/api/v1/decisions/{decision_id}` | Chi tiết |
+| `GET` | `/api/v1/decisions/by-document/{document_id}` | Lookup theo document (đặt trước `/{decision_id}`) |
+| `POST` | `/api/v1/decisions` | Tạo metadata |
+| `PATCH` | `/api/v1/decisions/{decision_id}` | Cập nhật |
+| `DELETE` | `/api/v1/decisions/{decision_id}` | Soft delete (admin) |
+
+Filter list tối thiểu: `q`, `document_id`, `decision_kind`, `document_number`, `issuing_agency`, `status`, `issued_date_from`, `issued_date_to`, `effective_from`, `effective_to`, `sort_by`, `sort_dir`, `limit`, `offset`.
+
+Response list: `{ items, total, limit, offset }` — pattern `DispatchListResponse` / `ContractListResponse`.
+
+Lỗi nghiệp vụ: `404` không tìm thấy; `409` trùng decision active cho cùng `document_id`; `403` user delete.
+
+Smoke script đề xuất: `python -m app.scripts.smoke_decision_api`.
+
+## Frontend Dự Kiến (Mục Tiêu 4)
+
+- Route `/decisions`: bảng list, filter, pagination, form tạo/sửa.
+- Query `document_id` / `create=1` để drill-down từ document detail.
+- Link document nguồn, nút "Search trong văn bản" preset dashboard.
+- Nav item `Quyết định` (hoặc `Quyết định & TB`) trong app shell.
+- Card trên `/documents/[id]` liên kết hai chiều với module decision khi document có metadata module.
+
+## Hướng Dẫn Cho Mục Tiêu Tiếp Theo (Schema)
+
+Mục tiêu 2 nên tạo migration `decision_records`, model `DecisionRecord`, relationship trên `Document`, và indexes theo bảng trên; không thêm API/UI trong mục tiêu thiết kế này.
