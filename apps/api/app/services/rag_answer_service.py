@@ -35,6 +35,10 @@ class SearchBackend(Protocol):
         decision_status: str | None = None,
         effective_from: date | None = None,
         effective_to: date | None = None,
+        procurement_kind: str | None = None,
+        procurement_status: str | None = None,
+        reference_number: str | None = None,
+        requesting_unit: str | None = None,
     ) -> list[dict]:
         ...
 
@@ -85,6 +89,10 @@ class RagAnswerService:
         decision_status: str | None = None,
         effective_from: date | None = None,
         effective_to: date | None = None,
+        procurement_kind: str | None = None,
+        procurement_status: str | None = None,
+        reference_number: str | None = None,
+        requesting_unit: str | None = None,
     ) -> dict:
         results = self.search.semantic_search(
             query=query,
@@ -107,6 +115,10 @@ class RagAnswerService:
             decision_status=decision_status,
             effective_from=effective_from,
             effective_to=effective_to,
+            procurement_kind=procurement_kind,
+            procurement_status=procurement_status,
+            reference_number=reference_number,
+            requesting_unit=requesting_unit,
         )
         evidence = [
             result

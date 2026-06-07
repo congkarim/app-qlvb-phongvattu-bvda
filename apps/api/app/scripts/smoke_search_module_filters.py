@@ -16,10 +16,12 @@ from app.db.session import SessionLocal
 from app.models.contract import ContractRecord
 from app.models.decision import DecisionRecord
 from app.models.dispatch import DispatchRecord
+from app.models.procurement import ProcurementRecord
 from app.models.document import Document, DocumentChunk, DocumentFile, DocumentPage
 from app.repositories.contract_repository import ContractRepository
 from app.repositories.decision_repository import DecisionRepository
 from app.repositories.dispatch_repository import DispatchRepository
+from app.repositories.procurement_repository import ProcurementRepository
 from app.repositories.document_repository import DocumentRepository
 from app.services.chunk_payload import build_qdrant_payload
 from app.services.embedding_service import EmbeddingService
@@ -37,7 +39,11 @@ def run_smoke(*, api_base: str, keep_data: bool) -> dict[str, Any]:
     try:
         _cleanup_existing_smoke_data(db=db, qdrant=qdrant)
         seed = _seed_smoke_data(db=db, qdrant=qdrant)
-        created_document_ids = [seed["dispatch_document_id"], seed["decision_document_id"]]
+        created_document_ids = [
+            seed["dispatch_document_id"],
+            seed["decision_document_id"],
+            seed["procurement_document_id"],
+        ]
 
         admin_token = _login(
             api_base=api_base,
@@ -137,6 +143,43 @@ def run_smoke(*, api_base: str, keep_data: bool) -> dict[str, Any]:
             "Contract filter regression returned unexpected document ids",
         )
 
+        procurement_search = _request_json(
+            "POST",
+            f"{api_base}/search/semantic",
+            token=admin_token,
+            payload={
+                "query": seed["procurement_query"],
+                "limit": 5,
+                "procurement_kind": "plan",
+                "procurement_status": "approved",
+            },
+        )
+        procurement_results = procurement_search.get("results", [])
+        _assert(procurement_results, "Procurement module filter returned no results")
+        _assert(
+            all(result.get("document_id") == seed["procurement_document_id"] for result in procurement_results),
+            "Procurement filter returned chunks from other documents",
+        )
+        _assert(
+            all(result.get("procurement_id") == seed["procurement_id"] for result in procurement_results),
+            "Procurement filter missing procurement metadata enrichment",
+        )
+
+        empty_procurement_search = _request_json(
+            "POST",
+            f"{api_base}/search/semantic",
+            token=admin_token,
+            payload={
+                "query": seed["procurement_query"],
+                "limit": 5,
+                "procurement_kind": "acceptance",
+            },
+        )
+        _assert(
+            not empty_procurement_search.get("results"),
+            "Procurement kind acceptance should return empty for plan smoke record",
+        )
+
         rag_answer = _request_json(
             "POST",
             f"{api_base}/search/answer",
@@ -155,6 +198,25 @@ def run_smoke(*, api_base: str, keep_data: bool) -> dict[str, Any]:
             "RAG decision filter citations came from unexpected documents",
         )
 
+        procurement_rag_answer = _request_json(
+            "POST",
+            f"{api_base}/search/answer",
+            token=admin_token,
+            payload={
+                "query": seed["procurement_query"],
+                "limit": 4,
+                "procurement_kind": "plan",
+                "procurement_status": "approved",
+                "reference_number": seed["reference_number"],
+            },
+        )
+        procurement_citations = procurement_rag_answer.get("citations") or []
+        _assert(procurement_citations, "RAG answer with procurement filter returned no citations")
+        _assert(
+            all(citation.get("document_id") == seed["procurement_document_id"] for citation in procurement_citations),
+            "RAG procurement filter citations came from unexpected documents",
+        )
+
         if not keep_data:
             for document_id in created_document_ids:
                 _cleanup_created_data(db=db, qdrant=qdrant, document_id=document_id)
@@ -163,6 +225,7 @@ def run_smoke(*, api_base: str, keep_data: bool) -> dict[str, Any]:
         return {
             "dispatch_document_id": seed["dispatch_document_id"],
             "decision_document_id": seed["decision_document_id"],
+            "procurement_document_id": seed["procurement_document_id"],
             "cleanup": "kept" if keep_data else "removed",
         }
     except Exception:
@@ -180,8 +243,10 @@ def _seed_smoke_data(*, db, qdrant: QdrantService) -> dict[str, str]:
     suffix = uuid4().hex[:10]
     dispatch_query = f"search module filter dispatch smoke {suffix}"
     decision_query = f"search module filter decision smoke {suffix}"
+    procurement_query = f"search module filter procurement smoke {suffix}"
     dispatch_text = f"{dispatch_query}\nNoi dung cong van den kiem tra filter metadata dispatch."
     decision_text = f"{decision_query}\nNoi dung quyet dinh kiem tra filter metadata decision."
+    procurement_text = f"{procurement_query}\nNoi dung ke hoach mua sam kiem tra filter metadata procurement."
 
     documents = DocumentRepository(db)
     dispatch_document = documents.create_document(
@@ -206,10 +271,22 @@ def _seed_smoke_data(*, db, qdrant: QdrantService) -> dict[str, str]:
         issuing_agency="Phong Vat Tu Smoke",
         business_type="decision",
     )
+    procurement_document = documents.create_document(
+        title=f"{SMOKE_TITLE_PREFIX} procurement {suffix}",
+        original_filename=f"search-filter-procurement-{suffix}.txt",
+        file_path=f"/tmp/search-filter-procurement-{suffix}.txt",
+        content_type="text/plain",
+        document_type="KH",
+        document_number=f"KH-FILTER-{suffix}",
+        issued_date=date(2026, 6, 7),
+        issuing_agency="Phong Vat Tu Smoke",
+        business_type="procurement",
+    )
 
     for document, text in (
         (dispatch_document, dispatch_text),
         (decision_document, decision_text),
+        (procurement_document, procurement_text),
     ):
         documents.create_file(
             document_id=document.id,
@@ -252,8 +329,24 @@ def _seed_smoke_data(*, db, qdrant: QdrantService) -> dict[str, str]:
         chunk_confidence=0.9,
         requires_review=False,
     )
+    procurement_chunk = documents.create_chunk(
+        document_id=procurement_document.id,
+        chunk_index=0,
+        text=procurement_text,
+        content_hash=hashlib.sha256(procurement_text.encode("utf-8")).hexdigest(),
+        page_from=1,
+        page_to=1,
+        section_title="MUC 1",
+        doc_group="D",
+        chunk_level="section",
+        section_role="content",
+        section_path=["MUC 1"],
+        chunk_confidence=0.9,
+        requires_review=False,
+    )
     documents.update_status(dispatch_document, "searchable")
     documents.update_status(decision_document, "searchable")
+    documents.update_status(procurement_document, "searchable")
 
     supplier_name = f"Nha cung cap filter smoke {suffix}"
     ContractRepository(db).create(
@@ -282,14 +375,27 @@ def _seed_smoke_data(*, db, qdrant: QdrantService) -> dict[str, str]:
         effective_from=date(2026, 1, 1),
         status="effective",
     )
+    reference_number = f"KH-FILTER-{suffix}"
+    procurement = ProcurementRepository(db).create(
+        document_id=procurement_document.id,
+        procurement_kind="plan",
+        reference_number=reference_number,
+        title_summary="Ke hoach mua sam smoke search filter",
+        requesting_unit="Phong Vat Tu Smoke",
+        requested_date=date(2026, 6, 7),
+        status="approved",
+        currency="VND",
+    )
     db.commit()
     db.refresh(dispatch_chunk)
     db.refresh(decision_chunk)
+    db.refresh(procurement_chunk)
 
     embeddings = EmbeddingService()
     for document, chunk in (
         (dispatch_document, dispatch_chunk),
         (decision_document, decision_chunk),
+        (procurement_document, procurement_chunk),
     ):
         qdrant.upsert_chunk(
             point_id=chunk.id,
@@ -302,13 +408,18 @@ def _seed_smoke_data(*, db, qdrant: QdrantService) -> dict[str, str]:
     return {
         "dispatch_document_id": dispatch_document.id,
         "decision_document_id": decision_document.id,
+        "procurement_document_id": procurement_document.id,
         "dispatch_chunk_id": dispatch_chunk.id,
         "decision_chunk_id": decision_chunk.id,
+        "procurement_chunk_id": procurement_chunk.id,
         "dispatch_id": dispatch.id,
         "decision_id": decision.id,
+        "procurement_id": procurement.id,
         "dispatch_query": dispatch_query,
         "decision_query": decision_query,
+        "procurement_query": procurement_query,
         "supplier_name": supplier_name,
+        "reference_number": reference_number,
     }
 
 
@@ -380,6 +491,9 @@ def _cleanup_created_data(*, db, qdrant: QdrantService, document_id: str) -> Non
     for record in db.scalars(select(DecisionRecord).where(DecisionRecord.document_id == document_id)):
         record.deleted_at = deleted_at
         db.add(record)
+    for record in db.scalars(select(ProcurementRecord).where(ProcurementRecord.document_id == document_id)):
+        record.deleted_at = deleted_at
+        db.add(record)
     document = db.get(Document, document_id)
     if document is not None:
         document.deleted_at = deleted_at
@@ -392,7 +506,9 @@ def _assert(condition: bool, message: str) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Smoke semantic search/RAG filters for dispatch and decision modules.")
+    parser = argparse.ArgumentParser(
+        description="Smoke semantic search/RAG filters for dispatch, decision and procurement modules."
+    )
     parser.add_argument("--api-base", default="http://localhost:8000/api/v1")
     parser.add_argument("--keep-data", action="store_true")
     args = parser.parse_args()
@@ -402,6 +518,7 @@ def main() -> None:
         "search module filter smoke passed: "
         f"dispatch_document_id={result['dispatch_document_id']} "
         f"decision_document_id={result['decision_document_id']} "
+        f"procurement_document_id={result['procurement_document_id']} "
         f"cleanup={result['cleanup']}"
     )
 

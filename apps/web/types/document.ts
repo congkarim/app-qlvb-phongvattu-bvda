@@ -1,6 +1,7 @@
 import type { ContractStatus } from '~/types/contract'
 import type { DecisionKind, DecisionStatus } from '~/types/decision'
 import type { DispatchStatus, DispatchType } from '~/types/dispatch'
+import type { ProcurementKind, ProcurementStatus } from '~/types/procurement'
 
 export interface OCRJob {
   id: string
@@ -244,6 +245,11 @@ export interface SearchResult {
   decision_status?: string | null
   effective_from?: string | null
   effective_to?: string | null
+  procurement_id?: string | null
+  procurement_kind?: string | null
+  procurement_status?: string | null
+  reference_number?: string | null
+  requesting_unit?: string | null
 }
 
 export interface SemanticSearchFilters {
@@ -265,6 +271,10 @@ export interface SemanticSearchFilters {
   decision_status?: DecisionStatus | ''
   effective_from?: string
   effective_to?: string
+  procurement_kind?: ProcurementKind | ''
+  procurement_status?: ProcurementStatus | ''
+  reference_number?: string
+  requesting_unit?: string
 }
 
 export interface RagCitation {

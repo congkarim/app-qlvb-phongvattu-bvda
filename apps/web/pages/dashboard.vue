@@ -2,6 +2,7 @@
 import type { ContractStatus } from '~/types/contract'
 import type { DecisionKind, DecisionStatus } from '~/types/decision'
 import type { DispatchStatus, DispatchType } from '~/types/dispatch'
+import type { ProcurementKind, ProcurementStatus } from '~/types/procurement'
 import type { ReviewQueueChunk, ReviewQueueFilters, SearchResult, SemanticSearchFilters } from '~/types/document'
 import { buildDocumentChunkUrl } from '~/utils/documentLinks'
 
@@ -55,7 +56,11 @@ const filters = reactive<SemanticSearchFilters>({
   decision_kind: '',
   decision_status: '',
   effective_from: '',
-  effective_to: ''
+  effective_to: '',
+  procurement_kind: '',
+  procurement_status: '',
+  reference_number: '',
+  requesting_unit: ''
 })
 
 const reviewQueueFilters = reactive<ReviewQueueFilters>({
@@ -142,6 +147,28 @@ const showDecisionFilters = computed(() => {
   const businessType = filters.business_type
   return !businessType || businessType === 'decision'
 })
+
+const showProcurementFilters = computed(() => {
+  const businessType = filters.business_type
+  return !businessType || businessType === 'procurement'
+})
+
+const procurementKindOptions: Array<{ label: string; value: ProcurementKind | '' }> = [
+  { label: 'Tất cả loại MS', value: '' },
+  { label: 'Đề xuất mua sắm', value: 'proposal' },
+  { label: 'Kế hoạch / dự toán', value: 'plan' },
+  { label: 'Biên bản nghiệm thu', value: 'acceptance' }
+]
+
+const procurementStatusOptions: Array<{ label: string; value: ProcurementStatus | '' }> = [
+  { label: 'Tất cả MS', value: '' },
+  { label: 'Nháp', value: 'draft' },
+  { label: 'Đã trình', value: 'submitted' },
+  { label: 'Đã duyệt', value: 'approved' },
+  { label: 'Từ chối', value: 'rejected' },
+  { label: 'Hoàn thành', value: 'completed' },
+  { label: 'Lưu trữ', value: 'archived' }
+]
 
 const reviewQueueRoleOptions = [
   { label: 'Tất cả review', value: '' },
@@ -240,6 +267,10 @@ function resetFilters() {
   filters.decision_status = ''
   filters.effective_from = ''
   filters.effective_to = ''
+  filters.procurement_kind = ''
+  filters.procurement_status = ''
+  filters.reference_number = ''
+  filters.requesting_unit = ''
 }
 
 function formatContractStatus(value?: string | null) {
@@ -264,6 +295,16 @@ function formatDecisionKind(value?: string | null) {
 
 function formatDecisionStatus(value?: string | null) {
   const option = decisionStatusOptions.find((item) => item.value === value)
+  return option?.label || value || ''
+}
+
+function formatProcurementKind(value?: string | null) {
+  const option = procurementKindOptions.find((item) => item.value === value)
+  return option?.label || value || ''
+}
+
+function formatProcurementStatus(value?: string | null) {
+  const option = procurementStatusOptions.find((item) => item.value === value)
   return option?.label || value || ''
 }
 
@@ -305,6 +346,8 @@ function hasModuleMetadata(result: SearchResult) {
       || result.dispatch_type
       || result.decision_id
       || result.decision_kind
+      || result.procurement_id
+      || result.procurement_kind
   )
 }
 
@@ -337,6 +380,8 @@ function applyRouteSearchPresets() {
   const presetDecisionStatus = routeQueryValue('decision_status')
   const presetEffectiveFrom = routeQueryValue('effective_from')
   const presetEffectiveTo = routeQueryValue('effective_to')
+  const presetProcurementKind = routeQueryValue('procurement_kind')
+  const presetProcurementStatus = routeQueryValue('procurement_status')
 
   if (presetBusinessType) filters.business_type = presetBusinessType
   if (routeQueryValue('document_number')) filters.document_number = routeQueryValue('document_number')
@@ -357,6 +402,14 @@ function applyRouteSearchPresets() {
   }
   if (presetEffectiveFrom) filters.effective_from = presetEffectiveFrom
   if (presetEffectiveTo) filters.effective_to = presetEffectiveTo
+  if (presetProcurementKind === 'proposal' || presetProcurementKind === 'plan' || presetProcurementKind === 'acceptance') {
+    filters.procurement_kind = presetProcurementKind
+  }
+  if (procurementStatusOptions.some((option) => option.value && option.value === presetProcurementStatus)) {
+    filters.procurement_status = presetProcurementStatus as ProcurementStatus
+  }
+  if (routeQueryValue('reference_number')) filters.reference_number = routeQueryValue('reference_number')
+  if (routeQueryValue('requesting_unit')) filters.requesting_unit = routeQueryValue('requesting_unit')
 
   return routeQueryValue('q')
 }
@@ -585,6 +638,20 @@ onMounted(async () => {
               <InputText v-model="filters.effective_from" type="date" placeholder="Hiệu lực từ" />
               <InputText v-model="filters.effective_to" type="date" placeholder="Hiệu lực đến" />
             </template>
+            <template v-if="showProcurementFilters">
+              <select v-model="filters.procurement_kind" class="rounded border border-slate-300 px-3 py-2 text-sm">
+                <option v-for="option in procurementKindOptions" :key="option.value" :value="option.value">
+                  {{ option.label }}
+                </option>
+              </select>
+              <select v-model="filters.procurement_status" class="rounded border border-slate-300 px-3 py-2 text-sm">
+                <option v-for="option in procurementStatusOptions" :key="option.value" :value="option.value">
+                  {{ option.label }}
+                </option>
+              </select>
+              <InputText v-model="filters.reference_number" placeholder="Số tham chiếu MS" />
+              <InputText v-model="filters.requesting_unit" placeholder="Đơn vị đề xuất" />
+            </template>
           </div>
           <div class="flex flex-wrap gap-2">
             <select v-model.number="filters.limit" class="rounded border border-slate-300 px-3 py-2 text-sm">
@@ -622,6 +689,11 @@ onMounted(async () => {
                     :value="formatDecisionKind(result.decision_kind) || 'Quyết định'"
                     severity="contrast"
                   />
+                  <Tag
+                    v-if="result.procurement_id || result.procurement_kind"
+                    :value="formatProcurementKind(result.procurement_kind) || 'Mua sắm'"
+                    severity="success"
+                  />
                 </div>
               </div>
               <NuxtLink
@@ -655,6 +727,12 @@ onMounted(async () => {
               <span v-if="result.decision_status"> · {{ formatDecisionStatus(result.decision_status) }}</span>
               <span v-if="result.effective_from"> · HL từ {{ result.effective_from }}</span>
               <span v-if="result.effective_to"> · HL đến {{ result.effective_to }}</span>
+            </p>
+            <p v-if="result.procurement_id || result.procurement_kind || result.procurement_status" class="mt-1 text-xs text-slate-500">
+              <span v-if="result.procurement_kind">{{ formatProcurementKind(result.procurement_kind) }}</span>
+              <span v-if="result.procurement_status"> · {{ formatProcurementStatus(result.procurement_status) }}</span>
+              <span v-if="result.reference_number"> · {{ result.reference_number }}</span>
+              <span v-if="result.requesting_unit"> · {{ result.requesting_unit }}</span>
             </p>
             <p class="mt-1 text-xs text-slate-500">
               {{ formatChunkMeta(result) }}

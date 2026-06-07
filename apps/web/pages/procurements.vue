@@ -125,8 +125,10 @@ function dashboardSearchLink(item: ProcurementItem) {
   const searchQuery = item.title_summary || item.reference_number || item.document_title || 'mua sam vat tu'
   params.set('q', searchQuery)
   params.set('business_type', 'procurement')
-  if (item.reference_number) params.set('document_number', item.reference_number)
-  if (item.requesting_unit) params.set('issuing_agency', item.requesting_unit)
+  if (item.reference_number) params.set('reference_number', item.reference_number)
+  if (item.requesting_unit) params.set('requesting_unit', item.requesting_unit)
+  if (item.procurement_kind) params.set('procurement_kind', item.procurement_kind)
+  if (item.status) params.set('procurement_status', item.status)
   return `/dashboard?${params.toString()}`
 }
 

@@ -4,16 +4,16 @@ Cập nhật lần cuối: 2026-06-07
 
 ## Giai Đoạn Hiện Tại
 
-**Phase 0–12 đã hoàn thành.** **Phase 13 đang làm** (bắt đầu 2026-06-07): module đề xuất/kế hoạch mua sắm vật tư.
+**Phase 0–13 đã hoàn thành.** Phase 14 chưa lập kế hoạch.
 
-Hệ thống chạy on-prem bằng Docker Compose (`api`, `worker`, `web`, `postgres`, `redis`, `qdrant`). Workflow web end-to-end: upload → OCR/extract → searchable → semantic search → RAG Q&A → review chunk → audit. Module nghiệp vụ MVP: hợp đồng (`/contracts`), công văn (`/dispatches`), quyết định/thông báo (`/decisions`) — liên kết hai chiều với document detail; dashboard lọc search/RAG theo metadata hợp đồng, công văn và quyết định. RAG citation và search result deep-link tới `#chunk-{id}` trên document detail.
+Hệ thống chạy on-prem bằng Docker Compose (`api`, `worker`, `web`, `postgres`, `redis`, `qdrant`). Workflow web end-to-end: upload → OCR/extract → searchable → semantic search → RAG Q&A → review chunk → audit. Module nghiệp vụ MVP: hợp đồng (`/contracts`), công văn (`/dispatches`), quyết định/thông báo (`/decisions`), mua sắm (`/procurements`) — liên kết hai chiều với document detail; dashboard lọc search/RAG theo metadata hợp đồng, công văn, quyết định và mua sắm. RAG citation và search result deep-link tới `#chunk-{id}` trên document detail.
 
-Con trỏ tiếp theo: Phase 13 / Mục tiêu 6 — (tùy chọn) search filter procurement và hoàn tất phase.
+Con trỏ tiếp theo: chờ lập Phase 14 trong `ROADMAP.md` và `TASK_NEXT.md`.
 
 ## Giới Hạn Còn Lại
 
 Giới hạn còn lại (đồng bộ `ROADMAP.md`):
-- Module procurement MVP đã có API/UI và liên kết document detail; search filter procurement (mục tiêu 6 tùy chọn) chưa triển khai.
+- Phase 14 chưa lập kế hoạch (inventory, workflow phê duyệt nhiều bước, LLM generator nâng cao nằm ngoài scope hiện tại).
 - Chưa có LLM/generator nội bộ nâng cao; RAG hiện extractive từ chunk truy xuất.
 
 ## Đã Xây Dựng
@@ -2351,3 +2351,28 @@ Kết quả: smoke procurement API pass; frontend build pass; `git diff --check`
 
 - `documents/[...id].vue`: card **Mua sắm** — hiển thị metadata procurement, nút "Mở Mua sắm", "Search trong văn bản", "Tạo metadata mua sắm" khi chưa có; fetch `by-document` on mount/đổi `documentId`.
 - `/procurements` → document detail (link cột Document) và preset dashboard `business_type=procurement` (đã có mục tiêu 4).
+
+### Mục tiêu 6 — Search filter procurement và hoàn tất Phase 13 (2026-06-07)
+
+Kiểm tra bắt buộc:
+
+```bash
+docker compose exec -T api python -m app.scripts.smoke_procurement_api
+docker compose exec -T api python -m app.scripts.smoke_search_module_filters
+docker compose exec -T api python -m app.scripts.smoke_rag_answer
+docker compose exec -T api python -m app.scripts.smoke_api_workflows
+WEB_MEMORY_LIMIT=4g docker compose run --rm --no-deps -e NODE_OPTIONS=--max-old-space-size=3072 web npm run build
+git diff --check
+```
+
+**Đã triển khai**
+
+- Backend: `SearchService` pre-resolve `document_id` từ `ProcurementRepository.list_document_ids_by_metadata`; enrich `procurement_id`, `procurement_kind`, `procurement_status`, `reference_number`, `requesting_unit`; router search/answer + `RagAnswerService` params.
+- Schemas `search.py`: `ProcurementKind`, `ProcurementStatus`, filter và result fields.
+- Smoke `smoke_search_module_filters.py`: seed procurement + semantic/RAG filter regression.
+- Benchmark fixture `procurement_plan`: `business_type=procurement`.
+- Frontend: `SemanticSearchFilters` + dashboard filter UI (`showProcurementFilters`), badges; preset từ `/procurements` và document detail card.
+- `DOMAIN_MODULE_DECISION.md`: search filter procurement chuyển draft → đã triển khai.
+- Phase 13 đóng; `TASK_NEXT.md` ghi Phase 14 chưa lập.
+
+Kết quả: smoke procurement API, search module filters (gồm procurement), RAG answer, API workflows pass; frontend build pass qua `docker compose build web && docker run ... npm run build` (compose volume EBUSY trên `.output`); `git diff --check` pass.

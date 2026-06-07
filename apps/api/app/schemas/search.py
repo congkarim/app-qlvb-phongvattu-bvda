@@ -9,6 +9,8 @@ DispatchType = Literal["incoming", "outgoing"]
 DispatchStatus = Literal["draft", "registered", "processing", "completed", "archived"]
 DecisionKind = Literal["decision", "notification"]
 DecisionStatus = Literal["draft", "registered", "effective", "expired", "revoked", "archived"]
+ProcurementKind = Literal["proposal", "plan", "acceptance"]
+ProcurementStatus = Literal["draft", "submitted", "approved", "rejected", "completed", "archived"]
 
 
 class SemanticSearchRequest(BaseModel):
@@ -32,6 +34,10 @@ class SemanticSearchRequest(BaseModel):
     decision_status: DecisionStatus | None = None
     effective_from: date | None = None
     effective_to: date | None = None
+    procurement_kind: ProcurementKind | None = None
+    procurement_status: ProcurementStatus | None = None
+    reference_number: str | None = Field(default=None, max_length=128)
+    requesting_unit: str | None = Field(default=None, max_length=255)
 
 
 class SemanticSearchResult(BaseModel):
@@ -63,6 +69,11 @@ class SemanticSearchResult(BaseModel):
     decision_status: str | None = None
     effective_from: date | None = None
     effective_to: date | None = None
+    procurement_id: str | None = None
+    procurement_kind: str | None = None
+    procurement_status: str | None = None
+    reference_number: str | None = None
+    requesting_unit: str | None = None
 
 
 class SemanticSearchResponse(BaseModel):

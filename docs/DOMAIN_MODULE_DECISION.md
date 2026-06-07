@@ -777,9 +777,9 @@ page -> composable -> service -> API
 ### Search/RAG
 
 - Search/RAG tiếp tục dựa trên document/chunk core.
-- Filter search theo metadata procurement (`procurement_kind`, `reference_number`, `requesting_unit`, `status`) là **mục tiêu 6 tùy chọn** — theo pattern Phase 11 pre-resolve `document_id` từ `procurement_records`.
-- Citation/deep link `#chunk-{id}` giữ nguyên (Phase 12); enrich response có thể thêm `procurement_id`, `procurement_kind`, `procurement_status` ở mục tiêu 6.
-- Benchmark fixture `procurement_plan`: cập nhật `business_type` → `procurement` khi catalog seed có mã mới (mục tiêu 6 hoặc kèm smoke procurement).
+- Filter search theo metadata procurement (`procurement_kind`, `reference_number`, `requesting_unit`, `status`) đã triển khai theo pattern Phase 11 pre-resolve `document_id` từ `procurement_records`.
+- Citation/deep link `#chunk-{id}` giữ nguyên (Phase 12); enrich response thêm `procurement_id`, `procurement_kind`, `procurement_status`, `reference_number`, `requesting_unit`.
+- Benchmark fixture `procurement_plan`: `business_type=procurement` (mục tiêu 6).
 
 ## Quyền Và Audit
 
@@ -868,9 +868,9 @@ Smoke script đề xuất: `python -m app.scripts.smoke_procurement_api`.
 - Card **Mua sắm** trên `/documents/[id]`: metadata, "Mở Mua sắm", "Search trong văn bản", "Tạo metadata mua sắm".
 - Liên kết ngược `/procurements` → document detail + preset dashboard (mục tiêu 4).
 
-## Thiết Kế Search Filter Procurement (Draft — Mục Tiêu 6 Tùy Chọn)
+## Search Filter Procurement (Đã Triển Khai — Mục Tiêu 6)
 
-Bám pattern Phase 11; chưa triển khai trong mục tiêu 1.
+Bám pattern Phase 11; triển khai 2026-06-07.
 
 ### Tham Số API (`POST /search/semantic`, `POST /search/answer`)
 

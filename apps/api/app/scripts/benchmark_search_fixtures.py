@@ -66,7 +66,7 @@ DOCUMENT_FIXTURES = (
         document_number="KH-42/VT",
         issued_date=date(2026, 5, 10),
         issuing_agency="Phong Vat Tu",
-        business_type="incoming_dispatch",
+        business_type="procurement",
         chunks=[
             ChunkFixture(
                 key="vat_tu_list",

@@ -52,7 +52,9 @@ function normalizeSearchPayload(
     'contract_number',
     'supplier_name',
     'effective_from',
-    'effective_to'
+    'effective_to',
+    'reference_number',
+    'requesting_unit'
   ] as const) {
     const value = filters[key]?.trim()
     if (value) payload[key] = value
@@ -71,6 +73,12 @@ function normalizeSearchPayload(
   }
   if (filters.decision_status) {
     payload.decision_status = filters.decision_status
+  }
+  if (filters.procurement_kind) {
+    payload.procurement_kind = filters.procurement_kind
+  }
+  if (filters.procurement_status) {
+    payload.procurement_status = filters.procurement_status
   }
   if (filters.requires_review !== null && filters.requires_review !== undefined) {
     payload.requires_review = filters.requires_review

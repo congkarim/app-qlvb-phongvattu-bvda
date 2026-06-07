@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from app.repositories.contract_repository import ContractRepository
 from app.repositories.decision_repository import DecisionRepository
 from app.repositories.dispatch_repository import DispatchRepository
+from app.repositories.procurement_repository import ProcurementRepository
 from app.repositories.document_repository import DocumentRepository
 from app.services.embedding_service import EmbeddingService
 from app.services.qdrant_service import QdrantService
@@ -41,6 +42,10 @@ class SearchService:
         decision_status: str | None = None,
         effective_from: date | None = None,
         effective_to: date | None = None,
+        procurement_kind: str | None = None,
+        procurement_status: str | None = None,
+        reference_number: str | None = None,
+        requesting_unit: str | None = None,
     ) -> list[dict]:
         module_document_ids = self._resolve_module_document_ids(
             contract_number=contract_number,
@@ -54,6 +59,10 @@ class SearchService:
             issuing_agency=issuing_agency,
             effective_from=effective_from,
             effective_to=effective_to,
+            procurement_kind=procurement_kind,
+            procurement_status=procurement_status,
+            reference_number=reference_number,
+            requesting_unit=requesting_unit,
         )
         if module_document_ids is not None and not module_document_ids:
             return []
@@ -199,9 +208,11 @@ class SearchService:
             )
             if len(results) >= limit:
                 break
-        return self._attach_decision_metadata(
-            self._attach_dispatch_metadata(
-                self._attach_contract_metadata(results)
+        return self._attach_procurement_metadata(
+            self._attach_decision_metadata(
+                self._attach_dispatch_metadata(
+                    self._attach_contract_metadata(results)
+                )
             )
         )
 
@@ -219,6 +230,10 @@ class SearchService:
         issuing_agency: str | None,
         effective_from: date | None,
         effective_to: date | None,
+        procurement_kind: str | None,
+        procurement_status: str | None,
+        reference_number: str | None,
+        requesting_unit: str | None,
     ) -> set[str] | None:
         active_sets: list[set[str]] = []
         for resolved in (
@@ -240,6 +255,12 @@ class SearchService:
                 issuing_agency=issuing_agency,
                 effective_from=effective_from,
                 effective_to=effective_to,
+            ),
+            self._resolve_procurement_document_ids(
+                procurement_kind=procurement_kind,
+                procurement_status=procurement_status,
+                reference_number=reference_number,
+                requesting_unit=requesting_unit,
             ),
         ):
             if resolved is None:
@@ -316,6 +337,26 @@ class SearchService:
         )
         return set(document_ids)
 
+    def _resolve_procurement_document_ids(
+        self,
+        *,
+        procurement_kind: str | None,
+        procurement_status: str | None,
+        reference_number: str | None,
+        requesting_unit: str | None,
+    ) -> set[str] | None:
+        if self.db is None:
+            return None
+        if not any([procurement_kind, procurement_status, reference_number, requesting_unit]):
+            return None
+        document_ids = ProcurementRepository(self.db).list_document_ids_by_metadata(
+            procurement_kind=procurement_kind,
+            reference_number=reference_number,
+            requesting_unit=requesting_unit,
+            status=procurement_status,
+        )
+        return set(document_ids)
+
     def _attach_contract_metadata(self, results: list[dict]) -> list[dict]:
         if self.db is None or not results:
             return results
@@ -369,6 +410,26 @@ class SearchService:
                     "decision_status": decision.status if decision else None,
                     "effective_from": decision.effective_from if decision else None,
                     "effective_to": decision.effective_to if decision else None,
+                }
+            )
+        return enriched
+
+    def _attach_procurement_metadata(self, results: list[dict]) -> list[dict]:
+        if self.db is None or not results:
+            return results
+        document_ids = list({str(result.get("document_id") or "") for result in results if result.get("document_id")})
+        procurements = ProcurementRepository(self.db).map_active_by_document_ids(document_ids)
+        enriched = []
+        for result in results:
+            procurement = procurements.get(str(result.get("document_id") or ""))
+            enriched.append(
+                {
+                    **result,
+                    "procurement_id": procurement.id if procurement else None,
+                    "procurement_kind": procurement.procurement_kind if procurement else None,
+                    "procurement_status": procurement.status if procurement else None,
+                    "reference_number": procurement.reference_number if procurement else None,
+                    "requesting_unit": procurement.requesting_unit if procurement else None,
                 }
             )
         return enriched
