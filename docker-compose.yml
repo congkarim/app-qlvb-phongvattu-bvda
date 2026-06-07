@@ -198,9 +198,10 @@ services:
     volumes:
       - ./apps/web:/app
       - /app/node_modules
-      # Tránh .nuxt/.output từ build trên host (hoặc docker compose run build) làm hỏng nuxt dev.
+      # .nuxt anonymous: tránh cache dev trên host làm hỏng `nuxt dev` trong container.
+      # Không mount anonymous cho .output — Nitro cần rmdir/recreate thư mục khi `npm run build`;
+      # volume ẩn tại mount point gây EBUSY. .output build ghi vào bind mount (gitignore).
       - /app/.nuxt
-      - /app/.output
     depends_on:
       - api
     deploy:
