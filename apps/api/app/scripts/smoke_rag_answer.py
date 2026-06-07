@@ -109,6 +109,7 @@ def _request_json(
     *,
     token: str | None = None,
     payload: dict[str, Any] | None = None,
+    timeout: float = 20,
 ) -> dict[str, Any]:
     data = None
     headers = {"Accept": "application/json"}
@@ -119,7 +120,7 @@ def _request_json(
         headers["Authorization"] = f"Bearer {token}"
     request = Request(url, data=data, headers=headers, method=method)
     try:
-        with urlopen(request, timeout=20) as response:
+        with urlopen(request, timeout=timeout) as response:
             body = response.read().decode("utf-8")
             status = response.status
     except HTTPError as exc:

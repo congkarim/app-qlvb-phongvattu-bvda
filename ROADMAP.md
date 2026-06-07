@@ -13,7 +13,7 @@ Cập nhật lần cuối: 2026-06-07
 
 ## Trạng Thái Hiện Tại
 
-**Lộ trình Phase 0–16 đã hoàn thành.** Hệ thống có thể chạy on-prem bằng Docker Compose với các service `api`, `worker`, `web`, `postgres`, `redis`, `qdrant`.
+**Lộ trình Phase 0–17 đã hoàn thành.** Hệ thống có thể chạy on-prem bằng Docker Compose với các service `api`, `worker`, `web`, `postgres`, `redis`, `qdrant` (và `ollama` optional profile `llm`).
 
 **Phase 13 đã hoàn thành** (2026-06-07): module đề xuất/kế hoạch mua sắm vật tư MVP.
 
@@ -23,7 +23,7 @@ Cập nhật lần cuối: 2026-06-07
 
 **Phase 16 đã hoàn thành** (2026-06-07): gợi ý liên kết document rule-based từ OCR/chunk — `DocumentRelationSuggestionService`, API `relation-suggestions`, subsection **Gợi ý liên kết** trên document detail, apply/dismiss UX, smoke `smoke_relation_suggestions`.
 
-**Phase 17 đang làm** (2026-06-07): RAG generative Ollama — checklist `TASK_NEXT.md`. Kế hoạch sizing dev/deploy trong mục Phase 17.
+**Phase 17 đã hoàn thành** (2026-06-07): RAG generative Ollama on-prem — `LocalLLMService`, profile Compose `llm`, fallback extractive, ops/dashboard UX, runbook `docs/RAG_LLM_RUNBOOK.md`, smoke `smoke_rag_generative`.
 
 Đã hoàn thành:
 - Auth local, seed admin, cookie token frontend và RBAC nhẹ cho admin/user.
@@ -48,10 +48,11 @@ Cập nhật lần cuối: 2026-06-07
 - Onboarding metadata module sau OCR: `ModuleOnboardingService`, `GET /documents/{id}/onboarding-suggestions`, audit worker `document.onboarding_suggested`, banner/CTA document detail, filter/badge list `missing_module_metadata`.
 - Liên kết chéo document: bảng `document_relations`, API relations, card **Văn bản liên quan** trên document detail, filter/badge `has_relations`/`relation_count` trên list, smoke `smoke_document_relations`.
 - Gợi ý liên kết document rule-based: `DocumentRelationSuggestionService`, API `GET /documents/{id}/relation-suggestions`, subsection **Gợi ý liên kết** trên document detail (apply/dismiss), smoke `smoke_relation_suggestions`.
+- RAG generative local LLM (Ollama): `LocalLLMService`, profile Compose `llm`, `RagContextBuilder`/`CitationValidator`, fallback extractive, ops LLM status, dashboard badge generative/extractive, runbook `docs/RAG_LLM_RUNBOOK.md`, smoke `smoke_rag_generative`.
 
 Giới hạn còn lại (đã gán / ngoài scope):
-- RAG generative local LLM (Ollama on-prem, citation bắt buộc, fallback extractive) → **Phase 17** (đã lập kế hoạch, chưa mở).
-- Inventory/tồn kho, workflow phê duyệt nhiều bước, line items procurement → **ngoài scope** Phase 16–17 MVP.
+- Inventory/tồn kho, workflow phê duyệt nhiều bước, line items procurement → **ngoài scope** MVP hiện tại.
+- HA Ollama / scale horizontal LLM → **Phase 18+** (chưa lập kế hoạch).
 
 ## Lộ Trình Ưu Tiên
 
@@ -596,7 +597,7 @@ Mục tiêu gợi ý cho `TASK_NEXT.md`:
 
 ### Phase 17 - RAG Generative Local LLM (Ollama On-Prem)
 
-Trạng thái: **đã lập kế hoạch** (2026-06-07), chưa mở thực thi.
+Trạng thái: **hoàn thành** (2026-06-07).
 
 Mục tiêu: nâng `POST /api/v1/search/answer` từ **extractive** (ghép câu từ chunk) sang **generative local-only** qua **Ollama**, vẫn **bắt buộc citation** truy vết chunk/document; tự **fallback extractive** khi LLM không sẵn sàng, timeout hoặc không đủ căn cứ.
 

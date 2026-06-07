@@ -4,19 +4,19 @@ Cập nhật lần cuối: 2026-06-07
 
 ## Giai Đoạn Hiện Tại
 
-**Phase 0–16 đã hoàn thành.** Phase 16 đóng ngày 2026-06-07.
+**Phase 0–17 đã hoàn thành.** Phase 17 đóng ngày 2026-06-07.
 
-**Phase 17 đang làm** (bắt đầu 2026-06-07): RAG generative local-only qua Ollama — checklist trong `TASK_NEXT.md`.
+**Phase 17 đã hoàn thành** (2026-06-07): RAG generative local-only qua Ollama — `LocalLLMService`, profile Compose `llm`, fallback extractive, ops LLM status, dashboard badge, runbook `docs/RAG_LLM_RUNBOOK.md`, smoke `smoke_rag_generative`.
 
-Hệ thống chạy on-prem bằng Docker Compose (`api`, `worker`, `web`, `postgres`, `redis`, `qdrant`). Workflow web end-to-end: upload → OCR/extract → searchable → semantic search → RAG Q&A (extractive) → review chunk → audit. Module nghiệp vụ MVP: hợp đồng, công văn, quyết định, mua sắm — liên kết document detail; gợi ý liên kết document rule-based (Phase 16).
+Hệ thống chạy on-prem bằng Docker Compose (`api`, `worker`, `web`, `postgres`, `redis`, `qdrant`; `ollama` optional profile `llm`). Workflow web end-to-end: upload → OCR/extract → searchable → semantic search → RAG Q&A (extractive hoặc generative local) → review chunk → audit. Module nghiệp vụ MVP: hợp đồng, công văn, quyết định, mua sắm — liên kết document detail; gợi ý liên kết document rule-based (Phase 16).
 
-Con trỏ tiếp theo: Phase 17 / Mục tiêu 8 — smoke generative + đóng phase (`TASK_NEXT.md`).
+Con trỏ tiếp theo: Phase 18 chưa lập checklist — xem `ROADMAP.md` và `TASK_NEXT.md`.
 
 ## Giới Hạn Còn Lại
 
 Giới hạn còn lại (đồng bộ `ROADMAP.md`):
-- RAG generative local LLM (Ollama) đang triển khai Phase 17 — backend, frontend và runbook đã có; smoke generative + đóng phase còn lại.
 - Inventory/tồn kho, workflow phê duyệt nhiều bước, line items procurement: ngoài scope MVP hiện tại.
+- HA Ollama / scale horizontal LLM: Phase 18+ nếu cần (chưa lập kế hoạch).
 
 ## Đã Xây Dựng
 
@@ -2897,12 +2897,32 @@ Kết quả: web build pass; `git diff --check` pass.
 - Cập nhật `docs/RAG_ANSWER_RUNBOOK.md`: phân nhánh extractive/generative, checklist UI badge và `/status`.
 - Cập nhật `docs/COMPOSE_RESOURCE_UPLOAD_RUNBOOK.md`: bảng sizing Ollama, pointer backup `ollama_data`, troubleshoot LLM.
 - Cập nhật `docs/STORAGE_BACKUP_RESTORE_RUNBOOK.md`: volume `ollama_data` optional + backup/restore.
-- `README.md`, `.env.example`: link runbook LLM.
-
-**Kiểm tra**
-
 ```bash
 git diff --check
 ```
 
 Kết quả: pass.
+
+### Mục tiêu 8 — Smoke generative, regression và hoàn tất phase (2026-06-07)
+
+**Triển khai**
+
+- Script `apps/api/app/scripts/smoke_rag_generative.py`: preflight Ollama + model loaded; seed fixture → POST answer → assert `generation_mode=generative`, citations hợp lệ; flag `--verify-fallback` chạy unit test `llm_unavailable`.
+- `smoke_rag_answer._request_json`: tham số `timeout` (generative smoke dùng `RAG_LLM_TIMEOUT_SECONDS + 30`).
+
+**Kiểm tra**
+
+```bash
+docker compose exec -T api python -m app.scripts.smoke_rag_answer
+docker compose exec -T api python -m app.scripts.smoke_relation_suggestions
+docker compose exec -T api python -m unittest app.services.tests.test_rag_answer_service -v
+docker compose --profile llm exec -T api python -m app.scripts.smoke_rag_generative --verify-fallback
+WEB_MEMORY_LIMIT=4g docker compose run --rm --no-deps -e NODE_OPTIONS=--max-old-space-size=3072 web npm run build
+git diff --check
+```
+
+Kết quả: extractive + relation smokes pass; 7 unit tests pass; generative smoke pass (`latency_ms` ~13.8s CPU 3B); web build pass; `git diff --check` pass.
+
+**Đóng phase**
+
+- Phase 17 hoàn thành; `ROADMAP.md`, `docs/DOMAIN_MODULE_DECISION.md`, `TASK_NEXT.md` cập nhật placeholder Phase 18.

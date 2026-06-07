@@ -1649,14 +1649,13 @@ class LocalLLMService:
 | Smoke mặc định | `smoke_rag_answer` | `smoke_rag_generative` (profile `llm`) |
 | CI default | Pass không Ollama | Generative smoke optional / nightly |
 
-### Hướng Dẫn Cho Mục Tiêu Tiếp Theo (Phase 17)
+### Triển Khai Hoàn Tất (Phase 17)
 
-**Mục tiêu 2** `LocalLLMService` + settings `config.py`.
+Tất cả mục tiêu Phase 17 đã triển khai (2026-06-07):
 
-**Mục tiêu 3** Docker Compose service `ollama`, profile `llm`, volume `ollama_data`.
+- `LocalLLMService` + settings; Docker Compose service `ollama`, profile `llm`, volume `ollama_data`.
+- `RagContextBuilder`, `CitationValidator`, nhánh generative + fallback trong `RagAnswerService`.
+- Schema/API `generation_mode`, ops LLM status; frontend dashboard + `/status`.
+- Runbook `docs/RAG_LLM_RUNBOOK.md`; smoke `smoke_rag_generative` (profile `llm`).
 
-**Mục tiêu 4** `RagContextBuilder`, `CitationValidator`, mở rộng `RagAnswerService`.
-
-**Mục tiêu 5** schema `generation_mode`, ops LLM status.
-
-**Mục tiêu 6–8** frontend, runbook, smoke + đóng phase.
+Smoke mặc định CI/dev: `smoke_rag_answer` (extractive, không Ollama). Smoke generative: `docs/RAG_LLM_RUNBOOK.md`.
