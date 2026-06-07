@@ -10,12 +10,12 @@ Cập nhật lần cuối: 2026-06-07
 
 Hệ thống chạy on-prem bằng Docker Compose (`api`, `worker`, `web`, `postgres`, `redis`, `qdrant`). Workflow web end-to-end: upload → OCR/extract → searchable → semantic search → RAG Q&A → review chunk → audit. Module nghiệp vụ MVP: hợp đồng (`/contracts`), công văn (`/dispatches`), quyết định/thông báo (`/decisions`), mua sắm (`/procurements`) — liên kết hai chiều với document detail; dashboard lọc search/RAG theo metadata hợp đồng, công văn, quyết định và mua sắm. RAG citation và search result deep-link tới `#chunk-{id}` trên document detail. Onboarding metadata module: gợi ý sau OCR, banner document detail, filter list thiếu metadata module. Liên kết chéo document: card **Văn bản liên quan** trên document detail, filter/badge trên list documents.
 
-Con trỏ tiếp theo: Phase 16 / Mục tiêu 3 — API `GET /documents/{id}/relation-suggestions` (`TASK_NEXT.md`).
+Con trỏ tiếp theo: Phase 16 / Mục tiêu 4 — frontend subsection **Gợi ý liên kết** (`TASK_NEXT.md`).
 
 ## Giới Hạn Còn Lại
 
 Giới hạn còn lại (đồng bộ `ROADMAP.md`):
-- Gợi ý liên kết document rule-based đang triển khai Phase 16 (đã có service; chưa có API/UI).
+- Gợi ý liên kết document rule-based đang triển khai Phase 16 (đã có service + API; chưa có UI).
 - Chưa có LLM/generator nội bộ nâng cao; RAG hiện extractive từ chunk truy xuất.
 - Inventory/tồn kho, workflow phê duyệt nhiều bước, line items procurement: ngoài scope MVP hiện tại.
 
@@ -2689,3 +2689,21 @@ git diff --check
 ```
 
 Kết quả: 7 unit tests pass; smoke repo CV→QĐ `references` pass; `git diff --check` pass.
+
+### Mục tiêu 3 — API `relation-suggestions` và schema response (2026-06-07)
+
+**Triển khai**
+
+- Schema `RelationSuggestionRead`, `RelationSuggestionsResponse` trong `document_relation.py`.
+- `GET /api/v1/documents/{document_id}/relation-suggestions` trên router documents; auth user; `404` khi document không tồn tại hoặc chưa searchable; read-only, không tạo relation.
+
+**Kiểm tra**
+
+```bash
+PYTHONPYCACHEPREFIX=/tmp/qlvb-pycache PYTHONPATH=apps/api python3 -m py_compile \
+  apps/api/app/schemas/document_relation.py apps/api/app/routers/documents.py
+docker compose exec -T api python -m app.scripts.smoke_document_relations
+git diff --check
+```
+
+Kết quả: py_compile pass; regression `smoke_document_relations` pass; `git diff --check` pass.

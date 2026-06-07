@@ -25,7 +25,7 @@ Phase trước: Phase 15 hoàn thành ngày 2026-06-07.
 
 Phase hiện tại: Phase 16 - Gợi Ý Liên Kết Document Từ Nội Dung (Rule-Based).
 
-Mục tiêu tiếp theo: Phase 16 / Mục Tiêu 3 - API `relation-suggestions` Và Schema Response.
+Mục tiêu tiếp theo: Phase 16 / Mục Tiêu 4 - Frontend Gợi Ý Trong DocumentRelationsCard.
 
 Điều kiện chuyển sang mục tiêu kế tiếp:
 - Mục tiêu hiện tại pass tiêu chí chấp nhận.
@@ -107,7 +107,7 @@ git diff --check
 
 ### Mục Tiêu 3 - API `relation-suggestions` Và Schema Response
 
-Trạng thái: chưa làm (tiếp theo).
+Trạng thái: hoàn thành (2026-06-07).
 
 Skill bắt buộc: `backend-fastapi`, `project-git-manager`.
 
@@ -136,7 +136,7 @@ git diff --check
 
 ### Mục Tiêu 4 - Frontend Gợi Ý Trong DocumentRelationsCard
 
-Trạng thái: chưa làm.
+Trạng thái: chưa làm (tiếp theo).
 
 Skill bắt buộc: `frontend-nuxt`, `project-git-manager`.
 

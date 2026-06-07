@@ -49,3 +49,24 @@ class DocumentRelationDeleteRead(BaseModel):
     relation_type: str
     notes: str | None = None
     created_at: datetime
+
+
+ConfidenceTier = Literal["high", "review"]
+
+
+class RelationSuggestionRead(BaseModel):
+    target_document_id: str
+    relation_type: RelationType
+    confidence: float
+    confidence_tier: ConfidenceTier
+    matched_reference: str
+    source_chunk_id: str
+    source_chunk_quote: str
+    target_document_preview: RelatedDocumentSummary
+    reasons: list[str] = Field(default_factory=list)
+
+
+class RelationSuggestionsResponse(BaseModel):
+    document_id: str
+    suggestions: list[RelationSuggestionRead] = Field(default_factory=list)
+    candidate_count: int = 0

@@ -26,13 +26,19 @@ from app.schemas.document_relation import (
     DocumentRelationCreateRequest,
     DocumentRelationOutgoingRead,
     DocumentRelationsResponse,
+    RelationSuggestionsResponse,
 )
 from app.services.module_onboarding_service import ModuleOnboardingService
+from app.repositories.document_repository import DocumentRepository
 from app.services.document_relation_service import (
     DocumentRelationAlreadyExistsError,
     DocumentRelationNotFoundError,
     DocumentRelationOperationError,
     DocumentRelationService,
+)
+from app.services.document_relation_suggestion_service import (
+    DocumentRelationSuggestionNotFoundError,
+    DocumentRelationSuggestionService,
 )
 from app.services.document_service import (
     DocumentBusyError,
@@ -301,6 +307,27 @@ def get_document_onboarding_suggestions(
     if suggestion is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
     return OnboardingSuggestionResponse(**suggestion)
+
+
+@router.get("/{document_id}/relation-suggestions", response_model=RelationSuggestionsResponse)
+def list_document_relation_suggestions(
+    document_id: str,
+    db: Session = Depends(get_db),
+) -> RelationSuggestionsResponse:
+    document = DocumentRepository(db).get_document(document_id)
+    if document is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+    if document.status != "searchable":
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Document is not searchable",
+        )
+    try:
+        return RelationSuggestionsResponse(
+            **DocumentRelationSuggestionService(db).suggest_relations(document_id)
+        )
+    except DocumentRelationSuggestionNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
 
 
 @router.get("/{document_id}/relations", response_model=DocumentRelationsResponse)
