@@ -13,9 +13,9 @@ Cập nhật lần cuối: 2026-06-07
 
 ## Trạng Thái Hiện Tại
 
-**Lộ trình Phase 0–10 đã hoàn thành.** Hệ thống có thể chạy on-prem bằng Docker Compose với các service `api`, `worker`, `web`, `postgres`, `redis`, `qdrant`.
+**Lộ trình Phase 0–11 đã hoàn thành.** Hệ thống có thể chạy on-prem bằng Docker Compose với các service `api`, `worker`, `web`, `postgres`, `redis`, `qdrant`.
 
-**Phase 11–13 đã được lập kế hoạch** (chi tiết bên dưới). Bắt đầu thực thi khi cập nhật `TASK_NEXT.md` checklist Phase 11.
+**Phase 12–13 đã được lập kế hoạch** (chi tiết bên dưới). Bắt đầu thực thi khi cập nhật `TASK_NEXT.md` checklist Phase 12.
 
 Đã hoàn thành:
 - Auth local, seed admin, cookie token frontend và RBAC nhẹ cho admin/user.
@@ -23,7 +23,7 @@ Cập nhật lần cuối: 2026-06-07
 - Quản lý metadata nghiệp vụ, metadata OCR tự động và metadata manual review.
 - OCR/extract cho text, markdown, docx, xlsx, PDF có text nhúng, PDF/image scan bằng PaddleOCR/OpenCV và VietOCR.
 - Chunking văn bản hành chính tiếng Việt theo metadata pháp lý, phụ lục, confidence và flag `requires_review`.
-- Semantic search có filter metadata nghiệp vụ, filter chunk như `section_role`, `requires_review`, và filter metadata hợp đồng (`contract_number`, `supplier_name`, `contract_status`).
+- Semantic search có filter metadata nghiệp vụ, filter chunk như `section_role`, `requires_review`, filter metadata hợp đồng (`contract_number`, `supplier_name`, `contract_status`) và filter metadata công văn/quyết định (`dispatch_type`, `dispatch_status`, `decision_kind`, `decision_status`, `issuing_agency`).
 - RAG foundation local-only: endpoint `POST /api/v1/search/answer` trả lời extractive kèm citation.
 - Document detail có preview source, OCR job audit, chunks filter và action đánh dấu chunk đã review.
 - Dashboard có semantic search, RAG Q&A extractive kèm citation, admin review queue có pagination/filter.
@@ -36,9 +36,8 @@ Cập nhật lần cuối: 2026-06-07
 - On-prem hardening: env/secret/CORS guard, backup/restore runbook, health/readiness, log policy, compose resource limits.
 - Worker lease timeout, stale-job recovery, ops endpoint job kẹt, runbook upgrade Alembic production, smoke worker stale recovery.
 
-Giới hạn còn lại (đã gán vào Phase 11–13):
-- Search filter dashboard/RAG chỉ có metadata hợp đồng; chưa có filter dispatch và decision → **Phase 11**.
-- RAG citation chưa deep-link tới chunk trên document detail; search result chưa enrich metadata dispatch/decision → **Phase 12**.
+Giới hạn còn lại (đã gán vào Phase 12–13):
+- RAG citation chưa deep-link tới chunk trên document detail (`#chunk-{id}`) → **Phase 12**.
 - Chưa có module sổ đề xuất/kế hoạch mua sắm vật tư (metadata layer, không workflow nhiều bước) → **Phase 13**.
 - LLM/generator nội bộ nâng cao: **ngoài scope** Phase 11–13; RAG vẫn extractive local-only.
 
@@ -186,7 +185,7 @@ Tiêu chí hoàn thành: đạt (xem `PROJECT_STATUS.md`).
 
 ### Phase 11 - Search Filter Metadata Dispatch Và Decision
 
-Trạng thái: đang làm (bắt đầu 2026-06-07; mục tiêu 1–4 hoàn thành).
+Trạng thái: hoàn thành ngày 2026-06-07.
 
 Mục tiêu: hoàn thiện semantic search và RAG trên dashboard theo metadata module công văn và quyết định/thông báo, đồng bộ pattern đã có với hợp đồng (Phase 7).
 
@@ -245,7 +244,7 @@ Mục tiêu gợi ý cho `TASK_NEXT.md` (khi mở phase):
 
 ### Phase 12 - RAG Citation UX Và Search Enrichment
 
-Trạng thái: chưa bắt đầu.
+Trạng thái: chưa bắt đầu (checklist trong `TASK_NEXT.md` khi mở phase).
 
 Mục tiêu: cải thiện truy vết nguồn từ search/RAG tới đúng đoạn văn bản trên document detail; làm giàu kết quả tìm kiếm với metadata module đầy đủ hơn.
 
@@ -361,7 +360,7 @@ Mục tiêu gợi ý cho `TASK_NEXT.md`:
 
 ## Ghi Chú Lập Kế Hoạch
 
-- `TASK_NEXT.md` chỉ chứa checklist phase đang làm; khi bắt đầu Phase 11, thay nội dung file bằng checklist mục tiêu Phase 11 ở trên.
+- `TASK_NEXT.md` chỉ chứa checklist phase đang làm; khi bắt đầu Phase 12, thay nội dung file bằng checklist mục tiêu Phase 12 ở trên.
 - Con trỏ thực thi: `TASK_NEXT.md` → `PROJECT_STATUS.md` → commit sau mỗi mục tiêu (skill `project-git-manager`).
 - Ưu tiên MVP và maintainability; mỗi module nghiệp vụ mới phải có quyết định scope trong `docs/DOMAIN_MODULE_DECISION.md`.
 - Mỗi mục tiêu phase khi hoàn thành phải auto commit theo quy tắc trong `TASK_NEXT.md`.

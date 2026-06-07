@@ -4,17 +4,16 @@ Cập nhật lần cuối: 2026-06-07
 
 ## Giai Đoạn Hiện Tại
 
-**Phase 0–10 đã hoàn thành.** **Phase 11 đang làm** (bắt đầu 2026-06-07): Search filter metadata dispatch và decision trên dashboard/RAG.
+**Phase 0–11 đã hoàn thành.** **Phase 12 chưa bắt đầu** (checklist trong `TASK_NEXT.md`): RAG citation UX và search enrichment (deep link chunk).
 
-Hệ thống chạy on-prem bằng Docker Compose (`api`, `worker`, `web`, `postgres`, `redis`, `qdrant`). Workflow web end-to-end: upload → OCR/extract → searchable → semantic search → RAG Q&A → review chunk → audit. Module nghiệp vụ MVP: hợp đồng (`/contracts`), công văn (`/dispatches`), quyết định/thông báo (`/decisions`) — liên kết hai chiều với document detail; dashboard lọc search theo metadata hợp đồng.
+Hệ thống chạy on-prem bằng Docker Compose (`api`, `worker`, `web`, `postgres`, `redis`, `qdrant`). Workflow web end-to-end: upload → OCR/extract → searchable → semantic search → RAG Q&A → review chunk → audit. Module nghiệp vụ MVP: hợp đồng (`/contracts`), công văn (`/dispatches`), quyết định/thông báo (`/decisions`) — liên kết hai chiều với document detail; dashboard lọc search/RAG theo metadata hợp đồng, công văn và quyết định.
 
-Con trỏ tiếp theo: Phase 11 / Mục tiêu 5 — preset module pages, smoke end-to-end và hoàn tất phase.
+Con trỏ tiếp theo: Phase 12 / Mục tiêu 1 — thiết kế anchor/scroll chunk trên document detail.
 
 ## Giới Hạn Còn Lại
 
 Giới hạn còn lại (đồng bộ `ROADMAP.md`):
-- Dashboard/RAG chưa lọc theo metadata dispatch/decision (đang triển khai Phase 11).
-- RAG citation chưa deep-link chunk trên document detail (Phase 12).
+- RAG citation chưa deep-link chunk trên document detail (`#chunk-{id}`) — Phase 12.
 - Chưa có module sổ đề xuất/kế hoạch mua sắm (Phase 13).
 - Chưa có LLM/generator nội bộ nâng cao; RAG hiện extractive từ chunk truy xuất.
 
@@ -2041,3 +2040,27 @@ Kết quả: client + server compile OK qua `docker compose run`; Nitro `EBUSY` 
 - `SemanticSearchFilters` / `SearchResult`: field dispatch/decision + `issuing_agency`; `normalizeSearchPayload()` map `dispatch_status`, `decision_status`, hiệu lực.
 - `dashboard.vue`: filter `issuing_agency`; nhóm công văn (conditional `incoming_dispatch`/`outgoing_dispatch`/tất cả); nhóm quyết định (conditional `decision`/tất cả); hiển thị metadata module trên kết quả; filter hợp đồng giữ nguyên.
 - `RagAnswerPanel` / `useRagAnswer`: dùng chung object `filters` từ dashboard; giữ `ragFilterChangedHint`.
+
+### Mục tiêu 5 — Preset module pages, smoke end-to-end và hoàn tất Phase 11 (2026-06-07)
+
+Kiểm tra bắt buộc:
+
+```bash
+WEB_MEMORY_LIMIT=4g docker compose run --rm --no-deps -e NODE_OPTIONS=--max-old-space-size=3072 web npm run build
+docker compose exec -T api python -m app.scripts.smoke_rag_answer
+docker compose exec -T api python -m app.scripts.smoke_search_module_filters
+git diff --check
+```
+
+Kết quả:
+- `docker compose run ... npm run build`: client + server compile OK; Nitro `EBUSY` trên volume — build pass qua `docker compose build web` + `docker run`.
+- `smoke_rag_answer` pass; `smoke_search_module_filters` pass; `git diff --check` pass.
+
+Đã bổ sung:
+
+- `/dispatches`, `/decisions`: `dashboardSearchLink()` truyền filter module (`dispatch_type`, `dispatch_status`, `business_type`, `decision_kind`, `decision_status`, hiệu lực, `issuing_agency`).
+- `dashboard.vue`: `applyRouteSearchPresets()` đọc route query khi mount; auto search nếu có `q`.
+- `docs/DOMAIN_MODULE_DECISION.md`: mục **Search filter đã triển khai**.
+- `ROADMAP.md` Phase 11 hoàn thành; `TASK_NEXT.md` thay bằng checklist Phase 12.
+
+**Phase 11 hoàn thành ngày 2026-06-07.**

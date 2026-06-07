@@ -623,4 +623,24 @@ Chỉ bản ghi `deleted_at IS NULL`; join `documents` active. Filter rỗng →
 
 ### Search Filter Đã Triển Khai
 
-*(Cập nhật khi hoàn thành Phase 11 mục tiêu 5.)*
+Cập nhật: 2026-06-07 (Phase 11 hoàn thành).
+
+**Backend** (`POST /api/v1/search/semantic`, `POST /api/v1/search/answer`):
+
+- Pre-resolve `document_id` từ `dispatch_records` / `decision_records` (không sửa Qdrant payload).
+- Tham số: `dispatch_type`, `dispatch_status`, `decision_kind`, `decision_status`, `effective_from`, `effective_to`, tái dùng `document_number` / `issuing_agency`.
+- Enrich `SemanticSearchResult`: `dispatch_id`, `dispatch_type`, `dispatch_status`, `decision_id`, `decision_kind`, `decision_status`, `effective_from`, `effective_to`.
+- Smoke: `python -m app.scripts.smoke_search_module_filters`.
+
+**Frontend dashboard**:
+
+- Filter conditional theo `business_type`; RAG dùng chung bộ lọc semantic search.
+- Preset route query khi mount: `q`, `document_number`, `issuing_agency`, `business_type`, `dispatch_type`, `dispatch_status`, `decision_kind`, `decision_status`, `effective_from`, `effective_to`.
+
+**Preset từ module pages** (nút "Search trong văn bản"):
+
+| Trang | Query truyền sang `/dashboard` |
+|-------|--------------------------------|
+| `/dispatches` | `q`, `document_number`, `issuing_agency`, `dispatch_type`, `dispatch_status`, `business_type` (`incoming_dispatch` / `outgoing_dispatch`) |
+| `/decisions` | `q`, `document_number`, `issuing_agency`, `business_type=decision`, `decision_kind`, `decision_status`, `effective_from`, `effective_to` |
+| `/contracts` | `q`, `document_number` (giữ pattern hiện có) |

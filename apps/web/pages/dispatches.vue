@@ -116,6 +116,15 @@ function dashboardSearchLink(item: DispatchItem) {
   const searchQuery = item.excerpt || item.document_number || item.document_title || 'công văn'
   params.set('q', searchQuery)
   if (item.document_number) params.set('document_number', item.document_number)
+  if (item.issuing_agency) params.set('issuing_agency', item.issuing_agency)
+  if (item.dispatch_type) {
+    params.set('dispatch_type', item.dispatch_type)
+    params.set(
+      'business_type',
+      item.dispatch_type === 'incoming' ? 'incoming_dispatch' : 'outgoing_dispatch'
+    )
+  }
+  if (item.status) params.set('dispatch_status', item.status)
   return `/dashboard?${params.toString()}`
 }
 

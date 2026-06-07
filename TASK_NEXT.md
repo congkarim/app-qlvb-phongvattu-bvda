@@ -21,11 +21,11 @@ Lịch sử phase đã hoàn thành, kết quả khảo sát và log kiểm tra 
 
 ## Con Trỏ Hiện Tại
 
-Phase trước: Phase 10 hoàn thành ngày 2026-06-07.
+Phase trước: Phase 11 hoàn thành ngày 2026-06-07.
 
-Phase hiện tại: Phase 11 - Search Filter Metadata Dispatch Và Decision.
+Phase hiện tại: Phase 12 - RAG Citation UX Và Search Enrichment.
 
-Mục tiêu tiếp theo: Phase 11 / Mục Tiêu 5 - Preset Module Pages, Smoke End-to-End Và Hoàn Tất Phase.
+Mục tiêu tiếp theo: Phase 12 / Mục Tiêu 1 - Thiết Kế Anchor/Scroll Chunk Trên Document Detail.
 
 Điều kiện chuyển sang mục tiêu kế tiếp:
 - Mục tiêu hiện tại pass tiêu chí chấp nhận.
@@ -35,42 +35,38 @@ Mục tiêu tiếp theo: Phase 11 / Mục Tiêu 5 - Preset Module Pages, Smoke E
 
 ---
 
-## Phase 11 - Search Filter Metadata Dispatch Và Decision
+## Phase 12 - RAG Citation UX Và Search Enrichment
 
-Trạng thái: đang làm (bắt đầu 2026-06-07).
+Trạng thái: chưa bắt đầu (mở checklist 2026-06-07).
 
-Mục tiêu phase: hoàn thiện semantic search và RAG trên dashboard theo metadata module công văn và quyết định/thông báo, đồng bộ pattern filter hợp đồng (Phase 7).
+Mục tiêu phase: cải thiện truy vết nguồn từ search/RAG tới đúng đoạn văn bản trên document detail; làm giàu UX kết quả tìm kiếm với metadata module.
 
 Điều kiện hoàn thành phase:
-- Dashboard search lọc được theo `dispatch_type` + `dispatch_status` và `decision_kind` + `decision_status` (cùng ít nhất một trong `document_number` / `issuing_agency`).
-- RAG dashboard dùng chung bộ filter; smoke/benchmark tái chạy được trên Docker Compose.
-- Preset search từ `/dispatches` và `/decisions` truyền filter module qua route query.
-- Không regression search/RAG contract filter và upload/OCR/review workflow.
+- Từ dashboard RAG, click citation mở document detail và scroll tới đúng chunk trong ≥1 fixture smoke.
+- Search result có nút/badge metadata module và (tùy chọn) "Mở đoạn" deep link chunk.
+- Regression smoke RAG + semantic search + filter module pass.
 
 Không làm trong phase này:
-- Không sửa Qdrant payload hay re-index chunk.
-- Không LLM/generator; RAG vẫn extractive.
-- Không deep-link citation `#chunk-{id}` (Phase 12).
-- Không module procurement mới.
+- Không LLM local (Ollama, vLLM, v.v.).
+- Không PDF viewer page-level scroll (chỉ chunk list text).
+- Không thay đổi chunking/OCR pipeline.
 
-### Mục Tiêu 1 - Khảo Sát Contract Filter Và Thiết Kế Tham Số Dispatch/Decision
+### Mục Tiêu 1 - Thiết Kế Anchor/Scroll Chunk Trên Document Detail
 
-Trạng thái: hoàn thành (2026-06-07).
+Trạng thái: chưa làm.
 
-Skill bắt buộc: `solution-architect`, `semantic-search-rag`.
+Skill bắt buộc: `frontend-nuxt`, `solution-architect`.
 
 Mục tiêu:
-- Khảo sát pattern contract filter hiện có (`SearchService`, `ContractRepository`, dashboard) và chốt danh sách tham số API/UI cho dispatch và decision trước khi code.
+- Khảo sát chunk list trên `/documents/[id]` và chốt contract anchor `#chunk-{chunk_id}`, highlight và fallback.
 
 Phạm vi:
-- Đọc `SearchService._resolve_contract_document_ids()`, `SemanticSearchRequest`, `RagAnswerService`, `dashboard.vue`, preset search từ `/contracts`.
-- Đề xuất tên field API (dispatch/decision prefix vs tái dùng `document_number` khi `business_type` khớp), quy tắc giao `document_id` khi nhiều nhóm filter module cùng lúc.
-- Ghi khảo sát và quyết định tham số trong `PROJECT_STATUS.md`; cập nhật `docs/DOMAIN_MODULE_DECISION.md` mục thiết kế search filter (draft).
-- Không code backend/frontend trong mục tiêu này.
+- Đọc `documents/[...id].vue`, DOM id chunk card, hash routing Nuxt.
+- Ghi quyết định trong `PROJECT_STATUS.md` (selector, highlight class, timeout scroll).
+- Không code trong mục tiêu này.
 
 Tiêu chí chấp nhận:
-- Có bảng tham số filter dispatch/decision đủ rõ để triển khai repository ở mục tiêu 2.
-- Ghi rõ không sửa Qdrant payload; pre-resolve `document_id` từ PostgreSQL như contract.
+- Có spec đủ rõ để implement mục tiêu 2–3.
 
 Kiểm tra bắt buộc:
 
@@ -78,85 +74,21 @@ Kiểm tra bắt buộc:
 git diff --check
 ```
 
-### Mục Tiêu 2 - Repository `list_document_ids_by_metadata` Dispatch Và Decision
+### Mục Tiêu 2 - Implement `#chunk-{id}` Document Detail + Highlight
 
-Trạng thái: hoàn thành (2026-06-07).
-
-Skill bắt buộc: `backend-fastapi`, `database-designer`.
-
-Mục tiêu:
-- Thêm helper repository mirror `ContractRepository.list_document_ids_by_metadata()` cho `dispatch_records` và `decision_records`.
-
-Phạm vi:
-- `DispatchRepository.list_document_ids_by_metadata()`: filter `dispatch_type`, `document_number`, `issuing_agency`, `status`.
-- `DecisionRepository.list_document_ids_by_metadata()`: filter `decision_kind`, `document_number`, `issuing_agency`, `status`, `effective_from`, `effective_to`.
-- Chỉ query bản ghi active (`deleted_at IS NULL`); trả list `document_id` string.
-
-Tiêu chí chấp nhận:
-- Method hoạt động độc lập; filter rỗng → không giới hạn (caller quyết định).
-- Logic filter khớp list API module tương ứng.
-
-Kiểm tra bắt buộc:
-
-```bash
-PYTHONPYCACHEPREFIX=/tmp/qlvb-pycache PYTHONPATH=apps/api python3 -m py_compile \
-  apps/api/app/repositories/dispatch_repository.py \
-  apps/api/app/repositories/decision_repository.py
-git diff --check
-```
-
-### Mục Tiêu 3 - SearchService, Schema, Router Và Smoke Backend
-
-Trạng thái: hoàn thành (2026-06-07).
-
-Skill bắt buộc: `backend-fastapi`, `semantic-search-rag`, `project-git-manager`.
-
-Mục tiêu:
-- Mở rộng semantic search và RAG answer nhận filter dispatch/decision; enrich kết quả metadata module.
-
-Phạm vi:
-- `SemanticSearchRequest`, `RagAnswerRequest`, `SemanticSearchResult`: thêm field dispatch/decision theo thiết kế mục tiêu 1.
-- `SearchService`: `_resolve_dispatch_document_ids()`, `_resolve_decision_document_ids()`, intersection khi nhiều nhóm filter; `_attach_dispatch_metadata()`, `_attach_decision_metadata()`.
-- Cập nhật `search.py` router và `RagAnswerService` / `SearchBackend` protocol.
-- Smoke script mới hoặc mở rộng benchmark: seed dispatch/decision + assert filter `document_id` đúng; contract filter không regression.
-
-Tiêu chí chấp nhận:
-- `POST /search/semantic` và `POST /search/answer` lọc theo metadata dispatch/decision.
-- Kết quả enrich `dispatch_id` / `decision_id` và trường hiển thị tối thiểu khi có bản ghi active.
-- Smoke backend pass trên Docker Compose.
-
-Kiểm tra bắt buộc:
-
-```bash
-PYTHONPYCACHEPREFIX=/tmp/qlvb-pycache PYTHONPATH=apps/api python3 -m py_compile \
-  apps/api/app/schemas/search.py \
-  apps/api/app/services/search_service.py \
-  apps/api/app/services/rag_answer_service.py \
-  apps/api/app/routers/search.py
-docker compose exec -T api python -m app.scripts.smoke_dispatch_api
-docker compose exec -T api python -m app.scripts.smoke_decision_api
-# smoke search filter dispatch/decision (script mới hoặc benchmark mở rộng)
-git diff --check
-```
-
-### Mục Tiêu 4 - Frontend Dashboard Filter Và RAG
-
-Trạng thái: hoàn thành (2026-06-07).
+Trạng thái: chưa làm.
 
 Skill bắt buộc: `frontend-nuxt`, `project-git-manager`.
 
 Mục tiêu:
-- Dashboard semantic search và RAG panel hỗ trợ filter dispatch/decision; UI có điều kiện theo `business_type`.
+- Document detail scroll tới chunk khi URL có hash `#chunk-{chunk_id}`; highlight ngắn.
 
 Phạm vi:
-- Mở rộng `SemanticSearchFilters`, `RagAnswerFilters`, `normalizeSearchPayload()` trong `search.service.ts`.
-- `dashboard.vue`: nhóm filter dispatch khi `business_type` là `incoming_dispatch`/`outgoing_dispatch`; nhóm decision khi `business_type` là `decision`.
-- `RagAnswerPanel` / `useRagAnswer` truyền filter mới; giữ `ragFilterChangedHint`.
-- Không gọi API trực tiếp trong component.
+- `id="chunk-{id}"` trên chunk card; `onMounted` + watch hash; class ring/border highlight.
+- Không animation phức tạp.
 
 Tiêu chí chấp nhận:
-- User chọn business type dispatch/decision và lọc search/RAG theo metadata module.
-- Contract filter UI vẫn hoạt động như trước.
+- Mở `/documents/{id}#chunk-{chunk_id}` scroll tới đúng chunk trong manual/smoke checklist.
 
 Kiểm tra bắt buộc:
 
@@ -165,32 +97,77 @@ WEB_MEMORY_LIMIT=4g docker compose run --rm --no-deps -e NODE_OPTIONS=--max-old-
 git diff --check
 ```
 
-### Mục Tiêu 5 - Preset Module Pages, Smoke End-to-End Và Hoàn Tất Phase
+### Mục Tiêu 3 - Cập Nhật RAG Citation URL Và Panel
 
-Trạng thái: chưa làm (tiếp theo).
+Trạng thái: chưa làm.
 
 Skill bắt buộc: `frontend-nuxt`, `semantic-search-rag`, `project-git-manager`.
 
 Mục tiêu:
-- Preset search từ `/dispatches` và `/decisions`; hoàn tất Phase 11 và cập nhật tài liệu trạng thái.
+- RAG citation link dạng `/documents/{document_id}#chunk-{chunk_id}`; fallback an toàn khi chunk không còn.
 
 Phạm vi:
-- Nút "Search trong văn bản" trên `/dispatches`, `/decisions` truyền query + filter module qua route dashboard (pattern `/contracts`).
-- `dashboard.vue` đọc route query preset filter dispatch/decision khi mount.
-- Cập nhật `docs/DOMAIN_MODULE_DECISION.md` mục "Search filter đã triển khai".
-- Cập nhật `ROADMAP.md` (Phase 11 hoàn thành), `PROJECT_STATUS.md`, thay `TASK_NEXT.md` bằng checklist Phase 12.
-- Smoke end-to-end: dispatch/decision filter → semantic search + RAG không regression contract.
+- `RagAnswerPanel.vue`; giữ extractive logic backend.
+- Mở rộng `smoke_rag_answer` hoặc checklist: citation URL chứa `chunk_id`.
 
 Tiêu chí chấp nhận:
-- Drill-down từ module page mở dashboard với filter preset đúng.
-- Phase 11 đạt tiêu chí hoàn thành trong `ROADMAP.md`.
+- Click citation từ dashboard RAG mở document detail với hash chunk.
+
+Kiểm tra bắt buộc:
+
+```bash
+docker compose exec -T api python -m app.scripts.smoke_rag_answer
+WEB_MEMORY_LIMIT=4g docker compose run --rm --no-deps -e NODE_OPTIONS=--max-old-space-size=3072 web npm run build
+git diff --check
+```
+
+### Mục Tiêu 4 - Search Result Badges Và Nút "Mở Đoạn"
+
+Trạng thái: chưa làm.
+
+Skill bắt buộc: `frontend-nuxt`, `project-git-manager`.
+
+Mục tiêu:
+- Dashboard search result: badge metadata module và nút "Mở đoạn" deep link chunk.
+
+Phạm vi:
+- `dashboard.vue` kết quả semantic search; tái dùng hash contract mục tiêu 2.
+- Contract/dispatch/decision badge khi có enrich metadata.
+
+Tiêu chí chấp nhận:
+- User click "Mở đoạn" từ search result mở đúng chunk trên document detail.
+
+Kiểm tra bắt buộc:
+
+```bash
+WEB_MEMORY_LIMIT=4g docker compose run --rm --no-deps -e NODE_OPTIONS=--max-old-space-size=3072 web npm run build
+git diff --check
+```
+
+### Mục Tiêu 5 - Tin Chỉnh Extractive Answer, Smoke Và Hoàn Tất Phase
+
+Trạng thái: chưa làm.
+
+Skill bắt buộc: `semantic-search-rag`, `project-git-manager`.
+
+Mục tiêu:
+- (Tùy chọn) cải thiện ghép câu extractive; hoàn tất Phase 12 và cập nhật tài liệu.
+
+Phạm vi:
+- `RagAnswerService._compose_answer` nếu cần tinh chỉnh nhẹ.
+- Smoke/benchmark regression: `smoke_rag_answer`, `smoke_search_module_filters`, `smoke_api_workflows`.
+- Cập nhật `ROADMAP.md`, `PROJECT_STATUS.md`, thay `TASK_NEXT.md` bằng checklist Phase 13.
+
+Tiêu chí chấp nhận:
+- Phase 12 đạt tiêu chí hoàn thành trong `ROADMAP.md`.
 - Auto commit sau khi pass kiểm tra.
 
 Kiểm tra bắt buộc:
 
 ```bash
-WEB_MEMORY_LIMIT=4g docker compose run --rm --no-deps -e NODE_OPTIONS=--max-old-space-size=3072 web npm run build
 docker compose exec -T api python -m app.scripts.smoke_rag_answer
-# smoke/benchmark search filter dispatch/decision
+docker compose exec -T api python -m app.scripts.smoke_search_module_filters
+docker compose exec -T api python -m app.scripts.smoke_api_workflows
+WEB_MEMORY_LIMIT=4g docker compose run --rm --no-deps -e NODE_OPTIONS=--max-old-space-size=3072 web npm run build
 git diff --check
 ```

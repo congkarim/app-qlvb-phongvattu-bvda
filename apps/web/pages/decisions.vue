@@ -119,8 +119,13 @@ function dashboardSearchLink(item: DecisionItem) {
   const params = new URLSearchParams()
   const searchQuery = item.excerpt || item.document_number || item.document_title || 'quyết định'
   params.set('q', searchQuery)
-  if (item.document_number) params.set('document_number', item.document_number)
   params.set('business_type', 'decision')
+  if (item.document_number) params.set('document_number', item.document_number)
+  if (item.issuing_agency) params.set('issuing_agency', item.issuing_agency)
+  if (item.decision_kind) params.set('decision_kind', item.decision_kind)
+  if (item.status) params.set('decision_status', item.status)
+  if (item.effective_from) params.set('effective_from', item.effective_from)
+  if (item.effective_to) params.set('effective_to', item.effective_to)
   return `/dashboard?${params.toString()}`
 }
 

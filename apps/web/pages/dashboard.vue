@@ -307,6 +307,44 @@ function normalizeReviewQueueFilters(): ReviewQueueFilters {
   }
 }
 
+function routeQueryValue(key: string) {
+  const value = route.query[key]
+  return typeof value === 'string' ? value.trim() : ''
+}
+
+function applyRouteSearchPresets() {
+  const presetBusinessType = routeQueryValue('business_type')
+  const presetIssuingAgency = routeQueryValue('issuing_agency')
+  const presetDispatchType = routeQueryValue('dispatch_type')
+  const presetDispatchStatus = routeQueryValue('dispatch_status')
+  const presetDecisionKind = routeQueryValue('decision_kind')
+  const presetDecisionStatus = routeQueryValue('decision_status')
+  const presetEffectiveFrom = routeQueryValue('effective_from')
+  const presetEffectiveTo = routeQueryValue('effective_to')
+
+  if (presetBusinessType) filters.business_type = presetBusinessType
+  if (routeQueryValue('document_number')) filters.document_number = routeQueryValue('document_number')
+  if (presetIssuingAgency) filters.issuing_agency = presetIssuingAgency
+  if (routeQueryValue('contract_number')) filters.contract_number = routeQueryValue('contract_number')
+  if (routeQueryValue('supplier_name')) filters.supplier_name = routeQueryValue('supplier_name')
+  if (presetDispatchType === 'incoming' || presetDispatchType === 'outgoing') {
+    filters.dispatch_type = presetDispatchType
+  }
+  if (dispatchStatusOptions.some((option) => option.value && option.value === presetDispatchStatus)) {
+    filters.dispatch_status = presetDispatchStatus as DispatchStatus
+  }
+  if (presetDecisionKind === 'decision' || presetDecisionKind === 'notification') {
+    filters.decision_kind = presetDecisionKind
+  }
+  if (decisionStatusOptions.some((option) => option.value && option.value === presetDecisionStatus)) {
+    filters.decision_status = presetDecisionStatus as DecisionStatus
+  }
+  if (presetEffectiveFrom) filters.effective_from = presetEffectiveFrom
+  if (presetEffectiveTo) filters.effective_to = presetEffectiveTo
+
+  return routeQueryValue('q')
+}
+
 watch(
   () => ({ ...filters }),
   () => {
@@ -319,17 +357,11 @@ watch(
 
 onMounted(async () => {
   await fetchCatalogOptions()
-  const presetQuery = typeof route.query.q === 'string' ? route.query.q : ''
-  const presetDocumentNumber = typeof route.query.document_number === 'string' ? route.query.document_number : ''
-  const presetContractNumber = typeof route.query.contract_number === 'string' ? route.query.contract_number : ''
-  const presetSupplierName = typeof route.query.supplier_name === 'string' ? route.query.supplier_name : ''
-  if (presetDocumentNumber) filters.document_number = presetDocumentNumber
-  if (presetContractNumber) filters.contract_number = presetContractNumber
-  if (presetSupplierName) filters.supplier_name = presetSupplierName
+  const presetQuery = applyRouteSearchPresets()
   if (isAdmin.value) {
     await submitReviewQueue()
   }
-  if (presetQuery.trim()) {
+  if (presetQuery) {
     query.value = presetQuery
     await submitSearch()
   }
