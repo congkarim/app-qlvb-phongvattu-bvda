@@ -10,7 +10,7 @@ Cập nhật lần cuối: 2026-06-07
 
 Hệ thống chạy on-prem bằng Docker Compose (`api`, `worker`, `web`, `postgres`, `redis`, `qdrant`). Workflow web end-to-end: upload → OCR/extract → searchable → semantic search → RAG Q&A (extractive) → review chunk → audit. Module nghiệp vụ MVP: hợp đồng, công văn, quyết định, mua sắm — liên kết document detail; gợi ý liên kết document rule-based (Phase 16).
 
-Con trỏ tiếp theo: Phase 17 / Mục tiêu 1 — thiết kế generative RAG, prompt và env contract (`TASK_NEXT.md`).
+Con trỏ tiếp theo: Phase 17 / Mục tiêu 2 — `LocalLLMService` và settings (`TASK_NEXT.md`).
 
 ## Giới Hạn Còn Lại
 
@@ -2765,3 +2765,29 @@ Kết quả: tất cả smoke API pass; web client + SSR compile pass; `git diff
 
 - Tiêu chí hoàn thành Phase 16 trong `ROADMAP.md` đạt.
 - Phase 16 đóng; `ROADMAP.md` và `TASK_NEXT.md` cập nhật (Phase 17 chưa lập checklist).
+
+## Phase 17 — RAG Generative Local LLM (Ollama On-Prem)
+
+Trạng thái: đang làm (bắt đầu 2026-06-07).
+
+### Mục tiêu 1 — Thiết kế generative RAG, prompt và env contract (2026-06-07)
+
+**Khảo sát mã nguồn**
+
+- `RagAnswerService`: retrieval qua `SearchService`, evidence filter `min_score` + query overlap; extractive `_compose_answer()` nối top 2 quote; `fallback_reason=insufficient_evidence` khi thiếu căn cứ.
+- Schema `RagAnswerResponse`: `query`, `answer`, `grounded`, `confidence`, `fallback_reason`, `citations[]`; `RagCitation` có `chunk_id`, metadata document/chunk — chưa có `generation_mode`.
+- Router `POST /search/answer` thin — delegate `RagAnswerService(db).answer()`.
+- Frontend: `useRagAnswer`, `RagAnswerPanel` — xử lý `insufficient_evidence`; chưa có UI `llm_unavailable` / generative badge.
+- `/health/ready`: postgres/redis/qdrant/uploads — không có hook LLM (phù hợp thiết kế).
+
+**Kết quả thiết kế**
+
+- Ghi mục **RAG Generative (Phase 17)** trong `docs/DOMAIN_MODULE_DECISION.md`: Ollama, luồng retrieval → context → LLM → validator → fallback; prompt system/user; `CitationValidator`; env contract; default `extractive`; worker không gọi LLM.
+
+**Kiểm tra**
+
+```bash
+git diff --check
+```
+
+Kết quả: pass.

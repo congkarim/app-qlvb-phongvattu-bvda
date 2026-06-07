@@ -1487,3 +1487,176 @@ Mirror `smoke_document_relations`:
 - Backend: `DocumentRelationSuggestionService`, `GET /api/v1/documents/{document_id}/relation-suggestions`, shared `normalize_document_number`.
 - Frontend: subsection **Gợi ý liên kết** trong `DocumentRelationsCard`, apply/dismiss UX, refresh relations sau POST.
 - Smoke: `smoke_relation_suggestions` (e2e CV→QĐ), `smoke_document_relation_suggestions_repo` (repo-level).
+
+---
+
+## RAG Generative — Local LLM (Phase 17)
+
+Trạng thái: thiết kế (mục tiêu 1 hoàn thành 2026-06-07). Triển khai code từ mục tiêu 2.
+
+### Vấn Đề
+
+Phase 3/9/12 đã có RAG **extractive**: `RagAnswerService._compose_answer()` nối quote từ top 1–2 citation — đủ MVP, không tổng hợp đa chunk bằng ngôn ngữ tự nhiên. User hỏi câu phức tạp (so sánh điều khoản, tóm tắt nghĩa vụ) cần câu trả lời **generative** nhưng vẫn phải truy vết nguồn chunk (citation bắt buộc, on-prem, không cloud).
+
+### Quyết Định MVP
+
+| Hạng mục | Quyết định |
+|----------|------------|
+| LLM runtime | **Ollama** — HTTP `/api/chat` (OpenAI-compatible messages) |
+| Generation backend | `RAG_GENERATION_BACKEND=extractive \| ollama` — **mặc định `extractive`** |
+| Retrieval | Giữ nguyên `SearchService.semantic_search` + filter metadata module — **không** re-index Qdrant |
+| Endpoint | Một endpoint `POST /api/v1/search/answer` — thêm field response, không tách route mới |
+| Citation | Bắt buộc; post-validate trước khi trả `grounded=true` + `generation_mode=generative` |
+| Fallback | LLM down/timeout/validation fail → **extractive path hiện tại** (identical Phase 12) |
+| Readiness | `/health/ready` **không** kiểm tra Ollama — API vẫn ready khi LLM degraded |
+| Worker OCR | **Không** gọi LLM — generation sync trên request RAG only |
+| vLLM / cloud | **Không** trong MVP |
+
+### Luồng Xử Lý
+
+```text
+POST /search/answer (RagAnswerRequest — giữ nguyên)
+  -> SearchService.semantic_search(query, filters, limit)
+  -> evidence = filter min_score + query overlap (logic hiện tại)
+  -> nếu evidence rỗng hoặc insufficient_evidence:
+       return extractive fallback (fallback_reason=insufficient_evidence)
+  -> nếu RAG_GENERATION_BACKEND != ollama:
+       return extractive path (_compose_answer) — generation_mode=extractive
+  -> LocalLLMService.is_available() == false:
+       return extractive path — generation_mode=extractive, fallback_reason=llm_unavailable
+  -> RagContextBuilder.build(evidence) -> numbered context blocks [1]..[n]
+  -> LocalLLMService.generate(system, user) — timeout RAG_LLM_TIMEOUT_SECONDS
+  -> CitationValidator.validate(raw_answer, evidence, markers [n])
+  -> nếu validation fail:
+       return extractive path — fallback_reason=validation_failed
+  -> map markers -> RagCitation[] (chunk_id, quote từ evidence, metadata giữ nguyên)
+  -> return { answer, grounded=true, generation_mode=generative, citations, model_name, latency_ms }
+```
+
+**Nguyên tắc:** nhánh extractive fallback phải tái sử dụng code `_compose_answer` / `_citation` hiện có — không duplicate logic evidence.
+
+### Schema Response (Mở Rộng)
+
+Giữ backward compatible — field mới **optional** (Pydantic + frontend TypeScript):
+
+| Field | Type | Mặc định | Ghi chú |
+|-------|------|----------|---------|
+| `generation_mode` | `extractive \| generative` | `extractive` | Client hiển thị badge dashboard |
+| `model_name` | `str \| null` | `null` | Chỉ khi generative thành công |
+| `latency_ms` | `int \| null` | `null` | Thời gian gọi Ollama |
+| `fallback_reason` | mở rộng | — | Thêm `llm_unavailable`, `validation_failed`; giữ `insufficient_evidence` |
+
+`RagCitation` **không đổi** — deep-link `#chunk-{id}` Phase 12 vẫn dùng được.
+
+### RagContextBuilder (Mục Tiêu 4)
+
+Format mỗi block context (tiếng Việt, numbered `[1]`..`[n]`):
+
+```text
+[1] chunk_id=<uuid> | <title> | Số: <document_number> | Trang <page_from>-<page_to> | <section_path joined>
+<text snippet — cắt tối đa ~600 ký tự/chunk, ưu tiên câu có overlap query>
+```
+
+- `n` = `min(len(evidence), max_citations)` — tối đa 8 theo request.
+- Tổng context ≤ `RAG_LLM_MAX_CONTEXT_CHARS` — cắt từ chunk score thấp nếu vượt.
+- Không đưa chunk `requires_review=true` vào context **trừ khi** không còn evidence khác (giữ parity search filter hiện tại).
+
+### Prompt MVP
+
+**System message (tiếng Việt):**
+
+```text
+Bạn là trợ lý tra cứu văn bản hành chính tiếng Việt. Chỉ trả lời dựa trên các đoạn [1]..[n] được cung cấp.
+- Không bịa số văn bản, điều khoản hoặc nội dung không có trong context.
+- Mỗi ý quan trọng phải kèm tham chiếu [số] tương ứng đoạn nguồn.
+- Nếu context không đủ trả lời, trả lời ngắn: "Không đủ căn cứ trong các đoạn đã cung cấp." và không thêm thông tin ngoài context.
+- Trả lời súc tích, tiếng Việt chuẩn hành chính.
+```
+
+**User message:**
+
+```text
+Câu hỏi: {query}
+
+Các đoạn tham chiếu:
+{numbered_context_blocks}
+
+Trả lời câu hỏi và trích [n] cho mỗi ý dựa trên đoạn tương ứng.
+```
+
+**Generation params:** `temperature=RAG_LLM_TEMPERATURE` (mặc định 0.1), `num_predict=RAG_LLM_MAX_OUTPUT_TOKENS`.
+
+### CitationValidator
+
+Validation **bắt buộc** trước khi chấp nhận generative:
+
+1. **Marker parse:** regex `\[\d+\]` trong `raw_answer`; mỗi index `n` phải ∈ `1..len(evidence)`.
+2. **Non-empty markers:** nếu `grounded` generative yêu cầu ≥1 marker hợp lệ (trừ câu “Không đủ căn cứ…” → `grounded=false`, fallback extractive hoặc insufficient).
+3. **Quote mapping:** `citations[i].quote` lấy từ evidence chunk tương ứng (không tin quote LLM tự viết) — giống extractive `_quote()`.
+4. **chunk_id whitelist:** mọi `chunk_id` trong response phải thuộc retrieval set của request.
+5. **Fail validation** → fallback extractive, `fallback_reason=validation_failed`, log warning (không 500).
+
+### Fallback Reason Contract
+
+| `fallback_reason` | Điều kiện | `generation_mode` | `grounded` |
+|-------------------|-----------|-------------------|------------|
+| `null` | Extractive hoặc generative thành công | tương ứng | true/false theo logic hiện tại |
+| `insufficient_evidence` | Không đủ overlap/score (logic hiện tại) | `extractive` | false |
+| `llm_unavailable` | Ollama unreachable, timeout, model chưa load | `extractive` | theo extractive |
+| `validation_failed` | LLM trả lời nhưng fail CitationValidator | `extractive` | theo extractive |
+
+Frontend (`RagAnswerPanel`): hiển thị hint riêng cho `llm_unavailable` / `validation_failed` (mục tiêu 6).
+
+### Hợp Đồng Env
+
+| Biến | Mặc định dev | Ghi chú |
+|------|--------------|---------|
+| `RAG_GENERATION_BACKEND` | `extractive` | `ollama` khi bật profile `llm` |
+| `OLLAMA_BASE_URL` | `http://ollama:11434` | Remote host prod: `http://llm-host:11434` |
+| `RAG_LLM_MODEL` | `qwen2.5:3b-instruct` | Prod khuyến nghị `qwen2.5:7b-instruct` |
+| `RAG_LLM_TIMEOUT_SECONDS` | `120` | Dev CPU; prod GPU ~90 |
+| `RAG_LLM_MAX_CONTEXT_CHARS` | `8000` | Prod có thể 12000 |
+| `RAG_LLM_MAX_OUTPUT_TOKENS` | `512` | Prod có thể 768 |
+| `RAG_LLM_TEMPERATURE` | `0.1` | Thấp để giảm hallucination |
+| `OLLAMA_CPU_LIMIT` | `2` | Compose limit |
+| `OLLAMA_MEMORY_LIMIT` | `6G` | Dev 3B; prod CPU 10G |
+
+Settings Pydantic (mục tiêu 2): mirror naming `embedding_backend` → `rag_generation_backend`, snake_case, đọc từ `.env`.
+
+### LocalLLMService (Mục Tiêu 2 — Interface)
+
+```python
+class LocalLLMService:
+    def is_available(self) -> bool: ...  # GET {OLLAMA_BASE_URL}/api/tags hoặc /api/version, timeout ngắn
+    def generate(self, *, system: str, user: str) -> GenerateResult: ...  # text, model, latency_ms
+```
+
+- HTTP client `urllib` hoặc `httpx` nếu đã có dependency — **không** thêm SDK cloud.
+- Timeout cứng = `RAG_LLM_TIMEOUT_SECONDS`.
+- Exception → caller (`RagAnswerService`) catch → fallback, không propagate 500.
+
+### Ops / Health (Mục Tiêu 5)
+
+- `/health/ready`: postgres, redis, qdrant, uploads — **không** ollama.
+- `/ops/system-status`: component `llm` — `ok` / `degraded` / `unavailable`; metadata `backend`, `model`, `reachable`, `generation_backend` setting.
+
+### Phân Biệt Extractive vs Generative
+
+| | Extractive (Phase 12) | Generative (Phase 17) |
+|--|----------------------|------------------------|
+| Answer | `"Dựa trên các đoạn đã truy xuất: " + quote nối` | LLM tổng hợp + markers `[n]` |
+| Phụ thuộc Ollama | Không | Có (optional) |
+| Smoke mặc định | `smoke_rag_answer` | `smoke_rag_generative` (profile `llm`) |
+| CI default | Pass không Ollama | Generative smoke optional / nightly |
+
+### Hướng Dẫn Cho Mục Tiêu Tiếp Theo (Phase 17)
+
+**Mục tiêu 2** `LocalLLMService` + settings `config.py`.
+
+**Mục tiêu 3** Docker Compose service `ollama`, profile `llm`, volume `ollama_data`.
+
+**Mục tiêu 4** `RagContextBuilder`, `CitationValidator`, mở rộng `RagAnswerService`.
+
+**Mục tiêu 5** schema `generation_mode`, ops LLM status.
+
+**Mục tiêu 6–8** frontend, runbook, smoke + đóng phase.

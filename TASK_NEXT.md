@@ -25,7 +25,7 @@ Phase trước: Phase 16 hoàn thành ngày 2026-06-07.
 
 Phase hiện tại: Phase 17 - RAG Generative Local LLM (Ollama On-Prem).
 
-Mục tiêu tiếp theo: Phase 17 / Mục Tiêu 1 - Thiết Kế Generative RAG, Prompt Và Env Contract.
+Mục tiêu tiếp theo: Phase 17 / Mục Tiêu 2 - LocalLLMService Và Settings.
 
 Điều kiện chuyển sang mục tiêu kế tiếp:
 - Mục tiêu hiện tại pass tiêu chí chấp nhận.
@@ -63,7 +63,7 @@ Sizing tham chiếu (`ROADMAP.md`):
 
 ### Mục Tiêu 1 - Thiết Kế Generative RAG, Prompt Và Env Contract
 
-Trạng thái: chưa làm (tiếp theo).
+Trạng thái: hoàn thành (2026-06-07).
 
 Skill bắt buộc: `solution-architect`, `semantic-search-rag`.
 
@@ -89,7 +89,7 @@ git diff --check
 
 ### Mục Tiêu 2 - LocalLLMService Và Settings
 
-Trạng thái: chưa làm.
+Trạng thái: chưa làm (tiếp theo).
 
 Skill bắt buộc: `backend-fastapi`, `semantic-search-rag`.
 
