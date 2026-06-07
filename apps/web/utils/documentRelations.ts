@@ -1,4 +1,4 @@
-import type { ConfidenceTier, RelationType } from '~/types/document-relation'
+import type { ConfidenceTier, RelationSuggestion, RelationType } from '~/types/document-relation'
 
 export const RELATION_TYPE_OPTIONS: Array<{ label: string; value: RelationType }> = [
   { label: 'Tham chiếu / căn cứ', value: 'references' },
@@ -49,4 +49,10 @@ export function relationSuggestionCardClass(tier: ConfidenceTier): string {
   return tier === 'high'
     ? 'border-sky-300 bg-sky-50'
     : 'border-amber-300 bg-amber-50'
+}
+
+export function buildRelationSuggestionKey(
+  suggestion: Pick<RelationSuggestion, 'target_document_id' | 'relation_type'>
+): string {
+  return `${suggestion.target_document_id}:${suggestion.relation_type}`
 }

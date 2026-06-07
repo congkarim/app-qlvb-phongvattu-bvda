@@ -5,7 +5,8 @@ import type { DispatchStatus, DispatchType } from '~/types/dispatch'
 import type { ProcurementKind, ProcurementStatus } from '~/types/procurement'
 import type { DocumentChunk, DocumentMetadataUpdateInput } from '~/types/document'
 import type { TargetModule } from '~/types/onboarding'
-import type { RelationType } from '~/types/document-relation'
+import type { RelationSuggestion, RelationType } from '~/types/document-relation'
+import { buildRelationSuggestionKey } from '~/utils/documentRelations'
 import { formatDate, formatDateTime, formatFileSize } from '~/utils/format'
 import { buildModuleCreateLink } from '~/utils/moduleOnboarding'
 
@@ -83,11 +84,14 @@ const {
   clearRelations
 } = useDocumentRelations()
 const {
-  suggestions: relationSuggestions,
+  visibleSuggestions: relationSuggestions,
   loading: relationSuggestionsLoading,
   fetchRelationSuggestions,
+  dismissSuggestion: dismissRelationSuggestion,
+  clearDismissedSuggestions,
   clearRelationSuggestions
 } = useDocumentRelationSuggestions()
+const applyingRelationSuggestionKey = ref('')
 let pollTimer: ReturnType<typeof setInterval> | undefined
 const applyingBusinessType = ref(false)
 const reprocessReason = ref('')
@@ -359,6 +363,23 @@ async function submitCreateDocumentRelation(payload: {
   notes?: string
 }) {
   await createRelation(documentId.value, payload)
+}
+
+async function submitApplyRelationSuggestion(suggestion: RelationSuggestion) {
+  applyingRelationSuggestionKey.value = buildRelationSuggestionKey(suggestion)
+  const success = await createRelation(documentId.value, {
+    target_document_id: suggestion.target_document_id,
+    relation_type: suggestion.relation_type
+  })
+  applyingRelationSuggestionKey.value = ''
+  if (success) {
+    dismissRelationSuggestion(suggestion)
+    await refreshRelationSuggestions()
+  }
+}
+
+function submitDismissRelationSuggestion(suggestion: RelationSuggestion) {
+  dismissRelationSuggestion(suggestion)
 }
 
 async function submitDeleteDocumentRelation(relationId: string) {
@@ -650,6 +671,7 @@ onMounted(async () => {
 })
 
 watch(documentId, async (value) => {
+  clearDismissedSuggestions()
   await Promise.all([
     fetchDocument(value),
     fetchContractByDocumentId(value),
@@ -733,7 +755,10 @@ onBeforeUnmount(() => {
         :target-search-loading="targetSearchLoading"
         :relation-suggestions="relationSuggestions"
         :relation-suggestions-loading="relationSuggestionsLoading"
+        :applying-suggestion-key="applyingRelationSuggestionKey"
         @create="submitCreateDocumentRelation"
+        @apply-suggestion="submitApplyRelationSuggestion"
+        @dismiss-suggestion="submitDismissRelationSuggestion"
         @delete="submitDeleteDocumentRelation"
         @search-targets="submitSearchRelationTargets"
       />

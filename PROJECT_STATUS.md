@@ -10,12 +10,12 @@ Cập nhật lần cuối: 2026-06-07
 
 Hệ thống chạy on-prem bằng Docker Compose (`api`, `worker`, `web`, `postgres`, `redis`, `qdrant`). Workflow web end-to-end: upload → OCR/extract → searchable → semantic search → RAG Q&A → review chunk → audit. Module nghiệp vụ MVP: hợp đồng (`/contracts`), công văn (`/dispatches`), quyết định/thông báo (`/decisions`), mua sắm (`/procurements`) — liên kết hai chiều với document detail; dashboard lọc search/RAG theo metadata hợp đồng, công văn, quyết định và mua sắm. RAG citation và search result deep-link tới `#chunk-{id}` trên document detail. Onboarding metadata module: gợi ý sau OCR, banner document detail, filter list thiếu metadata module. Liên kết chéo document: card **Văn bản liên quan** trên document detail, filter/badge trên list documents.
 
-Con trỏ tiếp theo: Phase 16 / Mục tiêu 5 — apply/dismiss gợi ý liên kết (`TASK_NEXT.md`).
+Con trỏ tiếp theo: Phase 16 / Mục tiêu 6 — smoke end-to-end và đóng phase (`TASK_NEXT.md`).
 
 ## Giới Hạn Còn Lại
 
 Giới hạn còn lại (đồng bộ `ROADMAP.md`):
-- Gợi ý liên kết document rule-based đang triển khai Phase 16 (đã có service + API + hiển thị gợi ý; chưa có apply/dismiss).
+- Gợi ý liên kết document rule-based đang triển khai Phase 16 (apply/dismiss UX xong; chưa smoke e2e đóng phase).
 - Chưa có LLM/generator nội bộ nâng cao; RAG hiện extractive từ chunk truy xuất.
 - Inventory/tồn kho, workflow phê duyệt nhiều bước, line items procurement: ngoài scope MVP hiện tại.
 
@@ -2716,6 +2716,23 @@ Kết quả: py_compile pass; regression `smoke_document_relations` pass; `git d
 - `document-relation.service.getRelationSuggestions()`; composable `useDocumentRelationSuggestions`.
 - Subsection **Gợi ý liên kết** trong `DocumentRelationsCard`: nhãn quan hệ, document đích, trích đoạn chunk; style `high` (sky) vs `review` (amber + badge).
 - Document detail load gợi ý khi `searchable`; form thêm liên kết thủ công giữ nguyên.
+
+**Kiểm tra**
+
+```bash
+WEB_MEMORY_LIMIT=4g docker compose run --rm --no-deps -e NODE_OPTIONS=--max-old-space-size=3072 web npm run build
+git diff --check
+```
+
+Kết quả: client + SSR compile pass; Nitro `EBUSY rmdir .output` do bind mount Docker; `git diff --check` pass.
+
+### Mục tiêu 5 — Apply/dismiss UX và refresh relations (2026-06-07)
+
+**Triển khai**
+
+- Nút **Tạo liên kết** trên mỗi gợi ý → `createRelation` (POST relations); sau thành công refresh relations + gợi ý, ẩn gợi ý đã dùng.
+- Nút **Bỏ qua** → dismiss client-side (`Set` key `target_document_id:relation_type`); không gọi API.
+- Lỗi 409 hiển thị qua `relationsError` (“Liên kết này đã tồn tại”).
 
 **Kiểm tra**
 

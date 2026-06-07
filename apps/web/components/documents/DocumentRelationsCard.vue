@@ -3,6 +3,7 @@ import type { DocumentRelationsResponse, RelationSuggestion, RelationType } from
 import { formatDateTime } from '~/utils/format'
 import {
   RELATION_TYPE_OPTIONS,
+  buildRelationSuggestionKey,
   documentRelationLink,
   formatConfidenceTierLabel,
   formatIncomingRelationType,
@@ -27,10 +28,13 @@ const props = defineProps<{
   targetSearchLoading?: boolean
   relationSuggestions?: RelationSuggestion[]
   relationSuggestionsLoading?: boolean
+  applyingSuggestionKey?: string
 }>()
 
 const emit = defineEmits<{
   create: [{ target_document_id: string; relation_type: RelationType; notes?: string }]
+  applySuggestion: [RelationSuggestion]
+  dismissSuggestion: [RelationSuggestion]
   delete: [relationId: string]
   searchTargets: [query: string]
 }>()
@@ -78,6 +82,20 @@ function submitDelete(relationId: string, label: string) {
   const confirmed = window.confirm(`Xóa liên kết "${label}"?`)
   if (!confirmed) return
   emit('delete', relationId)
+}
+
+function submitApplySuggestion(item: RelationSuggestion) {
+  if (props.saving || props.applyingSuggestionKey) return
+  emit('applySuggestion', item)
+}
+
+function submitDismissSuggestion(item: RelationSuggestion) {
+  if (props.saving || props.applyingSuggestionKey) return
+  emit('dismissSuggestion', item)
+}
+
+function isApplyingSuggestion(item: RelationSuggestion): boolean {
+  return props.applyingSuggestionKey === buildRelationSuggestionKey(item)
 }
 
 watch(
@@ -143,6 +161,25 @@ watch(
             <p class="mt-1 text-xs text-slate-500">
               Tham chiếu: {{ item.matched_reference }}
             </p>
+            <div class="mt-3 flex flex-wrap gap-2">
+              <Button
+                label="Tạo liên kết"
+                icon="pi pi-link"
+                size="small"
+                :loading="isApplyingSuggestion(item)"
+                :disabled="Boolean(saving || applyingSuggestionKey)"
+                @click="submitApplySuggestion(item)"
+              />
+              <Button
+                label="Bỏ qua"
+                icon="pi pi-times"
+                size="small"
+                severity="secondary"
+                text
+                :disabled="Boolean(saving || applyingSuggestionKey)"
+                @click="submitDismissSuggestion(item)"
+              />
+            </div>
           </article>
         </div>
       </section>

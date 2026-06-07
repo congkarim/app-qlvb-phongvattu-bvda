@@ -25,7 +25,7 @@ Phase trước: Phase 15 hoàn thành ngày 2026-06-07.
 
 Phase hiện tại: Phase 16 - Gợi Ý Liên Kết Document Từ Nội Dung (Rule-Based).
 
-Mục tiêu tiếp theo: Phase 16 / Mục Tiêu 5 - Apply / Dismiss UX Và Refresh Relations.
+Mục tiêu tiếp theo: Phase 16 / Mục Tiêu 6 - Smoke End-to-End, Regression Và Hoàn Tất Phase.
 
 Điều kiện chuyển sang mục tiêu kế tiếp:
 - Mục tiêu hiện tại pass tiêu chí chấp nhận.
@@ -162,7 +162,7 @@ git diff --check
 
 ### Mục Tiêu 5 - Apply / Dismiss UX Và Refresh Relations
 
-Trạng thái: chưa làm (tiếp theo).
+Trạng thái: hoàn thành (2026-06-07).
 
 Skill bắt buộc: `frontend-nuxt`, `project-git-manager`.
 
@@ -187,7 +187,7 @@ git diff --check
 
 ### Mục Tiêu 6 - Smoke End-to-End, Regression Và Hoàn Tất Phase
 
-Trạng thái: chưa làm.
+Trạng thái: chưa làm (tiếp theo).
 
 Skill bắt buộc: `backend-fastapi`, `frontend-nuxt`, `project-git-manager`.
 
