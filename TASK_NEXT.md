@@ -25,7 +25,7 @@ Phase trước: Phase 12 hoàn thành ngày 2026-06-07.
 
 Phase hiện tại: Phase 13 - Module Đề Xuất / Kế Hoạch Mua Sắm MVP.
 
-Mục tiêu tiếp theo: Phase 13 / Mục Tiêu 3 - API CRUD Và Smoke Backend.
+Mục tiêu tiếp theo: Phase 13 / Mục Tiêu 4 - Frontend /procurements.
 
 Điều kiện chuyển sang mục tiêu kế tiếp:
 - Mục tiêu hiện tại pass tiêu chí chấp nhận.
@@ -100,7 +100,7 @@ git diff --check
 
 ### Mục Tiêu 3 - API CRUD Và Smoke Backend
 
-Trạng thái: chưa làm (tiếp theo).
+Trạng thái: hoàn thành (2026-06-07).
 
 Skill bắt buộc: `backend-fastapi`, `project-git-manager`.
 

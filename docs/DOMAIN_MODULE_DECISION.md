@@ -835,7 +835,7 @@ Migration `0015_procurement_records` (kèm seed catalog `business_type=procureme
 - `Document.procurement_record` — `uselist=False`, tương tự `contract_record` / `dispatch_record` / `decision_record`.
 - `ProcurementRecord.document` — `relationship` back_populates.
 
-## API Dự Kiến (Mục Tiêu 3)
+## API Đã Triển Khai (Mục Tiêu 3)
 
 | Method | Path | Mô tả |
 |--------|------|--------|

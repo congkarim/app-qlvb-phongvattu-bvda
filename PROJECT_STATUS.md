@@ -8,12 +8,12 @@ Cập nhật lần cuối: 2026-06-07
 
 Hệ thống chạy on-prem bằng Docker Compose (`api`, `worker`, `web`, `postgres`, `redis`, `qdrant`). Workflow web end-to-end: upload → OCR/extract → searchable → semantic search → RAG Q&A → review chunk → audit. Module nghiệp vụ MVP: hợp đồng (`/contracts`), công văn (`/dispatches`), quyết định/thông báo (`/decisions`) — liên kết hai chiều với document detail; dashboard lọc search/RAG theo metadata hợp đồng, công văn và quyết định. RAG citation và search result deep-link tới `#chunk-{id}` trên document detail.
 
-Con trỏ tiếp theo: Phase 13 / Mục tiêu 3 — API CRUD và smoke backend procurement.
+Con trỏ tiếp theo: Phase 13 / Mục tiêu 4 — frontend `/procurements`.
 
 ## Giới Hạn Còn Lại
 
 Giới hạn còn lại (đồng bộ `ROADMAP.md`):
-- Schema `procurement_records` đã có; chưa có API/UI `/procurements` — Phase 13 mục tiêu 3–5.
+- API `/procurements` đã có; chưa có UI `/procurements` — Phase 13 mục tiêu 4–5.
 - Chưa có LLM/generator nội bộ nâng cao; RAG hiện extractive từ chunk truy xuất.
 
 ## Đã Xây Dựng
@@ -2299,3 +2299,21 @@ Kết quả: `alembic current` = `0015_procurement_records (head)`; `git diff --
 - Migration `0015_procurement_records`: bảng `procurement_records` với cột theo thiết kế mục tiêu 1; partial unique `ux_procurement_records_document_active`; index filter `procurement_kind`, `reference_number`, `requesting_unit`, `status`, `requested_date`.
 - Seed catalog `business_type=procurement` (nhãn "Đề xuất / kế hoạch mua sắm", `sort_order=50`).
 - Model `ProcurementRecord` tại `apps/api/app/models/procurement.py`; quan hệ `Document.procurement_record` 1-1.
+
+### Mục tiêu 3 — API CRUD và smoke backend procurement (2026-06-07)
+
+Kiểm tra bắt buộc:
+
+```bash
+docker compose exec -T api python -m app.scripts.smoke_procurement_api
+git diff --check
+```
+
+Kết quả: smoke procurement API pass (create/list/filter/update/soft-delete, audit, 403 user delete); `git diff --check` pass.
+
+**Đã triển khai**
+
+- `ProcurementRepository`, `ProcurementService`, router `/api/v1/procurements` + `by-document/{document_id}`.
+- Schemas `procurement.py`; audit `procurement.created|updated|deleted`; RBAC giống module trước.
+- `list_document_ids_by_metadata` sẵn sàng cho search filter mục tiêu 6.
+- Smoke: `python -m app.scripts.smoke_procurement_api`.
