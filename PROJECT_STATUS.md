@@ -4,19 +4,18 @@ Cập nhật lần cuối: 2026-06-07
 
 ## Giai Đoạn Hiện Tại
 
-**Phase 0–15 đã hoàn thành.** Phase 15 đóng ngày 2026-06-07.
+**Phase 0–16 đã hoàn thành.** Phase 16 đóng ngày 2026-06-07.
 
-**Phase 16 đang làm** (bắt đầu 2026-06-07): gợi ý liên kết document từ nội dung OCR/chunk (rule-based, user xác nhận).
+**Phase 17 chưa mở** (dự kiến RAG local LLM — xem `ROADMAP.md`).
 
-Hệ thống chạy on-prem bằng Docker Compose (`api`, `worker`, `web`, `postgres`, `redis`, `qdrant`). Workflow web end-to-end: upload → OCR/extract → searchable → semantic search → RAG Q&A → review chunk → audit. Module nghiệp vụ MVP: hợp đồng (`/contracts`), công văn (`/dispatches`), quyết định/thông báo (`/decisions`), mua sắm (`/procurements`) — liên kết hai chiều với document detail; dashboard lọc search/RAG theo metadata hợp đồng, công văn, quyết định và mua sắm. RAG citation và search result deep-link tới `#chunk-{id}` trên document detail. Onboarding metadata module: gợi ý sau OCR, banner document detail, filter list thiếu metadata module. Liên kết chéo document: card **Văn bản liên quan** trên document detail, filter/badge trên list documents.
+Hệ thống chạy on-prem bằng Docker Compose (`api`, `worker`, `web`, `postgres`, `redis`, `qdrant`). Workflow web end-to-end: upload → OCR/extract → searchable → semantic search → RAG Q&A → review chunk → audit. Module nghiệp vụ MVP: hợp đồng (`/contracts`), công văn (`/dispatches`), quyết định/thông báo (`/decisions`), mua sắm (`/procurements`) — liên kết hai chiều với document detail; dashboard lọc search/RAG theo metadata hợp đồng, công văn, quyết định và mua sắm. RAG citation và search result deep-link tới `#chunk-{id}` trên document detail. Onboarding metadata module: gợi ý sau OCR, banner document detail, filter list thiếu metadata module. Liên kết chéo document: card **Văn bản liên quan** trên document detail, filter/badge trên list documents. Gợi ý liên kết document: subsection **Gợi ý liên kết** trên document detail (rule-based, user xác nhận trước khi tạo relation).
 
-Con trỏ tiếp theo: Phase 16 / Mục tiêu 6 — smoke end-to-end và đóng phase (`TASK_NEXT.md`).
+Con trỏ tiếp theo: Phase 17 chưa lập checklist — chờ cập nhật `TASK_NEXT.md` khi mở phase.
 
 ## Giới Hạn Còn Lại
 
 Giới hạn còn lại (đồng bộ `ROADMAP.md`):
-- Gợi ý liên kết document rule-based đang triển khai Phase 16 (apply/dismiss UX xong; chưa smoke e2e đóng phase).
-- Chưa có LLM/generator nội bộ nâng cao; RAG hiện extractive từ chunk truy xuất.
+- Chưa có LLM/generator nội bộ nâng cao; RAG hiện extractive từ chunk truy xuất → Phase 17 (chưa mở).
 - Inventory/tồn kho, workflow phê duyệt nhiều bước, line items procurement: ngoài scope MVP hiện tại.
 
 ## Đã Xây Dựng
@@ -2647,9 +2646,7 @@ Kết quả: tất cả smoke API pass; web client + SSR compile pass (Nitro `EB
 
 ## Phase 16 — Gợi Ý Liên Kết Document Từ Nội Dung (Rule-Based)
 
-Trạng thái: đang làm (bắt đầu 2026-06-07).
-
-### Mục tiêu 1 — Thiết kế heuristic và DTO gợi ý liên kết (2026-06-07)
+Trạng thái: hoàn thành (2026-06-07).
 
 **Khảo sát mã nguồn**
 
@@ -2742,3 +2739,29 @@ git diff --check
 ```
 
 Kết quả: client + SSR compile pass; Nitro `EBUSY rmdir .output` do bind mount Docker; `git diff --check` pass.
+
+### Mục tiêu 6 — Smoke end-to-end, regression và hoàn tất phase (2026-06-07)
+
+**Triển khai**
+
+- Script `app/scripts/smoke_relation_suggestions.py`: seed QĐ + CV (CV chunk chứa số QĐ) → GET suggestions → POST relation → assert gợi ý biến mất và outgoing có 1.
+
+**Kiểm tra**
+
+```bash
+docker compose exec -T api python -m app.scripts.smoke_relation_suggestions
+docker compose exec -T api python -m app.scripts.smoke_document_relations
+docker compose exec -T api python -m app.scripts.smoke_module_onboarding
+docker compose exec -T api python -m app.scripts.smoke_search_module_filters
+docker compose exec -T api python -m app.scripts.smoke_rag_answer
+docker compose exec -T api python -m app.scripts.check_document_classifier
+WEB_MEMORY_LIMIT=4g docker compose run --rm --no-deps -e NODE_OPTIONS=--max-old-space-size=3072 web npm run build
+git diff --check
+```
+
+Kết quả: tất cả smoke API pass; web client + SSR compile pass; `git diff --check` pass.
+
+**Đóng phase**
+
+- Tiêu chí hoàn thành Phase 16 trong `ROADMAP.md` đạt.
+- Phase 16 đóng; `ROADMAP.md` và `TASK_NEXT.md` cập nhật (Phase 17 chưa lập checklist).

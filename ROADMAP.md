@@ -13,7 +13,7 @@ Cập nhật lần cuối: 2026-06-07
 
 ## Trạng Thái Hiện Tại
 
-**Lộ trình Phase 0–15 đã hoàn thành.** Hệ thống có thể chạy on-prem bằng Docker Compose với các service `api`, `worker`, `web`, `postgres`, `redis`, `qdrant`.
+**Lộ trình Phase 0–16 đã hoàn thành.** Hệ thống có thể chạy on-prem bằng Docker Compose với các service `api`, `worker`, `web`, `postgres`, `redis`, `qdrant`.
 
 **Phase 13 đã hoàn thành** (2026-06-07): module đề xuất/kế hoạch mua sắm vật tư MVP.
 
@@ -21,7 +21,9 @@ Cập nhật lần cuối: 2026-06-07
 
 **Phase 15 đã hoàn thành** (2026-06-07): liên kết chéo document (`document_relations`) — API GET/POST/DELETE, card document detail, filter/badge list, smoke `smoke_document_relations`.
 
-**Phase 16 đã được lập kế hoạch** (chi tiết bên dưới). Bắt đầu thực thi khi cập nhật `TASK_NEXT.md` checklist Phase 16.
+**Phase 16 đã hoàn thành** (2026-06-07): gợi ý liên kết document rule-based từ OCR/chunk — `DocumentRelationSuggestionService`, API `relation-suggestions`, subsection **Gợi ý liên kết** trên document detail, apply/dismiss UX, smoke `smoke_relation_suggestions`.
+
+**Phase 17 chưa mở** (dự kiến RAG local LLM). Chi tiết trong `ROADMAP.md`; chưa có checklist `TASK_NEXT.md`.
 
 Đã hoàn thành:
 - Auth local, seed admin, cookie token frontend và RBAC nhẹ cho admin/user.
@@ -45,9 +47,9 @@ Cập nhật lần cuối: 2026-06-07
 - Worker lease timeout, stale-job recovery, ops endpoint job kẹt, runbook upgrade Alembic production, smoke worker stale recovery.
 - Onboarding metadata module sau OCR: `ModuleOnboardingService`, `GET /documents/{id}/onboarding-suggestions`, audit worker `document.onboarding_suggested`, banner/CTA document detail, filter/badge list `missing_module_metadata`.
 - Liên kết chéo document: bảng `document_relations`, API relations, card **Văn bản liên quan** trên document detail, filter/badge `has_relations`/`relation_count` trên list, smoke `smoke_document_relations`.
+- Gợi ý liên kết document rule-based: `DocumentRelationSuggestionService`, API `GET /documents/{id}/relation-suggestions`, subsection **Gợi ý liên kết** trên document detail (apply/dismiss), smoke `smoke_relation_suggestions`.
 
 Giới hạn còn lại (đã gán / ngoài scope):
-- Gợi ý liên kết document từ nội dung OCR/chunk (rule-based, user xác nhận) → **Phase 16**.
 - LLM/generator nội bộ nâng cao; RAG vẫn extractive local-only → **Phase 17** (dự kiến, chưa mở).
 - Inventory/tồn kho, workflow phê duyệt nhiều bước, line items procurement → **ngoài scope** Phase 16–17 MVP.
 
@@ -518,7 +520,7 @@ Mục tiêu gợi ý cho `TASK_NEXT.md`:
 
 ### Phase 16 - Gợi Ý Liên Kết Document Từ Nội Dung (Rule-Based)
 
-Trạng thái: chưa bắt đầu.
+Trạng thái: hoàn thành ngày 2026-06-07.
 
 Mục tiêu: gợi ý quan hệ giữa hai document searchable bằng heuristic trên OCR/chunk (số văn bản, cụm “Căn cứ”, “Phụ lục”, “Thực hiện”) — user **xác nhận** trước khi tạo bản ghi `document_relations`; không auto-link im lặng.
 

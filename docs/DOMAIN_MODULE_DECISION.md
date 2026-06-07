@@ -1271,7 +1271,7 @@ Audit metadata gọn: `source_document_id`, `target_document_id`, `relation_type
 
 ## Relation Suggestions — Gợi Ý Liên Kết Từ Nội Dung (Phase 16)
 
-Trạng thái: triển khai (mục tiêu 5 hoàn thành 2026-06-07). Smoke e2e và đóng phase từ mục tiêu 6.
+Trạng thái: hoàn thành (2026-06-07). Smoke e2e `smoke_relation_suggestions` pass; regression Phase 15 pass.
 
 ### Vấn Đề
 
@@ -1482,12 +1482,8 @@ Mirror `smoke_document_relations`:
 | Tự động | Chunking pipeline | Heuristic read-only; user xác nhận |
 | Lưu trữ | `document_chunks` | Chỉ gợi ý; persist qua `document_relations` khi user POST |
 
-### Hướng Dẫn Cho Mục Tiêu Tiếp Theo (Phase 16)
+### Triển Khai Hoàn Tất (Phase 16)
 
-**Mục tiêu 2** `DocumentRelationSuggestionService` + `normalize_document_number` shared + lookup `DocumentRepository`.
-
-**Mục tiêu 3** schema `RelationSuggestionRead`, router GET `relation-suggestions`.
-
-**Mục tiêu 4–5** frontend subsection + apply/dismiss.
-
-**Mục tiêu 6** `smoke_relation_suggestions` + regression; đóng phase.
+- Backend: `DocumentRelationSuggestionService`, `GET /api/v1/documents/{document_id}/relation-suggestions`, shared `normalize_document_number`.
+- Frontend: subsection **Gợi ý liên kết** trong `DocumentRelationsCard`, apply/dismiss UX, refresh relations sau POST.
+- Smoke: `smoke_relation_suggestions` (e2e CV→QĐ), `smoke_document_relation_suggestions_repo` (repo-level).
