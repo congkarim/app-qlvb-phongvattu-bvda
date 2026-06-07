@@ -21,6 +21,8 @@ Cập nhật lần cuối: 2026-06-07
 
 **Phase 15 đã hoàn thành** (2026-06-07): liên kết chéo document (`document_relations`) — API GET/POST/DELETE, card document detail, filter/badge list, smoke `smoke_document_relations`.
 
+**Phase 16 đã được lập kế hoạch** (chi tiết bên dưới). Bắt đầu thực thi khi cập nhật `TASK_NEXT.md` checklist Phase 16.
+
 Đã hoàn thành:
 - Auth local, seed admin, cookie token frontend và RBAC nhẹ cho admin/user.
 - Upload một file, nhiều file cùng văn bản, zip cùng văn bản; upload policy và giới hạn kích thước có thể cấu hình.
@@ -44,9 +46,10 @@ Cập nhật lần cuối: 2026-06-07
 - Onboarding metadata module sau OCR: `ModuleOnboardingService`, `GET /documents/{id}/onboarding-suggestions`, audit worker `document.onboarding_suggested`, banner/CTA document detail, filter/badge list `missing_module_metadata`.
 - Liên kết chéo document: bảng `document_relations`, API relations, card **Văn bản liên quan** trên document detail, filter/badge `has_relations`/`relation_count` trên list, smoke `smoke_document_relations`.
 
-Giới hạn còn lại (ngoài scope MVP hiện tại):
-- LLM/generator nội bộ nâng cao; RAG vẫn extractive local-only.
-- Inventory/tồn kho, workflow phê duyệt nhiều bước, auto-trích quan hệ từ OCR/chunk.
+Giới hạn còn lại (đã gán / ngoài scope):
+- Gợi ý liên kết document từ nội dung OCR/chunk (rule-based, user xác nhận) → **Phase 16**.
+- LLM/generator nội bộ nâng cao; RAG vẫn extractive local-only → **Phase 17** (dự kiến, chưa mở).
+- Inventory/tồn kho, workflow phê duyệt nhiều bước, line items procurement → **ngoài scope** Phase 16–17 MVP.
 
 ## Lộ Trình Ưu Tiên
 
@@ -511,9 +514,95 @@ Mục tiêu gợi ý cho `TASK_NEXT.md`:
 5. Badge/filter list (tùy chọn nhẹ) hoặc enrich list item `relation_count`.
 6. Smoke end-to-end + regression; đóng Phase 15 trong `PROJECT_STATUS.md`.
 
+---
+
+### Phase 16 - Gợi Ý Liên Kết Document Từ Nội Dung (Rule-Based)
+
+Trạng thái: chưa bắt đầu.
+
+Mục tiêu: gợi ý quan hệ giữa hai document searchable bằng heuristic trên OCR/chunk (số văn bản, cụm “Căn cứ”, “Phụ lục”, “Thực hiện”) — user **xác nhận** trước khi tạo bản ghi `document_relations`; không auto-link im lặng.
+
+Phụ thuộc: Phase 15 (`document_relations`, `DocumentRelationsCard`); Phase 14 (pattern banner gợi ý + CTA xác nhận); classifier/chunk metadata hiện có (`document_number`, `document_type`, `section_role`).
+
+Bối cảnh hiện tại:
+- Phase 15 chỉ tạo liên kết **thủ công** — user phải biết document đích và nhập UUID/tìm list.
+- Chunk nhóm B/C thường chứa tham chiếu số văn bản khác (“Căn cứ Quyết định số 02/QĐ-VT”, “Hợp đồng số …”, “kèm theo Phụ lục …”).
+- `DocumentClassifierService` đã trích `document_number` từ trang đầu; chưa có bước **đối chiếu** số đó với kho document khác.
+
+Phạm vi đề xuất:
+
+**Thiết kế (`docs/DOMAIN_MODULE_DECISION.md` — mục tiêu 1)**
+
+- Heuristic trích **reference candidates** từ text chunk (ưu tiên chunk đầu, `section_role` `article`/`unknown`, trang 1–2):
+  - Regex số/ký hiệu hành chính VN (mirror classifier): `\d+/[A-ZĐ]+-…`, “số …/QĐ”, “số …/CV”, “HĐ số …”.
+  - Anchor phrase → `relation_type` gợi ý: `Căn cứ`/`căn cứ` → `references`; `Phụ lục`/`kèm theo` + ngữ cảnh HĐ → `appendix_of`; `Thực hiện`/`triển khai` → `implements`; mặc định khớp số mơ hồ → `related`.
+- Chiến lược match document đích:
+  1. Exact/normalized `document_number` trên `documents` active searchable.
+  2. (Tùy chọn) khớp `document_symbol` + năm nếu số không đủ.
+  3. Loại trừ self, document đã có relation active cùng triple, target không searchable.
+- DTO gợi ý: `target_document_id`, `relation_type`, `confidence` (0–1), `matched_reference` (chuỗi trích), `source_chunk_id`, `reasons[]`.
+- Ngưỡng hiển thị UI: ≥1 candidate match; phân `high` / `review` theo confidence (không chặn workflow).
+
+**Backend (mục tiêu 2–3)**
+
+- `DocumentRelationSuggestionService` (hoặc mở rộng `DocumentRelationService`):
+  - `suggest_relations(document_id) -> list[RelationSuggestion]`.
+  - Đọc chunk qua `DocumentRepository`; lookup đích qua query indexed `document_number` (và symbol nếu có).
+- API read-only: `GET /api/v1/documents/{document_id}/relation-suggestions` — chỉ khi document searchable; trả tối đa N gợi ý (ví dụ 8), dedupe theo `(target_document_id, relation_type)`.
+- **Không** POST tự động; tạo liên kết vẫn qua `POST /documents/{id}/relations` hiện có.
+- Audit tùy chọn (mục tiêu 3): `document.relation_suggested` khi user mở panel gợi ý hoặc worker ghi nhận lần quét — metadata JSON gọn (`candidate_count`); không ghi DB relation.
+
+**Frontend (mục tiêu 4–5)**
+
+- Mở rộng `DocumentRelationsCard` (hoặc subsection **Gợi ý liên kết**):
+  - Gọi `useDocumentRelationSuggestions` + service typed.
+  - Mỗi gợi ý: nhãn quan hệ, title/number document đích, quote ngắn từ chunk, nút **Tạo liên kết** (gọi POST relations có sẵn) và **Bỏ qua** (client-side dismiss session).
+  - Low-confidence: style nhắc review, không auto-apply.
+- Sau khi tạo thành công: refresh outgoing/incoming + ẩn gợi ý đã apply.
+
+**Kiểm tra (mục tiêu 6)**
+
+- Smoke `smoke_relation_suggestions.py`: seed QĐ A + CV B (B text chứa “Căn cứ Quyết định số …” khớp A) → GET suggestions → POST relation → assert biến mất khỏi gợi ý.
+- Regression: `smoke_document_relations`, `smoke_module_onboarding`, `smoke_search_module_filters`, `smoke_rag_answer`, `check_document_classifier`.
+- Frontend build pass.
+
+Không làm trong phase này:
+
+- Không LLM / embedding similarity cross-document (Phase 17+).
+- Không auto-create `document_relations` từ worker mà không qua UI xác nhận.
+- Không đồ thị visualization, merge/split document.
+- Không đổi Qdrant payload, không re-index hàng loạt.
+- Không inventory, line items, workflow phê duyệt, module nghiệp vụ mới.
+
+Tiêu chí hoàn thành:
+
+- Quyết định heuristic + mapping ghi trong `docs/DOMAIN_MODULE_DECISION.md`.
+- Với fixture smoke (CV → QĐ), document detail hiển thị ≥1 gợi ý đúng `target_document_id` và `relation_type` hợp lý.
+- User tạo liên kết từ gợi ý trong ≤2 thao tác (Tạo liên kết → thấy trong outgoing).
+- Smoke suggestions + regression Phase 15 pass trên Docker Compose.
+
+Mục tiêu gợi ý cho `TASK_NEXT.md`:
+
+1. Thiết kế heuristic + DTO trong `DOMAIN_MODULE_DECISION.md` (`solution-architect`, `vn-admin-doc-ocr-classifier`).
+2. `DocumentRelationSuggestionService` + lookup `document_number`.
+3. API `relation-suggestions` + schema response.
+4. Frontend gợi ý trong `DocumentRelationsCard` (`frontend-nuxt`).
+5. Dismiss/apply UX + refresh relations list.
+6. Smoke `smoke_relation_suggestions` + regression; hoàn tất `PROJECT_STATUS.md`.
+
+---
+
+### Phase 17 - RAG Local LLM (Dự Kiến, Chưa Mở)
+
+Trạng thái: chưa lập chi tiết.
+
+Mục tiêu dự kiến: nâng RAG từ extractive sang **generative local-only** (ví dụ Ollama/vLLM on-prem) với citation bắt buộc, fallback extractive khi model không sẵn sàng.
+
+Ghi chú lập kế hoạch: chỉ mở sau Phase 16; cần đánh giá GPU/RAM on-prem, Docker service mới và runbook vận hành — **không** cloud API.
+
 ## Ghi Chú Lập Kế Hoạch
 
-- `TASK_NEXT.md` chỉ chứa checklist phase đang làm; khi bắt đầu Phase 15, thay nội dung file bằng checklist mục tiêu Phase 15 ở trên.
+- `TASK_NEXT.md` chỉ chứa checklist phase đang làm; khi bắt đầu Phase 16, thay nội dung file bằng checklist mục tiêu Phase 16 ở trên.
 - Con trỏ thực thi: `TASK_NEXT.md` → `PROJECT_STATUS.md` → commit sau mỗi mục tiêu (skill `project-git-manager`).
 - Ưu tiên MVP và maintainability; mỗi module nghiệp vụ mới phải có quyết định scope trong `docs/DOMAIN_MODULE_DECISION.md`.
 - Mỗi mục tiêu phase khi hoàn thành phải auto commit theo quy tắc trong `TASK_NEXT.md`.
