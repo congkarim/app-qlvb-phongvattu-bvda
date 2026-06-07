@@ -4,17 +4,19 @@ Cập nhật lần cuối: 2026-06-07
 
 ## Giai Đoạn Hiện Tại
 
-**Phase 0–13 đã hoàn thành.** Phase 14 chưa lập kế hoạch.
+**Phase 0–13 đã hoàn thành.** **Phase 14 đã lập kế hoạch** (2026-06-07), chưa bắt đầu thực thi.
 
 Hệ thống chạy on-prem bằng Docker Compose (`api`, `worker`, `web`, `postgres`, `redis`, `qdrant`). Workflow web end-to-end: upload → OCR/extract → searchable → semantic search → RAG Q&A → review chunk → audit. Module nghiệp vụ MVP: hợp đồng (`/contracts`), công văn (`/dispatches`), quyết định/thông báo (`/decisions`), mua sắm (`/procurements`) — liên kết hai chiều với document detail; dashboard lọc search/RAG theo metadata hợp đồng, công văn, quyết định và mua sắm. RAG citation và search result deep-link tới `#chunk-{id}` trên document detail.
 
-Con trỏ tiếp theo: chờ lập Phase 14 trong `ROADMAP.md` và `TASK_NEXT.md`.
+Con trỏ tiếp theo: Phase 14 / Mục tiêu 1 — thiết kế mapping classifier → business_type/module trong `DOMAIN_MODULE_DECISION.md`.
 
 ## Giới Hạn Còn Lại
 
 Giới hạn còn lại (đồng bộ `ROADMAP.md`):
-- Phase 14 chưa lập kế hoạch (inventory, workflow phê duyệt nhiều bước, LLM generator nâng cao nằm ngoài scope hiện tại).
+- Classifier OCR (`DocumentClassifierService`) trích metadata document nhưng chưa gợi ý `business_type` và chưa có luồng onboarding tạo metadata module sau searchable → **Phase 14**.
+- Chưa có liên kết chéo giữa các document (`document_relations`) — phase sau, không Phase 14.
 - Chưa có LLM/generator nội bộ nâng cao; RAG hiện extractive từ chunk truy xuất.
+- Inventory/tồn kho, workflow phê duyệt nhiều bước, line items procurement: ngoài scope Phase 14.
 
 ## Đã Xây Dựng
 
@@ -2373,6 +2375,28 @@ git diff --check
 - Benchmark fixture `procurement_plan`: `business_type=procurement`.
 - Frontend: `SemanticSearchFilters` + dashboard filter UI (`showProcurementFilters`), badges; preset từ `/procurements` và document detail card.
 - `DOMAIN_MODULE_DECISION.md`: search filter procurement chuyển draft → đã triển khai.
-- Phase 13 đóng; `TASK_NEXT.md` ghi Phase 14 chưa lập.
+- Phase 13 đóng.
 
 Kết quả: smoke procurement API, search module filters (gồm procurement), RAG answer, API workflows pass; frontend build pass qua `docker compose build web && docker run ... npm run build` (compose volume EBUSY trên `.output`); `git diff --check` pass.
+
+## Phase 14 — Gợi Ý Metadata Module Và Onboarding Sau OCR
+
+Trạng thái: đã lập kế hoạch (2026-06-07); chưa bắt đầu thực thi.
+
+Mục tiêu phase: nối classifier OCR rule-based với 4 module nghiệp vụ — gợi ý `business_type`, loại module và pre-fill form tạo metadata; không auto-create module record im lặng.
+
+### Khảo sát / bối cảnh (trước mục tiêu 1)
+
+| Hạng mục | Hiện trạng |
+|----------|------------|
+| Worker OCR | `DocumentClassifierService.classify()` trích `document_type`, số văn bản, cơ quan, trích yếu, người nhận, v.v.; lưu qua `update_metadata()` |
+| `business_type` | Worker **giữ nguyên** giá trị từ upload (`ocr_worker.py`); không gợi ý từ classifier |
+| Manual review guard | Không ghi đè khi `metadata_reviewed_at` hoặc `metadata_source` ∈ `{manual, mixed}` |
+| Module UI | Document detail có card từng module; form pre-fill một phần từ metadata document; **chưa** có banner/CTA gợi ý thống nhất |
+| Classifier tests | `check_document_classifier.py` và unit tests classifier đã có |
+| API onboarding | Chưa có `GET /documents/{id}/onboarding-suggestions` |
+| Document list | Chưa có filter/badge “thiếu metadata module” |
+
+Phạm vi đã chốt trong `ROADMAP.md`: mapping `document_type` → `business_type` + module target; API read-only gợi ý; UI document detail + list filter; smoke `smoke_module_onboarding`; không LLM, không `document_relations`, không inventory.
+
+Checklist thực thi: `TASK_NEXT.md`.

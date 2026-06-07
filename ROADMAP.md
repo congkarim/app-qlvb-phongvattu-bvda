@@ -15,7 +15,9 @@ Cập nhật lần cuối: 2026-06-07
 
 **Lộ trình Phase 0–12 đã hoàn thành.** Hệ thống có thể chạy on-prem bằng Docker Compose với các service `api`, `worker`, `web`, `postgres`, `redis`, `qdrant`.
 
-**Phase 13 đã hoàn thành** (2026-06-07): module đề xuất/kế hoạch mua sắm vật tư MVP. Phase 14 chưa lập kế hoạch.
+**Phase 13 đã hoàn thành** (2026-06-07): module đề xuất/kế hoạch mua sắm vật tư MVP.
+
+**Phase 14 đã được lập kế hoạch** (chi tiết bên dưới). Bắt đầu thực thi khi cập nhật `TASK_NEXT.md` checklist Phase 14.
 
 Đã hoàn thành:
 - Auth local, seed admin, cookie token frontend và RBAC nhẹ cho admin/user.
@@ -30,6 +32,7 @@ Cập nhật lần cuối: 2026-06-07
 - Module hợp đồng MVP: backend `contract_records`, API CRUD, frontend `/contracts`; liên kết hai chiều với document detail.
 - Module công văn đến/đi MVP: backend `dispatch_records`, API CRUD, frontend `/dispatches`; liên kết hai chiều với document detail.
 - Module quyết định/thông báo MVP: backend `decision_records`, API CRUD, frontend `/decisions`; liên kết hai chiều với document detail.
+- Module mua sắm MVP: backend `procurement_records`, API CRUD, frontend `/procurements`; liên kết hai chiều với document detail; filter search/RAG theo metadata procurement.
 - RAG UX dashboard: panel Hỏi đáp (RAG) trên `/dashboard`, runbook và smoke `smoke_rag_answer`.
 - RAG citation UX: deep link `#chunk-{id}` trên document detail, citation/search result "Mở đoạn", badge metadata module trên dashboard.
 - Admin catalog MVP: departments, business_type, document_type qua Catalog API; trang `/status` cho OCR/model/Qdrant/worker queue.
@@ -37,9 +40,10 @@ Cập nhật lần cuối: 2026-06-07
 - On-prem hardening: env/secret/CORS guard, backup/restore runbook, health/readiness, log policy, compose resource limits.
 - Worker lease timeout, stale-job recovery, ops endpoint job kẹt, runbook upgrade Alembic production, smoke worker stale recovery.
 
-Giới hạn còn lại (đã gán vào Phase 13):
-- Chưa có module sổ đề xuất/kế hoạch mua sắm vật tư (metadata layer, không workflow nhiều bước) → **Phase 13**.
-- LLM/generator nội bộ nâng cao: **ngoài scope** Phase 11–13; RAG vẫn extractive local-only.
+Giới hạn còn lại (đã gán vào Phase 14 hoặc ngoài scope):
+- Classifier OCR đã trích metadata document nhưng **chưa gợi ý `business_type`** và **chưa onboarding** tạo metadata module (hợp đồng/công văn/quyết định/mua sắm) sau khi searchable → **Phase 14**.
+- Chưa có liên kết chéo giữa các document (ví dụ công văn tham chiếu quyết định, phụ lục thuộc hợp đồng) — **phase sau**, không Phase 14.
+- LLM/generator nội bộ nâng cao, inventory/tồn kho, workflow phê duyệt nhiều bước: **ngoài scope** Phase 14; RAG vẫn extractive local-only.
 
 ## Lộ Trình Ưu Tiên
 
@@ -244,7 +248,7 @@ Mục tiêu gợi ý cho `TASK_NEXT.md` (khi mở phase):
 
 ### Phase 12 - RAG Citation UX Và Search Enrichment
 
-Trạng thái: đang làm (bắt đầu 2026-06-07; mục tiêu 1 hoàn thành).
+Trạng thái: hoàn thành (2026-06-07).
 
 Mục tiêu: cải thiện truy vết nguồn từ search/RAG tới đúng đoạn văn bản trên document detail; làm giàu kết quả tìm kiếm với metadata module đầy đủ hơn.
 
@@ -358,9 +362,85 @@ Mục tiêu gợi ý cho `TASK_NEXT.md`:
 5. Liên kết document detail + nav.
 6. (Tùy chọn) Search filter procurement + benchmark; hoàn tất `PROJECT_STATUS.md`.
 
+---
+
+### Phase 14 - Gợi Ý Metadata Module Và Onboarding Sau OCR
+
+Trạng thái: đã lập kế hoạch (2026-06-07); chưa bắt đầu thực thi.
+
+Mục tiêu: rút ngắn khoảng cách giữa classifier OCR rule-based hiện có (`DocumentClassifierService`) và 4 module nghiệp vụ — gợi ý `business_type`, loại module (`dispatch_type`, `decision_kind`, `procurement_kind`) và pre-fill form tạo metadata; **không** tự tạo bản ghi module mà không có xác nhận người dùng.
+
+Phụ thuộc: Phase 5 (catalog `business_type` qua API); Phase 7–13 (4 module + liên kết document detail); worker OCR đã gọi classifier và lưu metadata document.
+
+Bối cảnh hiện tại:
+- Worker classify trích `document_type`, số văn bản, cơ quan ban hành, trích yếu, người nhận, v.v. nhưng **giữ nguyên** `business_type` từ lúc upload.
+- Document detail có card module từng loại nhưng user phải tự nhận diện và mở form thủ công.
+- Form module đã pre-fill một phần từ metadata document; chưa có luồng “gợi ý tạo metadata” thống nhất sau OCR.
+
+Phạm vi đề xuất:
+
+**Thiết kế (`docs/DOMAIN_MODULE_DECISION.md` — mục tiêu 1)**
+
+- Bảng mapping `document_type` (classifier) → `business_type` catalog + module target (`contract` | `dispatch` | `decision` | `procurement`).
+- Heuristic bổ sung khi cần:
+  - `CV` → `incoming_dispatch` hoặc `outgoing_dispatch` (dựa `recipient` / pattern “V/v” / hướng công văn nếu trích được).
+  - `QĐ` / `TB` → `decision` + `decision_kind`.
+  - `HĐ` → `contract`.
+  - `KH` / `TTr` / `BB` / `ĐX` (và tương đương) → `procurement` + `procurement_kind` (`plan` | `proposal` | `acceptance`).
+- Ngưỡng `classification_confidence` để phân biệt gợi ý “chắc” vs “cần review”; ghi rõ không ghi đè metadata đã `metadata_reviewed_at` / `metadata_source=manual|mixed`.
+- Payload gợi ý module: map field classifier → field form module (mirror pre-fill hiện có trên từng page).
+
+**Backend (mục tiêu 2–3)**
+
+- `ModuleOnboardingService` (hoặc mở rộng `DocumentClassifierService`): `suggest_business_type()`, `suggest_module_record(document)` trả DTO gồm `target_module`, `suggested_fields`, `confidence`, `reasons[]`.
+- API read-only: `GET /api/v1/documents/{document_id}/onboarding-suggestions` — trả gợi ý business_type + module pre-fill nếu document searchable và chưa có bản ghi module active.
+- Worker (tùy chọn có kiểm soát): khi upload **chưa** chọn `business_type` (hoặc giá trị mặc định rỗng) và confidence ≥ ngưỡng, **đề xuất** lưu `business_type` gợi ý kèm `metadata_source=mixed` hoặc chỉ audit `document.business_type_suggested` — **không** auto-apply nếu user đã chọn business_type lúc upload.
+- Audit: `document.onboarding_suggested`, `document.business_type_applied` (metadata JSON gọn).
+
+**Frontend (mục tiêu 4–5)**
+
+- Document detail `/documents/[id]`:
+  - Banner/card **Gợi ý metadata** khi có suggestion và chưa có module record: hiển thị `business_type` + module đích, nút “Áp dụng loại nghiệp vụ” và “Tạo metadata {module}” mở form pre-fill (reuse composable/service module hiện có).
+  - Trạng thái low-confidence: nhắc review metadata document (không chặn workflow).
+- Trang danh sách document (hoặc filter trên list hiện có):
+  - Badge/cột “Chưa có metadata module” khi `business_type` khớp module nhưng thiếu bản ghi active.
+  - Filter nhanh: `missing_module_metadata=true` (query API list documents).
+
+**Kiểm tra (mục tiêu 6)**
+
+- Smoke mới `smoke_module_onboarding.py`: seed document qua OCR/classifier fixture → assert suggestion mapping → apply business_type → tạo module record pre-fill.
+- Regression: `smoke_api_workflows`, `smoke_procurement_api`, `smoke_search_module_filters`, `smoke_rag_answer`, `check_document_classifier`.
+- Frontend build pass.
+
+Không làm trong phase này:
+
+- Không LLM / model inference mới (Ollama, vLLM, v.v.).
+- Không auto-create module record im lặng; mọi tạo metadata vẫn qua form + API CRUD hiện có.
+- Không bảng `document_relations` / liên kết chéo document.
+- Không inventory, line items procurement, workflow phê duyệt nhiều bước.
+- Không thay đổi chunking/Qdrant payload hay re-index hàng loạt.
+- Không thêm service ngoài PostgreSQL/Redis/Qdrant.
+
+Tiêu chí hoàn thành:
+
+- Sau OCR searchable, document detail hiển thị gợi ý module hợp lệ cho ≥1 fixture mỗi loại (`contract`, `dispatch`, `decision`, `procurement`).
+- User có thể áp dụng `business_type` gợi ý và mở form tạo metadata module với field pre-fill từ classifier trong ≤2 thao tác UI.
+- List/filter “thiếu metadata module” hoạt động cho admin/user có quyền list document.
+- Smoke onboarding + regression hiện có pass trên Docker Compose.
+- Quyết định mapping ghi trong `docs/DOMAIN_MODULE_DECISION.md`.
+
+Mục tiêu gợi ý cho `TASK_NEXT.md`:
+
+1. Thiết kế mapping classifier → business_type/module trong `DOMAIN_MODULE_DECISION.md` (`solution-architect`, `vn-admin-doc-ocr-classifier`).
+2. `ModuleOnboardingService` + schema response + API `onboarding-suggestions`.
+3. Worker/audit gợi ý `business_type` có kiểm soát (nếu scope mục tiêu 2 chưa đủ).
+4. Document detail: banner gợi ý + CTA tạo metadata pre-fill (`frontend-nuxt`).
+5. Document list: badge/filter thiếu metadata module.
+6. Smoke `smoke_module_onboarding` + regression; hoàn tất `PROJECT_STATUS.md`.
+
 ## Ghi Chú Lập Kế Hoạch
 
-- `TASK_NEXT.md` chỉ chứa checklist phase đang làm; khi bắt đầu Phase 12, thay nội dung file bằng checklist mục tiêu Phase 12 ở trên.
+- `TASK_NEXT.md` chỉ chứa checklist phase đang làm; khi bắt đầu Phase 14, thay nội dung file bằng checklist mục tiêu Phase 14 ở trên.
 - Con trỏ thực thi: `TASK_NEXT.md` → `PROJECT_STATUS.md` → commit sau mỗi mục tiêu (skill `project-git-manager`).
 - Ưu tiên MVP và maintainability; mỗi module nghiệp vụ mới phải có quyết định scope trong `docs/DOMAIN_MODULE_DECISION.md`.
 - Mỗi mục tiêu phase khi hoàn thành phải auto commit theo quy tắc trong `TASK_NEXT.md`.
