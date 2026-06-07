@@ -8,7 +8,7 @@ Cập nhật lần cuối: 2026-06-07
 
 Hệ thống chạy on-prem bằng Docker Compose (`api`, `worker`, `web`, `postgres`, `redis`, `qdrant`). Workflow web end-to-end: upload → OCR/extract → searchable → semantic search → RAG Q&A → review chunk → audit. Module nghiệp vụ MVP: hợp đồng (`/contracts`), công văn (`/dispatches`), quyết định/thông báo (`/decisions`) — liên kết hai chiều với document detail; dashboard lọc search theo metadata hợp đồng.
 
-Con trỏ tiếp theo: Phase 11 / Mục tiêu 2 — `DispatchRepository` và `DecisionRepository.list_document_ids_by_metadata()`.
+Con trỏ tiếp theo: Phase 11 / Mục tiêu 3 — mở rộng `SearchService`, schema, router và smoke backend.
 
 ## Giới Hạn Còn Lại
 
@@ -1977,3 +1977,22 @@ Intersection áp dụng **chỉ** giữa các nhóm module đã kích hoạt; fi
 - `/decisions` → `q`, `document_number`, `business_type=decision`, `decision_kind`, `decision_status`
 
 Chi tiết draft: `docs/DOMAIN_MODULE_DECISION.md` mục **Thiết kế search filter dispatch/decision (draft)**.
+
+### Mục tiêu 2 — Repository `list_document_ids_by_metadata` dispatch và decision (2026-06-07)
+
+Kiểm tra bắt buộc:
+
+```bash
+PYTHONPYCACHEPREFIX=/tmp/qlvb-pycache PYTHONPATH=apps/api python3 -m py_compile \
+  apps/api/app/repositories/dispatch_repository.py \
+  apps/api/app/repositories/decision_repository.py
+git diff --check
+```
+
+Kết quả: `py_compile` pass; `git diff --check` pass.
+
+Đã bổ sung:
+
+- `DispatchRepository.list_document_ids_by_metadata(dispatch_type?, document_number?, issuing_agency?, status?)` — mirror `ContractRepository`, tái dùng `_conditions()` (active record + join `documents` active).
+- `DecisionRepository.list_document_ids_by_metadata(decision_kind?, document_number?, issuing_agency?, status?, effective_from?, effective_to?)` — logic filter khớp list API module (`ilike` số/đơn vị, exact kind/status, range hiệu lực).
+- Filter rỗng → không thêm điều kiện (caller quyết định kích hoạt pre-resolve ở `SearchService` mục tiêu 3).

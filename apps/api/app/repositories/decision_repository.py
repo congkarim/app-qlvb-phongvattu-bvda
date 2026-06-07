@@ -31,6 +31,34 @@ class DecisionRepository:
         )
         return self.db.scalar(stmt)
 
+    def list_document_ids_by_metadata(
+        self,
+        *,
+        decision_kind: str | None = None,
+        document_number: str | None = None,
+        issuing_agency: str | None = None,
+        status: str | None = None,
+        effective_from: date | None = None,
+        effective_to: date | None = None,
+    ) -> list[str]:
+        stmt = (
+            select(DecisionRecord.document_id)
+            .join(DecisionRecord.document)
+            .where(*self._conditions(
+                query=None,
+                document_id=None,
+                decision_kind=decision_kind,
+                document_number=document_number,
+                issuing_agency=issuing_agency,
+                status=status,
+                issued_date_from=None,
+                issued_date_to=None,
+                effective_from=effective_from,
+                effective_to=effective_to,
+            ))
+        )
+        return list(self.db.scalars(stmt))
+
     def list_decisions(
         self,
         *,

@@ -31,6 +31,30 @@ class DispatchRepository:
         )
         return self.db.scalar(stmt)
 
+    def list_document_ids_by_metadata(
+        self,
+        *,
+        dispatch_type: str | None = None,
+        document_number: str | None = None,
+        issuing_agency: str | None = None,
+        status: str | None = None,
+    ) -> list[str]:
+        stmt = (
+            select(DispatchRecord.document_id)
+            .join(DispatchRecord.document)
+            .where(*self._conditions(
+                query=None,
+                document_id=None,
+                dispatch_type=dispatch_type,
+                document_number=document_number,
+                issuing_agency=issuing_agency,
+                status=status,
+                issued_date_from=None,
+                issued_date_to=None,
+            ))
+        )
+        return list(self.db.scalars(stmt))
+
     def list_dispatches(
         self,
         *,
