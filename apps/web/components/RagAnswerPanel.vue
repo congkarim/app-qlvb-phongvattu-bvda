@@ -76,7 +76,7 @@ function formatConfidence(value: number) {
         />
       </div>
       <p class="text-xs text-slate-500">
-        Trả lời dựa trên các đoạn văn bản đã truy xuất (RAG extractive). Dùng chung bộ lọc metadata bên dưới.
+        Trả lời dựa trên các đoạn văn bản đã truy xuất (RAG extractive). Dùng chung bộ lọc semantic search phía trên.
       </p>
       <div class="flex flex-wrap gap-2">
         <Button

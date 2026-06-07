@@ -8,7 +8,7 @@ Cập nhật lần cuối: 2026-06-07
 
 Hệ thống chạy on-prem bằng Docker Compose (`api`, `worker`, `web`, `postgres`, `redis`, `qdrant`). Workflow web end-to-end: upload → OCR/extract → searchable → semantic search → RAG Q&A → review chunk → audit. Module nghiệp vụ MVP: hợp đồng (`/contracts`), công văn (`/dispatches`), quyết định/thông báo (`/decisions`) — liên kết hai chiều với document detail; dashboard lọc search theo metadata hợp đồng.
 
-Con trỏ tiếp theo: Phase 11 / Mục tiêu 4 — frontend dashboard filter và RAG.
+Con trỏ tiếp theo: Phase 11 / Mục tiêu 5 — preset module pages, smoke end-to-end và hoàn tất phase.
 
 ## Giới Hạn Còn Lại
 
@@ -2024,3 +2024,20 @@ Kết quả: `py_compile` pass; `smoke_dispatch_api`, `smoke_decision_api`, `smo
 - `DispatchRepository` / `DecisionRepository`: `map_active_by_document_ids()` cho enrich.
 - Router `search.py` và `RagAnswerService` / `SearchBackend` protocol truyền đủ filter mới.
 - Smoke `smoke_search_module_filters`: seed dispatch/decision + Qdrant, assert filter metadata và regression contract `supplier_name`; RAG `/search/answer` với filter decision.
+
+### Mục tiêu 4 — Frontend dashboard filter và RAG (2026-06-07)
+
+Kiểm tra bắt buộc:
+
+```bash
+WEB_MEMORY_LIMIT=4g docker compose run --rm --no-deps -e NODE_OPTIONS=--max-old-space-size=3072 web npm run build
+git diff --check
+```
+
+Kết quả: client + server compile OK qua `docker compose run`; Nitro `EBUSY` khi `rmdir .output` (anonymous volume) — build production pass qua `docker compose build web` + `docker run ... npm run build`; `git diff --check` pass.
+
+Đã bổ sung:
+
+- `SemanticSearchFilters` / `SearchResult`: field dispatch/decision + `issuing_agency`; `normalizeSearchPayload()` map `dispatch_status`, `decision_status`, hiệu lực.
+- `dashboard.vue`: filter `issuing_agency`; nhóm công văn (conditional `incoming_dispatch`/`outgoing_dispatch`/tất cả); nhóm quyết định (conditional `decision`/tất cả); hiển thị metadata module trên kết quả; filter hợp đồng giữ nguyên.
+- `RagAnswerPanel` / `useRagAnswer`: dùng chung object `filters` từ dashboard; giữ `ragFilterChangedHint`.

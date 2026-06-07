@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import type { ContractStatus } from '~/types/contract'
+import type { DecisionKind, DecisionStatus } from '~/types/decision'
+import type { DispatchStatus, DispatchType } from '~/types/dispatch'
 import type { ReviewQueueChunk, ReviewQueueFilters, SemanticSearchFilters } from '~/types/document'
 
 const query = ref('')
@@ -39,13 +41,20 @@ const filters = reactive<SemanticSearchFilters>({
   limit: 10,
   business_type: '',
   document_number: '',
+  issuing_agency: '',
   issued_date: '',
   doc_group: '',
   section_role: '',
   requires_review: null,
   contract_number: '',
   supplier_name: '',
-  contract_status: ''
+  contract_status: '',
+  dispatch_type: '',
+  dispatch_status: '',
+  decision_kind: '',
+  decision_status: '',
+  effective_from: '',
+  effective_to: ''
 })
 
 const reviewQueueFilters = reactive<ReviewQueueFilters>({
@@ -91,6 +100,47 @@ const contractStatusOptions: Array<{ label: string; value: ContractStatus | '' }
   { label: 'Chấm dứt', value: 'terminated' },
   { label: 'Hoàn thành', value: 'completed' }
 ]
+
+const dispatchTypeOptions: Array<{ label: string; value: DispatchType | '' }> = [
+  { label: 'Tất cả loại CV', value: '' },
+  { label: 'Công văn đến', value: 'incoming' },
+  { label: 'Công văn đi', value: 'outgoing' }
+]
+
+const dispatchStatusOptions: Array<{ label: string; value: DispatchStatus | '' }> = [
+  { label: 'Tất cả CV', value: '' },
+  { label: 'Nháp', value: 'draft' },
+  { label: 'Đã vào sổ', value: 'registered' },
+  { label: 'Đang xử lý', value: 'processing' },
+  { label: 'Hoàn thành', value: 'completed' },
+  { label: 'Lưu trữ', value: 'archived' }
+]
+
+const decisionKindOptions: Array<{ label: string; value: DecisionKind | '' }> = [
+  { label: 'Tất cả loại QĐ', value: '' },
+  { label: 'Quyết định', value: 'decision' },
+  { label: 'Thông báo', value: 'notification' }
+]
+
+const decisionStatusOptions: Array<{ label: string; value: DecisionStatus | '' }> = [
+  { label: 'Tất cả QĐ/TB', value: '' },
+  { label: 'Nháp', value: 'draft' },
+  { label: 'Đã vào sổ', value: 'registered' },
+  { label: 'Đang hiệu lực', value: 'effective' },
+  { label: 'Hết hiệu lực', value: 'expired' },
+  { label: 'Đã thu hồi', value: 'revoked' },
+  { label: 'Lưu trữ', value: 'archived' }
+]
+
+const showDispatchFilters = computed(() => {
+  const businessType = filters.business_type
+  return !businessType || businessType === 'incoming_dispatch' || businessType === 'outgoing_dispatch'
+})
+
+const showDecisionFilters = computed(() => {
+  const businessType = filters.business_type
+  return !businessType || businessType === 'decision'
+})
 
 const reviewQueueRoleOptions = [
   { label: 'Tất cả review', value: '' },
@@ -175,6 +225,7 @@ function resetFilters() {
   filters.limit = 10
   filters.business_type = ''
   filters.document_number = ''
+  filters.issuing_agency = ''
   filters.issued_date = ''
   filters.doc_group = ''
   filters.section_role = ''
@@ -182,10 +233,36 @@ function resetFilters() {
   filters.contract_number = ''
   filters.supplier_name = ''
   filters.contract_status = ''
+  filters.dispatch_type = ''
+  filters.dispatch_status = ''
+  filters.decision_kind = ''
+  filters.decision_status = ''
+  filters.effective_from = ''
+  filters.effective_to = ''
 }
 
 function formatContractStatus(value?: string | null) {
   const option = contractStatusOptions.find((item) => item.value === value)
+  return option?.label || value || ''
+}
+
+function formatDispatchType(value?: string | null) {
+  const option = dispatchTypeOptions.find((item) => item.value === value)
+  return option?.label || value || ''
+}
+
+function formatDispatchStatus(value?: string | null) {
+  const option = dispatchStatusOptions.find((item) => item.value === value)
+  return option?.label || value || ''
+}
+
+function formatDecisionKind(value?: string | null) {
+  const option = decisionKindOptions.find((item) => item.value === value)
+  return option?.label || value || ''
+}
+
+function formatDecisionStatus(value?: string | null) {
+  const option = decisionStatusOptions.find((item) => item.value === value)
   return option?.label || value || ''
 }
 
@@ -410,6 +487,7 @@ onMounted(async () => {
               </option>
             </select>
             <InputText v-model="filters.document_number" placeholder="Số văn bản" />
+            <InputText v-model="filters.issuing_agency" placeholder="Đơn vị ban hành" />
             <InputText v-model="filters.issued_date" type="date" />
             <select v-model="filters.doc_group" class="rounded border border-slate-300 px-3 py-2 text-sm">
               <option v-for="option in docGroupOptions" :key="option.value" :value="option.value">
@@ -433,6 +511,32 @@ onMounted(async () => {
                 {{ option.label }}
               </option>
             </select>
+            <template v-if="showDispatchFilters">
+              <select v-model="filters.dispatch_type" class="rounded border border-slate-300 px-3 py-2 text-sm">
+                <option v-for="option in dispatchTypeOptions" :key="option.value" :value="option.value">
+                  {{ option.label }}
+                </option>
+              </select>
+              <select v-model="filters.dispatch_status" class="rounded border border-slate-300 px-3 py-2 text-sm">
+                <option v-for="option in dispatchStatusOptions" :key="option.value" :value="option.value">
+                  {{ option.label }}
+                </option>
+              </select>
+            </template>
+            <template v-if="showDecisionFilters">
+              <select v-model="filters.decision_kind" class="rounded border border-slate-300 px-3 py-2 text-sm">
+                <option v-for="option in decisionKindOptions" :key="option.value" :value="option.value">
+                  {{ option.label }}
+                </option>
+              </select>
+              <select v-model="filters.decision_status" class="rounded border border-slate-300 px-3 py-2 text-sm">
+                <option v-for="option in decisionStatusOptions" :key="option.value" :value="option.value">
+                  {{ option.label }}
+                </option>
+              </select>
+              <InputText v-model="filters.effective_from" type="date" placeholder="Hiệu lực từ" />
+              <InputText v-model="filters.effective_to" type="date" placeholder="Hiệu lực đến" />
+            </template>
           </div>
           <div class="flex flex-wrap gap-2">
             <select v-model.number="filters.limit" class="rounded border border-slate-300 px-3 py-2 text-sm">
@@ -465,6 +569,16 @@ onMounted(async () => {
               <span v-if="result.contract_number">HĐ {{ result.contract_number }}</span>
               <span v-if="result.supplier_name"> · {{ result.supplier_name }}</span>
               <span v-if="result.contract_status"> · {{ formatContractStatus(result.contract_status) }}</span>
+            </p>
+            <p v-if="result.dispatch_id || result.dispatch_type || result.dispatch_status" class="mt-1 text-xs text-slate-500">
+              <span v-if="result.dispatch_type">{{ formatDispatchType(result.dispatch_type) }}</span>
+              <span v-if="result.dispatch_status"> · {{ formatDispatchStatus(result.dispatch_status) }}</span>
+            </p>
+            <p v-if="result.decision_id || result.decision_kind || result.decision_status" class="mt-1 text-xs text-slate-500">
+              <span v-if="result.decision_kind">{{ formatDecisionKind(result.decision_kind) }}</span>
+              <span v-if="result.decision_status"> · {{ formatDecisionStatus(result.decision_status) }}</span>
+              <span v-if="result.effective_from"> · HL từ {{ result.effective_from }}</span>
+              <span v-if="result.effective_to"> · HL đến {{ result.effective_to }}</span>
             </p>
             <p class="mt-1 text-xs text-slate-500">
               {{ formatChunkMeta(result) }}

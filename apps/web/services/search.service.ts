@@ -45,17 +45,32 @@ function normalizeSearchPayload(
     'document_type',
     'business_type',
     'document_number',
+    'issuing_agency',
     'issued_date',
     'doc_group',
     'section_role',
     'contract_number',
-    'supplier_name'
+    'supplier_name',
+    'effective_from',
+    'effective_to'
   ] as const) {
     const value = filters[key]?.trim()
     if (value) payload[key] = value
   }
   if (filters.contract_status) {
     payload.contract_status = filters.contract_status
+  }
+  if (filters.dispatch_type) {
+    payload.dispatch_type = filters.dispatch_type
+  }
+  if (filters.dispatch_status) {
+    payload.dispatch_status = filters.dispatch_status
+  }
+  if (filters.decision_kind) {
+    payload.decision_kind = filters.decision_kind
+  }
+  if (filters.decision_status) {
+    payload.decision_status = filters.decision_status
   }
   if (filters.requires_review !== null && filters.requires_review !== undefined) {
     payload.requires_review = filters.requires_review
