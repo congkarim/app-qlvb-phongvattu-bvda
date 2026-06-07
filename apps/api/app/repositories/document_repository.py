@@ -12,6 +12,7 @@ from app.models.document import Document, DocumentChunk, DocumentFile, DocumentP
 from app.models.document_relation import DocumentRelation
 from app.models.procurement import ProcurementRecord
 from app.repositories.audit_log_repository import AuditLogRepository
+from app.utils.document_number import normalize_document_number
 
 
 class DocumentRepository:
@@ -199,6 +200,32 @@ class DocumentRepository:
             )
         )
         return int(self.db.scalar(stmt) or 0)
+
+    def find_searchable_by_document_number(
+        self,
+        document_number: str,
+        *,
+        exclude_document_id: str | None = None,
+    ) -> list[Document]:
+        normalized = normalize_document_number(document_number)
+        if not normalized:
+            return []
+        number_prefix = normalized.split("/", 1)[0]
+        stmt = select(Document).where(
+            Document.deleted_at.is_(None),
+            Document.status == "searchable",
+            Document.document_number.is_not(None),
+            Document.document_number.ilike(f"{number_prefix}/%"),
+        )
+        if exclude_document_id:
+            stmt = stmt.where(Document.id != exclude_document_id)
+        matches: list[Document] = []
+        for document in self.db.scalars(stmt):
+            stored_normalized = normalize_document_number(document.document_number or "")
+            if stored_normalized and stored_normalized.lower() == normalized.lower():
+                matches.append(document)
+        matches.sort(key=lambda item: (item.created_at, item.id))
+        return matches
 
     def get_document(self, document_id: str) -> Document | None:
         stmt = (

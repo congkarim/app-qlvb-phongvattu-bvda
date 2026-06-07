@@ -10,12 +10,12 @@ Cập nhật lần cuối: 2026-06-07
 
 Hệ thống chạy on-prem bằng Docker Compose (`api`, `worker`, `web`, `postgres`, `redis`, `qdrant`). Workflow web end-to-end: upload → OCR/extract → searchable → semantic search → RAG Q&A → review chunk → audit. Module nghiệp vụ MVP: hợp đồng (`/contracts`), công văn (`/dispatches`), quyết định/thông báo (`/decisions`), mua sắm (`/procurements`) — liên kết hai chiều với document detail; dashboard lọc search/RAG theo metadata hợp đồng, công văn, quyết định và mua sắm. RAG citation và search result deep-link tới `#chunk-{id}` trên document detail. Onboarding metadata module: gợi ý sau OCR, banner document detail, filter list thiếu metadata module. Liên kết chéo document: card **Văn bản liên quan** trên document detail, filter/badge trên list documents.
 
-Con trỏ tiếp theo: Phase 16 / Mục tiêu 2 — `DocumentRelationSuggestionService` + lookup `document_number` (`TASK_NEXT.md`).
+Con trỏ tiếp theo: Phase 16 / Mục tiêu 3 — API `GET /documents/{id}/relation-suggestions` (`TASK_NEXT.md`).
 
 ## Giới Hạn Còn Lại
 
 Giới hạn còn lại (đồng bộ `ROADMAP.md`):
-- Gợi ý liên kết document rule-based đang triển khai Phase 16 (chưa có service/API/UI).
+- Gợi ý liên kết document rule-based đang triển khai Phase 16 (đã có service; chưa có API/UI).
 - Chưa có LLM/generator nội bộ nâng cao; RAG hiện extractive từ chunk truy xuất.
 - Inventory/tồn kho, workflow phê duyệt nhiều bước, line items procurement: ngoài scope MVP hiện tại.
 
@@ -2669,3 +2669,23 @@ git diff --check
 ```
 
 Kết quả: pass.
+
+### Mục tiêu 2 — DocumentRelationSuggestionService và lookup document (2026-06-07)
+
+**Triển khai**
+
+- `app/utils/document_number.py`: `normalize_document_number`, `infer_document_type_from_symbol` (mirror classifier, fix OCR `QD`→`QĐ`).
+- `DocumentRepository.find_searchable_by_document_number()`: so khớp hai phía sau normalize.
+- `DocumentRelationSuggestionService.suggest_relations()`: lọc chunk trang 1–2, trích reference, anchor→`relation_type`, confidence/dedupe/cap 8, loại trừ self-link và triple active.
+
+**Kiểm tra**
+
+```bash
+PYTHONPYCACHEPREFIX=/tmp/qlvb-pycache PYTHONPATH=apps/api python3 -m py_compile \
+  apps/api/app/services/document_relation_suggestion_service.py
+docker compose exec -T api python -m unittest app.services.tests.test_document_relation_suggestion_service -v
+docker compose exec -T api python -m app.scripts.smoke_document_relation_suggestions_repo
+git diff --check
+```
+
+Kết quả: 7 unit tests pass; smoke repo CV→QĐ `references` pass; `git diff --check` pass.

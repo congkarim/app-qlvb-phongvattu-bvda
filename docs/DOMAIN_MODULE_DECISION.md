@@ -1271,7 +1271,7 @@ Audit metadata gọn: `source_document_id`, `target_document_id`, `relation_type
 
 ## Relation Suggestions — Gợi Ý Liên Kết Từ Nội Dung (Phase 16)
 
-Trạng thái: thiết kế (mục tiêu 1, 2026-06-07). Triển khai code từ mục tiêu 2.
+Trạng thái: triển khai (mục tiêu 2 hoàn thành 2026-06-07). API/frontend từ mục tiêu 3.
 
 ### Vấn Đề
 
