@@ -13,9 +13,9 @@ Cập nhật lần cuối: 2026-06-07
 
 ## Trạng Thái Hiện Tại
 
-**Lộ trình Phase 0–11 đã hoàn thành.** Hệ thống có thể chạy on-prem bằng Docker Compose với các service `api`, `worker`, `web`, `postgres`, `redis`, `qdrant`.
+**Lộ trình Phase 0–12 đã hoàn thành.** Hệ thống có thể chạy on-prem bằng Docker Compose với các service `api`, `worker`, `web`, `postgres`, `redis`, `qdrant`.
 
-**Phase 12–13 đã được lập kế hoạch** (chi tiết bên dưới). Bắt đầu thực thi khi cập nhật `TASK_NEXT.md` checklist Phase 12.
+**Phase 13 đã được lập kế hoạch** (chi tiết bên dưới). Bắt đầu thực thi khi cập nhật `TASK_NEXT.md` checklist Phase 13.
 
 Đã hoàn thành:
 - Auth local, seed admin, cookie token frontend và RBAC nhẹ cho admin/user.
@@ -31,13 +31,13 @@ Cập nhật lần cuối: 2026-06-07
 - Module công văn đến/đi MVP: backend `dispatch_records`, API CRUD, frontend `/dispatches`; liên kết hai chiều với document detail.
 - Module quyết định/thông báo MVP: backend `decision_records`, API CRUD, frontend `/decisions`; liên kết hai chiều với document detail.
 - RAG UX dashboard: panel Hỏi đáp (RAG) trên `/dashboard`, runbook và smoke `smoke_rag_answer`.
+- RAG citation UX: deep link `#chunk-{id}` trên document detail, citation/search result "Mở đoạn", badge metadata module trên dashboard.
 - Admin catalog MVP: departments, business_type, document_type qua Catalog API; trang `/status` cho OCR/model/Qdrant/worker queue.
 - Worker claim atomic, retry policy, queue status endpoint và smoke worker operations.
 - On-prem hardening: env/secret/CORS guard, backup/restore runbook, health/readiness, log policy, compose resource limits.
 - Worker lease timeout, stale-job recovery, ops endpoint job kẹt, runbook upgrade Alembic production, smoke worker stale recovery.
 
-Giới hạn còn lại (đã gán vào Phase 12–13):
-- RAG citation chưa deep-link tới chunk trên document detail (`#chunk-{id}`) → **Phase 12**.
+Giới hạn còn lại (đã gán vào Phase 13):
 - Chưa có module sổ đề xuất/kế hoạch mua sắm vật tư (metadata layer, không workflow nhiều bước) → **Phase 13**.
 - LLM/generator nội bộ nâng cao: **ngoài scope** Phase 11–13; RAG vẫn extractive local-only.
 
@@ -301,7 +301,7 @@ Mục tiêu gợi ý cho `TASK_NEXT.md`:
 
 ### Phase 13 - Module Đề Xuất / Kế Hoạch Mua Sắm MVP
 
-Trạng thái: chưa bắt đầu.
+Trạng thái: chưa bắt đầu (kế hoạch sẵn sàng; checklist trong `TASK_NEXT.md`).
 
 Mục tiêu: mở module nghiệp vụ thứ tư — sổ đề xuất mua sắm và kế hoạch vật tư — theo pattern metadata 1-1 với document core; **không** mở workflow inventory/phê duyệt nhiều bước.
 

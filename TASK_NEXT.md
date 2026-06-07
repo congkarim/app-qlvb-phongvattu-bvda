@@ -21,11 +21,11 @@ Lịch sử phase đã hoàn thành, kết quả khảo sát và log kiểm tra 
 
 ## Con Trỏ Hiện Tại
 
-Phase trước: Phase 11 hoàn thành ngày 2026-06-07.
+Phase trước: Phase 12 hoàn thành ngày 2026-06-07.
 
-Phase hiện tại: Phase 12 - RAG Citation UX Và Search Enrichment.
+Phase hiện tại: Phase 13 - Module Đề Xuất / Kế Hoạch Mua Sắm MVP.
 
-Mục tiêu tiếp theo: Phase 12 / Mục Tiêu 5 - Tin Chỉnh Extractive Answer, Smoke Và Hoàn Tất Phase.
+Mục tiêu tiếp theo: Phase 13 / Mục Tiêu 1 - Thiết Kế Module Procurement Trong DOMAIN_MODULE_DECISION.md.
 
 Điều kiện chuyển sang mục tiêu kế tiếp:
 - Mục tiêu hiện tại pass tiêu chí chấp nhận.
@@ -35,38 +35,39 @@ Mục tiêu tiếp theo: Phase 12 / Mục Tiêu 5 - Tin Chỉnh Extractive Answe
 
 ---
 
-## Phase 12 - RAG Citation UX Và Search Enrichment
+## Phase 13 - Module Đề Xuất / Kế Hoạch Mua Sắm MVP
 
-Trạng thái: đang làm (bắt đầu 2026-06-07).
+Trạng thái: chưa bắt đầu (kế hoạch sẵn sàng 2026-06-07).
 
-Mục tiêu phase: cải thiện truy vết nguồn từ search/RAG tới đúng đoạn văn bản trên document detail; làm giàu UX kết quả tìm kiếm với metadata module.
+Mục tiêu phase: mở module nghiệp vụ thứ tư — sổ đề xuất mua sắm và kế hoạch vật tư — theo pattern metadata 1-1 với document core.
 
 Điều kiện hoàn thành phase:
-- Từ dashboard RAG, click citation mở document detail và scroll tới đúng chunk trong ≥1 fixture smoke.
-- Search result có nút/badge metadata module và (tùy chọn) "Mở đoạn" deep link chunk.
-- Regression smoke RAG + semantic search + filter module pass.
+- Có quyết định scope trong `docs/DOMAIN_MODULE_DECISION.md`.
+- Schema + API + UI `/procurements` + liên kết document detail hai chiều + smoke tái chạy được.
+- Ít nhất một luồng: upload document → tạo metadata procurement → list/filter → search/RAG không regression các module khác.
 
 Không làm trong phase này:
-- Không LLM local (Ollama, vLLM, v.v.).
-- Không PDF viewer page-level scroll (chỉ chunk list text).
-- Không thay đổi chunking/OCR pipeline.
+- Không quản lý tồn kho, phiếu xuất/nhập, tồn tối thiểu.
+- Không workflow trình ký nhiều bước, SLA, assignee.
+- Không bảng line items chi tiết (trừ khi có yêu cầu rõ sau MVP).
+- Không LLM trích xuất metadata mới.
 
-### Mục Tiêu 1 - Thiết Kế Anchor/Scroll Chunk Trên Document Detail
+### Mục Tiêu 1 - Thiết Kế Module Procurement Trong DOMAIN_MODULE_DECISION.md
 
-Trạng thái: hoàn thành (2026-06-07).
+Trạng thái: chưa làm (tiếp theo).
 
-Skill bắt buộc: `frontend-nuxt`, `solution-architect`.
+Skill bắt buộc: `solution-architect`, `database-designer`, `project-git-manager`.
 
 Mục tiêu:
-- Khảo sát chunk list trên `/documents/[id]` và chốt contract anchor `#chunk-{chunk_id}`, highlight và fallback.
+- Chốt tên kỹ thuật, metadata, status, map `business_type` và pattern 1-1 document.
 
 Phạm vi:
-- Đọc `documents/[...id].vue`, DOM id chunk card, hash routing Nuxt.
-- Ghi quyết định trong `PROJECT_STATUS.md` (selector, highlight class, timeout scroll).
+- Cập nhật `docs/DOMAIN_MODULE_DECISION.md` mục procurement.
+- Tham chiếu pattern contract/dispatch/decision Phase 4–10.
 - Không code trong mục tiêu này.
 
 Tiêu chí chấp nhận:
-- Có spec đủ rõ để implement mục tiêu 2–3.
+- Có spec đủ rõ để implement migration/API/UI mục tiêu 2–5.
 
 Kiểm tra bắt buộc:
 
@@ -74,21 +75,67 @@ Kiểm tra bắt buộc:
 git diff --check
 ```
 
-### Mục Tiêu 2 - Implement `#chunk-{id}` Document Detail + Highlight
+### Mục Tiêu 2 - Migration Và Model procurement_records
 
-Trạng thái: hoàn thành (2026-06-07).
+Trạng thái: chưa làm.
+
+Skill bắt buộc: `database-designer`, `backend-fastapi`, `project-git-manager`.
+
+Mục tiêu:
+- Alembic migration `procurement_records` với UUID PK, audit fields, soft delete, partial unique active `document_id`.
+
+Phạm vi:
+- Model SQLAlchemy, index filter MVP.
+- Không API/router trong mục tiêu này.
+
+Tiêu chí chấp nhận:
+- `alembic upgrade head` pass trên DB dev; schema khớp thiết kế mục tiêu 1.
+
+Kiểm tra bắt buộc:
+
+```bash
+docker compose exec -T api alembic upgrade head
+git diff --check
+```
+
+### Mục Tiêu 3 - API CRUD Và Smoke Backend
+
+Trạng thái: chưa làm.
+
+Skill bắt buộc: `backend-fastapi`, `project-git-manager`.
+
+Mục tiêu:
+- Repository, service, router `/api/v1/procurements` + `by-document/{document_id}`; audit và RBAC giống module trước.
+
+Phạm vi:
+- Script `python -m app.scripts.smoke_procurement_api`.
+- Không frontend trong mục tiêu này.
+
+Tiêu chí chấp nhận:
+- Smoke procurement API pass create/list/filter/update/soft-delete.
+
+Kiểm tra bắt buộc:
+
+```bash
+docker compose exec -T api python -m app.scripts.smoke_procurement_api
+git diff --check
+```
+
+### Mục Tiêu 4 - Frontend /procurements
+
+Trạng thái: chưa làm.
 
 Skill bắt buộc: `frontend-nuxt`, `project-git-manager`.
 
 Mục tiêu:
-- Document detail scroll tới chunk khi URL có hash `#chunk-{chunk_id}`; highlight ngắn.
+- Types, service, composable, page list/filter/form CRUD `/procurements`.
 
 Phạm vi:
-- `id="chunk-{id}"` trên chunk card; `onMounted` + watch hash; class ring/border highlight.
-- Không animation phức tạp.
+- Pattern giống `/contracts`, `/dispatches`, `/decisions`.
+- Nav item app shell.
 
 Tiêu chí chấp nhận:
-- Mở `/documents/{id}#chunk-{chunk_id}` scroll tới đúng chunk trong manual/smoke checklist.
+- User CRUD procurement metadata; admin soft delete; form validation và loading/error state.
 
 Kiểm tra bắt buộc:
 
@@ -97,76 +144,54 @@ WEB_MEMORY_LIMIT=4g docker compose run --rm --no-deps -e NODE_OPTIONS=--max-old-
 git diff --check
 ```
 
-### Mục Tiêu 3 - Cập Nhật RAG Citation URL Và Panel
+### Mục Tiêu 5 - Liên Kết Document Detail Hai Chiều
 
-Trạng thái: hoàn thành (2026-06-07).
+Trạng thái: chưa làm.
 
-Skill bắt buộc: `frontend-nuxt`, `semantic-search-rag`, `project-git-manager`.
+Skill bắt buộc: `frontend-nuxt`, `backend-fastapi`, `project-git-manager`.
 
 Mục tiêu:
-- RAG citation link dạng `/documents/{document_id}#chunk-{chunk_id}`; fallback an toàn khi chunk không còn.
+- Card procurement trên `/documents/[id]`; link từ `/procurements` sang document; preset search dashboard (tạm `business_type` + filter nếu chưa có search filter procurement).
 
 Phạm vi:
-- `RagAnswerPanel.vue`; giữ extractive logic backend.
-- Mở rộng `smoke_rag_answer` hoặc checklist: citation URL chứa `chunk_id`.
+- Hai chiều document ↔ procurement record active.
+- Không search filter procurement đầy đủ (để mục tiêu 6 tùy chọn).
 
 Tiêu chí chấp nhận:
-- Click citation từ dashboard RAG mở document detail với hash chunk.
+- Từ document detail mở/sửa procurement và ngược lại trong ≥1 fixture smoke/manual.
 
 Kiểm tra bắt buộc:
 
 ```bash
-docker compose exec -T api python -m app.scripts.smoke_rag_answer
+docker compose exec -T api python -m app.scripts.smoke_procurement_api
 WEB_MEMORY_LIMIT=4g docker compose run --rm --no-deps -e NODE_OPTIONS=--max-old-space-size=3072 web npm run build
 git diff --check
 ```
 
-### Mục Tiêu 4 - Search Result Badges Và Nút "Mở Đoạn"
-
-Trạng thái: hoàn thành (2026-06-07).
-
-Skill bắt buộc: `frontend-nuxt`, `project-git-manager`.
-
-Mục tiêu:
-- Dashboard search result: badge metadata module và nút "Mở đoạn" deep link chunk.
-
-Phạm vi:
-- `dashboard.vue` kết quả semantic search; tái dùng hash contract mục tiêu 2.
-- Contract/dispatch/decision badge khi có enrich metadata.
-
-Tiêu chí chấp nhận:
-- User click "Mở đoạn" từ search result mở đúng chunk trên document detail.
-
-Kiểm tra bắt buộc:
-
-```bash
-WEB_MEMORY_LIMIT=4g docker compose run --rm --no-deps -e NODE_OPTIONS=--max-old-space-size=3072 web npm run build
-git diff --check
-```
-
-### Mục Tiêu 5 - Tin Chỉnh Extractive Answer, Smoke Và Hoàn Tất Phase
+### Mục Tiêu 6 - (Tùy Chọn) Search Filter Procurement Và Hoàn Tất Phase
 
 Trạng thái: chưa làm.
 
 Skill bắt buộc: `semantic-search-rag`, `project-git-manager`.
 
 Mục tiêu:
-- (Tùy chọn) cải thiện ghép câu extractive; hoàn tất Phase 12 và cập nhật tài liệu.
+- Filter procurement trên search/RAG; benchmark fixture; hoàn tất Phase 13 và cập nhật tài liệu.
 
 Phạm vi:
-- `RagAnswerService._compose_answer` nếu cần tinh chỉnh nhẹ.
-- Smoke/benchmark regression: `smoke_rag_answer`, `smoke_search_module_filters`, `smoke_api_workflows`.
-- Cập nhật `ROADMAP.md`, `PROJECT_STATUS.md`, thay `TASK_NEXT.md` bằng checklist Phase 13.
+- `SearchService` + dashboard filter theo pattern Phase 11.
+- Smoke regression: `smoke_procurement_api`, `smoke_search_module_filters`, `smoke_rag_answer`, `smoke_api_workflows`.
+- Cập nhật `ROADMAP.md`, `PROJECT_STATUS.md`, thay `TASK_NEXT.md` bằng phase kế tiếp hoặc ghi "chưa lập phase 14".
 
 Tiêu chí chấp nhận:
-- Phase 12 đạt tiêu chí hoàn thành trong `ROADMAP.md`.
+- Phase 13 đạt tiêu chí hoàn thành trong `ROADMAP.md`.
 - Auto commit sau khi pass kiểm tra.
 
 Kiểm tra bắt buộc:
 
 ```bash
-docker compose exec -T api python -m app.scripts.smoke_rag_answer
+docker compose exec -T api python -m app.scripts.smoke_procurement_api
 docker compose exec -T api python -m app.scripts.smoke_search_module_filters
+docker compose exec -T api python -m app.scripts.smoke_rag_answer
 docker compose exec -T api python -m app.scripts.smoke_api_workflows
 WEB_MEMORY_LIMIT=4g docker compose run --rm --no-deps -e NODE_OPTIONS=--max-old-space-size=3072 web npm run build
 git diff --check

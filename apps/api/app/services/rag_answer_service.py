@@ -154,7 +154,8 @@ class RagAnswerService:
         return matched >= min(len(query_terms), self.config.minimum_query_terms)
 
     def _compose_answer(self, citations: list[dict]) -> str:
-        snippets = [citation["quote"].rstrip(".") for citation in citations if citation["quote"]]
+        top_citations = citations[:2]
+        snippets = [citation["quote"].rstrip(".") for citation in top_citations if citation["quote"]]
         return "Dựa trên các đoạn đã truy xuất: " + ". ".join(snippets) + "."
 
     def _citation(self, query: str, result: dict) -> dict:

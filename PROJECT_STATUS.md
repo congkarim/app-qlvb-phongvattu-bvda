@@ -4,16 +4,16 @@ Cập nhật lần cuối: 2026-06-07
 
 ## Giai Đoạn Hiện Tại
 
-**Phase 0–11 đã hoàn thành.** **Phase 12 đang làm** (bắt đầu 2026-06-07): RAG citation UX và deep link chunk trên document detail.
+**Phase 0–12 đã hoàn thành.** **Phase 13 chưa bắt đầu**: module đề xuất/kế hoạch mua sắm vật tư.
 
-Hệ thống chạy on-prem bằng Docker Compose (`api`, `worker`, `web`, `postgres`, `redis`, `qdrant`). Workflow web end-to-end: upload → OCR/extract → searchable → semantic search → RAG Q&A → review chunk → audit. Module nghiệp vụ MVP: hợp đồng (`/contracts`), công văn (`/dispatches`), quyết định/thông báo (`/decisions`) — liên kết hai chiều với document detail; dashboard lọc search/RAG theo metadata hợp đồng, công văn và quyết định.
+Hệ thống chạy on-prem bằng Docker Compose (`api`, `worker`, `web`, `postgres`, `redis`, `qdrant`). Workflow web end-to-end: upload → OCR/extract → searchable → semantic search → RAG Q&A → review chunk → audit. Module nghiệp vụ MVP: hợp đồng (`/contracts`), công văn (`/dispatches`), quyết định/thông báo (`/decisions`) — liên kết hai chiều với document detail; dashboard lọc search/RAG theo metadata hợp đồng, công văn và quyết định. RAG citation và search result deep-link tới `#chunk-{id}` trên document detail.
 
-Con trỏ tiếp theo: Phase 12 / Mục tiêu 5 — smoke regression và hoàn tất phase.
+Con trỏ tiếp theo: Phase 13 / Mục tiêu 1 — thiết kế module procurement trong `DOMAIN_MODULE_DECISION.md`.
 
 ## Giới Hạn Còn Lại
 
 Giới hạn còn lại (đồng bộ `ROADMAP.md`):
-- Deep link chunk trên document detail, RAG citation và search result đã có; Phase 12 còn smoke regression và đóng phase.
+- Chưa có module sổ đề xuất/kế hoạch mua sắm (Phase 13).
 - Chưa có module sổ đề xuất/kế hoạch mua sắm (Phase 13).
 - Chưa có LLM/generator nội bộ nâng cao; RAG hiện extractive từ chunk truy xuất.
 
@@ -2226,3 +2226,27 @@ Kết quả: frontend build pass; `git diff --check` pass.
 **Đã triển khai**
 
 - `dashboard.vue` kết quả semantic search: title và nút "Mở đoạn" dùng `buildDocumentChunkUrl(document_id, chunk_id)`; badge `Tag` HĐ/công văn/quyết định khi có metadata module enrich.
+
+### Mục tiêu 5 — Smoke regression, tinh chỉnh extractive và hoàn tất phase (2026-06-07)
+
+Kiểm tra bắt buộc:
+
+```bash
+docker compose exec -T api python -m app.scripts.smoke_rag_answer
+docker compose exec -T api python -m app.scripts.smoke_search_module_filters
+docker compose exec -T api python -m app.scripts.smoke_api_workflows
+docker compose build web && docker run --rm --memory=4g -e NODE_OPTIONS=--max-old-space-size=3072 app-qlvb-phongvattu-web:latest npm run build
+git diff --check
+```
+
+Kết quả: cả 3 smoke pass; frontend build pass; `git diff --check` pass.
+
+**Tinh chỉnh extractive (tùy chọn)**
+
+- `RagAnswerService._compose_answer`: ghép tối đa 2 citation quote đầu (đã xếp theo score) thay vì toàn bộ danh sách — câu trả lời ngắn hơn, vẫn grounded.
+
+**Đóng phase**
+
+- `ROADMAP.md` Phase 12 hoàn thành; `TASK_NEXT.md` thay bằng checklist Phase 13.
+
+**Phase 12 hoàn thành ngày 2026-06-07.**
