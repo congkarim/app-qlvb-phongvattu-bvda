@@ -8,7 +8,7 @@ Cập nhật lần cuối: 2026-06-07
 
 Hệ thống chạy on-prem bằng Docker Compose (`api`, `worker`, `web`, `postgres`, `redis`, `qdrant`). Workflow web end-to-end: upload → OCR/extract → searchable → semantic search → RAG Q&A → review chunk → audit. Module nghiệp vụ MVP: hợp đồng (`/contracts`), công văn (`/dispatches`), quyết định/thông báo (`/decisions`) — liên kết hai chiều với document detail; dashboard lọc search theo metadata hợp đồng.
 
-Con trỏ tiếp theo: Phase 11 / Mục tiêu 3 — mở rộng `SearchService`, schema, router và smoke backend.
+Con trỏ tiếp theo: Phase 11 / Mục tiêu 4 — frontend dashboard filter và RAG.
 
 ## Giới Hạn Còn Lại
 
@@ -1996,3 +1996,31 @@ Kết quả: `py_compile` pass; `git diff --check` pass.
 - `DispatchRepository.list_document_ids_by_metadata(dispatch_type?, document_number?, issuing_agency?, status?)` — mirror `ContractRepository`, tái dùng `_conditions()` (active record + join `documents` active).
 - `DecisionRepository.list_document_ids_by_metadata(decision_kind?, document_number?, issuing_agency?, status?, effective_from?, effective_to?)` — logic filter khớp list API module (`ilike` số/đơn vị, exact kind/status, range hiệu lực).
 - Filter rỗng → không thêm điều kiện (caller quyết định kích hoạt pre-resolve ở `SearchService` mục tiêu 3).
+
+### Mục tiêu 3 — SearchService, schema, router và smoke backend (2026-06-07)
+
+Kiểm tra bắt buộc:
+
+```bash
+PYTHONPYCACHEPREFIX=/tmp/qlvb-pycache PYTHONPATH=apps/api python3 -m py_compile \
+  apps/api/app/schemas/search.py \
+  apps/api/app/services/search_service.py \
+  apps/api/app/services/rag_answer_service.py \
+  apps/api/app/routers/search.py
+docker compose exec -T api python -m app.scripts.smoke_dispatch_api
+docker compose exec -T api python -m app.scripts.smoke_decision_api
+docker compose exec -T api python -m app.scripts.smoke_search_module_filters
+git diff --check
+```
+
+Kết quả: `py_compile` pass; `smoke_dispatch_api`, `smoke_decision_api`, `smoke_search_module_filters` pass; `git diff --check` pass.
+
+Đã bổ sung:
+
+- `SemanticSearchRequest` / `RagAnswerRequest`: `issuing_agency`, `dispatch_type`, `dispatch_status`, `decision_kind`, `decision_status`, `effective_from`, `effective_to`.
+- `SemanticSearchResult`: enrich `dispatch_id`/`dispatch_type`/`dispatch_status`, `decision_id`/`decision_kind`/`decision_status`/`effective_from`/`effective_to`.
+- `SearchService`: `_resolve_module_document_ids()` (intersection contract/dispatch/decision), `_resolve_dispatch_document_ids()`, `_resolve_decision_document_ids()`, `_attach_dispatch_metadata()`, `_attach_decision_metadata()`.
+- `DocumentRepository`: filter `issuing_agency` trên chunk search post-filter.
+- `DispatchRepository` / `DecisionRepository`: `map_active_by_document_ids()` cho enrich.
+- Router `search.py` và `RagAnswerService` / `SearchBackend` protocol truyền đủ filter mới.
+- Smoke `smoke_search_module_filters`: seed dispatch/decision + Qdrant, assert filter metadata và regression contract `supplier_name`; RAG `/search/answer` với filter decision.

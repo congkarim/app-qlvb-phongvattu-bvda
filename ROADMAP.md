@@ -186,7 +186,7 @@ Tiêu chí hoàn thành: đạt (xem `PROJECT_STATUS.md`).
 
 ### Phase 11 - Search Filter Metadata Dispatch Và Decision
 
-Trạng thái: đang làm (bắt đầu 2026-06-07; mục tiêu 1 hoàn thành).
+Trạng thái: đang làm (bắt đầu 2026-06-07; mục tiêu 1–3 hoàn thành).
 
 Mục tiêu: hoàn thiện semantic search và RAG trên dashboard theo metadata module công văn và quyết định/thông báo, đồng bộ pattern đã có với hợp đồng (Phase 7).
 

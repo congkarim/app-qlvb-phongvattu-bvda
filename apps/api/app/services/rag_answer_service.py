@@ -21,6 +21,7 @@ class SearchBackend(Protocol):
         department_id: str | None = None,
         business_type: str | None = None,
         document_number: str | None = None,
+        issuing_agency: str | None = None,
         issued_date: date | None = None,
         doc_group: str | None = None,
         section_role: str | None = None,
@@ -28,6 +29,12 @@ class SearchBackend(Protocol):
         contract_number: str | None = None,
         supplier_name: str | None = None,
         contract_status: str | None = None,
+        dispatch_type: str | None = None,
+        dispatch_status: str | None = None,
+        decision_kind: str | None = None,
+        decision_status: str | None = None,
+        effective_from: date | None = None,
+        effective_to: date | None = None,
     ) -> list[dict]:
         ...
 
@@ -64,6 +71,7 @@ class RagAnswerService:
         department_id: str | None = None,
         business_type: str | None = None,
         document_number: str | None = None,
+        issuing_agency: str | None = None,
         issued_date: date | None = None,
         doc_group: str | None = None,
         section_role: str | None = None,
@@ -71,6 +79,12 @@ class RagAnswerService:
         contract_number: str | None = None,
         supplier_name: str | None = None,
         contract_status: str | None = None,
+        dispatch_type: str | None = None,
+        dispatch_status: str | None = None,
+        decision_kind: str | None = None,
+        decision_status: str | None = None,
+        effective_from: date | None = None,
+        effective_to: date | None = None,
     ) -> dict:
         results = self.search.semantic_search(
             query=query,
@@ -79,6 +93,7 @@ class RagAnswerService:
             department_id=department_id,
             business_type=business_type,
             document_number=document_number,
+            issuing_agency=issuing_agency,
             issued_date=issued_date,
             doc_group=doc_group,
             section_role=section_role,
@@ -86,6 +101,12 @@ class RagAnswerService:
             contract_number=contract_number,
             supplier_name=supplier_name,
             contract_status=contract_status,
+            dispatch_type=dispatch_type,
+            dispatch_status=dispatch_status,
+            decision_kind=decision_kind,
+            decision_status=decision_status,
+            effective_from=effective_from,
+            effective_to=effective_to,
         )
         evidence = [
             result

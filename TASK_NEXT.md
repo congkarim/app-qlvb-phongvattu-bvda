@@ -25,7 +25,7 @@ Phase trước: Phase 10 hoàn thành ngày 2026-06-07.
 
 Phase hiện tại: Phase 11 - Search Filter Metadata Dispatch Và Decision.
 
-Mục tiêu tiếp theo: Phase 11 / Mục Tiêu 3 - SearchService, Schema, Router Và Smoke Backend.
+Mục tiêu tiếp theo: Phase 11 / Mục Tiêu 4 - Frontend Dashboard Filter Và RAG.
 
 Điều kiện chuyển sang mục tiêu kế tiếp:
 - Mục tiêu hiện tại pass tiêu chí chấp nhận.
@@ -107,7 +107,7 @@ git diff --check
 
 ### Mục Tiêu 3 - SearchService, Schema, Router Và Smoke Backend
 
-Trạng thái: chưa làm (tiếp theo).
+Trạng thái: hoàn thành (2026-06-07).
 
 Skill bắt buộc: `backend-fastapi`, `semantic-search-rag`, `project-git-manager`.
 
@@ -141,7 +141,7 @@ git diff --check
 
 ### Mục Tiêu 4 - Frontend Dashboard Filter Và RAG
 
-Trạng thái: chưa làm.
+Trạng thái: chưa làm (tiếp theo).
 
 Skill bắt buộc: `frontend-nuxt`, `project-git-manager`.
 

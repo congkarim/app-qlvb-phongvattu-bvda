@@ -20,6 +20,7 @@ def semantic_search(payload: SemanticSearchRequest, db: Session = Depends(get_db
         department_id=payload.department_id,
         business_type=payload.business_type,
         document_number=payload.document_number,
+        issuing_agency=payload.issuing_agency,
         issued_date=payload.issued_date,
         doc_group=payload.doc_group,
         section_role=payload.section_role,
@@ -27,6 +28,12 @@ def semantic_search(payload: SemanticSearchRequest, db: Session = Depends(get_db
         contract_number=payload.contract_number,
         supplier_name=payload.supplier_name,
         contract_status=payload.contract_status,
+        dispatch_type=payload.dispatch_type,
+        dispatch_status=payload.dispatch_status,
+        decision_kind=payload.decision_kind,
+        decision_status=payload.decision_status,
+        effective_from=payload.effective_from,
+        effective_to=payload.effective_to,
     )
     return SemanticSearchResponse(query=payload.query, results=results)
 
@@ -42,6 +49,7 @@ def rag_answer(payload: RagAnswerRequest, db: Session = Depends(get_db)) -> RagA
         department_id=payload.department_id,
         business_type=payload.business_type,
         document_number=payload.document_number,
+        issuing_agency=payload.issuing_agency,
         issued_date=payload.issued_date,
         doc_group=payload.doc_group,
         section_role=payload.section_role,
@@ -49,5 +57,11 @@ def rag_answer(payload: RagAnswerRequest, db: Session = Depends(get_db)) -> RagA
         contract_number=payload.contract_number,
         supplier_name=payload.supplier_name,
         contract_status=payload.contract_status,
+        dispatch_type=payload.dispatch_type,
+        dispatch_status=payload.dispatch_status,
+        decision_kind=payload.decision_kind,
+        decision_status=payload.decision_status,
+        effective_from=payload.effective_from,
+        effective_to=payload.effective_to,
     )
     return RagAnswerResponse(**answer)

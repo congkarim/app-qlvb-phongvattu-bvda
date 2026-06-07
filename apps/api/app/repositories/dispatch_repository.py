@@ -55,6 +55,18 @@ class DispatchRepository:
         )
         return list(self.db.scalars(stmt))
 
+    def map_active_by_document_ids(self, document_ids: list[str]) -> dict[str, DispatchRecord]:
+        if not document_ids:
+            return {}
+        stmt = (
+            select(DispatchRecord)
+            .where(
+                DispatchRecord.document_id.in_(document_ids),
+                DispatchRecord.deleted_at.is_(None),
+            )
+        )
+        return {record.document_id: record for record in self.db.scalars(stmt)}
+
     def list_dispatches(
         self,
         *,

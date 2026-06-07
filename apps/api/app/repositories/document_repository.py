@@ -620,6 +620,7 @@ class DocumentRepository:
         department_id: str | None = None,
         business_type: str | None = None,
         document_number: str | None = None,
+        issuing_agency: str | None = None,
         issued_date: date | None = None,
         doc_group: str | None = None,
         section_role: str | None = None,
@@ -650,6 +651,7 @@ class DocumentRepository:
             department_id=department_id,
             business_type=business_type,
             document_number=document_number,
+            issuing_agency=issuing_agency,
             issued_date=issued_date,
             doc_group=doc_group,
             section_role=section_role,
@@ -666,6 +668,7 @@ class DocumentRepository:
         department_id: str | None = None,
         business_type: str | None = None,
         document_number: str | None = None,
+        issuing_agency: str | None = None,
         issued_date: date | None = None,
         doc_group: str | None = None,
         section_role: str | None = None,
@@ -689,6 +692,7 @@ class DocumentRepository:
             department_id=department_id,
             business_type=business_type,
             document_number=document_number,
+            issuing_agency=issuing_agency,
             issued_date=issued_date,
             doc_group=doc_group,
             section_role=section_role,
@@ -705,6 +709,7 @@ class DocumentRepository:
         department_id: str | None,
         business_type: str | None,
         document_number: str | None,
+        issuing_agency: str | None,
         issued_date: date | None,
         doc_group: str | None,
         section_role: str | None,
@@ -719,6 +724,8 @@ class DocumentRepository:
             stmt = stmt.where(Document.business_type == business_type)
         if document_number is not None:
             stmt = stmt.where(Document.document_number == document_number)
+        if issuing_agency is not None:
+            stmt = stmt.where(Document.issuing_agency.ilike(f"%{issuing_agency}%"))
         if issued_date is not None:
             stmt = stmt.where(Document.issued_date == issued_date)
         if doc_group is not None:
