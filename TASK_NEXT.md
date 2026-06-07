@@ -25,7 +25,7 @@ Phase trước: Phase 15 hoàn thành ngày 2026-06-07.
 
 Phase hiện tại: Phase 16 - Gợi Ý Liên Kết Document Từ Nội Dung (Rule-Based).
 
-Mục tiêu tiếp theo: Phase 16 / Mục Tiêu 1 - Thiết Kế Heuristic Và DTO Gợi Ý Liên Kết.
+Mục tiêu tiếp theo: Phase 16 / Mục Tiêu 2 - DocumentRelationSuggestionService Và Lookup Document.
 
 Điều kiện chuyển sang mục tiêu kế tiếp:
 - Mục tiêu hiện tại pass tiêu chí chấp nhận.
@@ -54,7 +54,7 @@ Không làm trong phase này:
 
 ### Mục Tiêu 1 - Thiết Kế Heuristic Và DTO Gợi Ý Liên Kết
 
-Trạng thái: chưa làm.
+Trạng thái: hoàn thành (2026-06-07).
 
 Skill bắt buộc: `solution-architect`, `vn-admin-doc-ocr-classifier`.
 
@@ -79,7 +79,7 @@ git diff --check
 
 ### Mục Tiêu 2 - DocumentRelationSuggestionService Và Lookup Document
 
-Trạng thái: chưa làm.
+Trạng thái: chưa làm (tiếp theo).
 
 Skill bắt buộc: `backend-fastapi`, `vn-admin-doc-ocr-classifier`.
 

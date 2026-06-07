@@ -1266,3 +1266,228 @@ Audit metadata gọn: `source_document_id`, `target_document_id`, `relation_type
 **Mục tiêu 4–5** frontend card + optional list badge/filter.
 
 **Mục tiêu 6** regression + đóng phase.
+
+---
+
+## Relation Suggestions — Gợi Ý Liên Kết Từ Nội Dung (Phase 16)
+
+Trạng thái: thiết kế (mục tiêu 1, 2026-06-07). Triển khai code từ mục tiêu 2.
+
+### Vấn Đề
+
+Phase 15 cho phép tạo `document_relations` **thủ công** — user phải biết document đích và nhập UUID hoặc tìm list. Trong thực tế, chunk OCR của công văn/quyết định/hợp đồng thường đã chứa số văn bản tham chiếu (“Căn cứ Quyết định số 02/QĐ-VT”, “Hợp đồng số 15/HĐ-…”, “kèm theo Phụ lục …”) nhưng hệ thống chưa **đối chiếu** các chuỗi đó với kho `documents` searchable.
+
+### Quyết Định MVP
+
+| Hạng mục | Quyết định |
+|----------|------------|
+| Cơ chế | Rule-based heuristic trên text chunk; **không** LLM, **không** embedding cross-document |
+| Tạo liên kết | User xác nhận qua UI → `POST /documents/{id}/relations` hiện có; **không** auto-create |
+| Service | `DocumentRelationSuggestionService.suggest_relations(document_id)` — read-only |
+| API | `GET /api/v1/documents/{document_id}/relation-suggestions` |
+| Giới hạn | Tối đa **8** gợi ý; dedupe `(target_document_id, relation_type)` |
+| Phụ thuộc | Phase 15 (`document_relations`, `RELATION_TYPES`); classifier `document_number`; chunk `section_role` |
+
+### Nguồn Dữ Liệu Chunk (Ưu Tiên Quét)
+
+Đọc chunk qua `DocumentRepository.list_chunks_for_document`, lọc theo thứ tự ưu tiên:
+
+1. **Trang 1–2** (`page_number` ∈ {1, 2} hoặc `chunk_index` thấp nhất khi thiếu `page_number`).
+2. **`section_role`** ∈ `article`, `unknown` (bỏ `appendix`, `signature`, `recipient`, `task` trừ khi không còn chunk khác trên trang 1–2).
+3. Chunk có anchor nhóm B (`ocr_chunking/anchors.py`: `Căn cứ`, `V/v`, `Thực hiện`, `Kèm theo` trong `GROUP_B_ANCHORS`) hoặc chứa pattern số/ký hiệu (xem Regex bên dưới).
+
+Nếu sau lọc không còn chunk, fallback: toàn bộ chunk trang 1–2 bất kể `section_role`.
+
+### Regex Trích Reference Candidate
+
+Chuẩn hóa text chunk trước khi regex (mirror OCR classifier):
+
+- NFC Unicode; gộp whitespace; trim dấu câu đầu/cuối (`DocumentClassifierService._clean_value`).
+- Sửa OCR phổ biến trong symbol: `QD`→`QĐ`, `HD`→`HĐ`, `TB` giữ nguyên, `CV` giữ nguyên.
+
+**Pattern chính** — bắt `number/symbol` hành chính VN (ưu tiên có tiền tố loại văn bản hoặc “số”):
+
+```text
+(?:Căn\s*cứ\s+)?(?:Quyết\s*định|Q[ĐD]|Công\s*văn|CV|Hợp\s*đồng|H[ĐD]|Thông\s*báo|TB|Chỉ\s*thị|CT|Nghị\s*quyết|NQ)\s*
+(?:số\s*)?(?P<num>\d+)\s*/\s*(?P<sym>[A-ZÀ-ỸĐa-zà-ỹ][A-ZÀ-ỸĐa-zà-ỹ0-9.\-]*)
+```
+
+**Pattern phụ** — “Số: …” inline (cùng logic classifier `_extract_document_number_and_symbol`):
+
+```text
+\bSố\s*:\s*(?P<full>[^\n]{3,80})
+```
+
+Tách `full` tại `/` đầu tiên → `num` + `sym`; cắt phần sau nếu gặp `ngày` hoặc khoảng trắng kép (giống classifier dòng 189).
+
+**Pattern phụ** — số/ký hiệu đứng độc lập (confidence thấp hơn):
+
+```text
+\b(?P<num>\d{1,4})\s*/\s*(?P<sym>Q[ĐD][-\w]*|CV[-\w]*|H[ĐD][-\w]*|TB[-\w]*|NQ[-\w]*|CT[-\w]*|[A-ZĐ]{2,}[-\w]*)
+```
+
+Mỗi match sinh `matched_reference` = chuỗi gốc (trim, ≤128 ký tự) và `normalized_number` = `{num}/{sym}` sau normalize.
+
+### Normalize `document_number` (Lookup)
+
+Hàm `normalize_document_number(value: str) -> str | None` — **tái dùng logic classifier** (mục tiêu 2 có thể extract shared helper từ `DocumentClassifierService`):
+
+1. `_clean_value` (whitespace, trim `.;,:`).
+2. Cắt phần date/place nếu dính sau số (regex `(?=\b[A-ZÀ-Ỹ][a-zà-ỹ]+,\s*ngày\b)` hoặc `\s{2,}`).
+3. Symbol OCR fix: `QD`→`QĐ`, `HD`→`HĐ` (chỉ phần sau `/`).
+4. So khớp DB: **case-insensitive exact** trên `documents.document_number` (`ILIKE` hoặc `LOWER()`); chỉ document `status = 'searchable'`, `deleted_at IS NULL`.
+
+**Chiến lược match document đích** (theo thứ tự):
+
+| Bước | Điều kiện | Ghi chú |
+|------|-----------|---------|
+| 1 | `normalized_number` khớp exact `document_number` | Bắt buộc MVP |
+| 2 | Nhiều kết quả | Ưu tiên `document_type` suy từ prefix symbol (`QĐ`, `CV`, `HĐ`); nếu vẫn hòa → bỏ qua (không đoán) |
+| 3 | Không khớp | Không gợi ý; **không** fuzzy/embedding |
+
+Fallback tùy chọn (chỉ khi bước 1 thất bại và symbol đủ dài): `document_symbol` + `num` — **ngoài MVP mục tiêu 2** nếu chưa có index; ghi nhận để mở rộng sau.
+
+### Anchor Phrase → `relation_type`
+
+Quét **cùng chunk** hoặc **chunk liền trước** (cùng document, `chunk_index - 1`) trong cửa sổ 200 ký tự trước `matched_reference`. Áp dụng rule **ưu tiên cao → thấp** (rule đầu khớp thắng):
+
+| Anchor / ngữ cảnh (regex, `IGNORECASE`) | `relation_type` | Ghi chú |
+|----------------------------------------|-----------------|---------|
+| `\bCăn\s*cứ\b`, `\bcăn\s*cứ\b`, `\bXét\b` | `references` | CV/QĐ tham chiếu văn bản nền |
+| `\bPhụ\s*lục\b`, `\bKèm\s*theo\b`, `\bđính\s*kèm\b` + symbol `HĐ`/`HD` trong reference | `appendix_of` | Phụ lục hợp đồng scan riêng |
+| `\bThực\s*hiện\b`, `\btriển\s*khai\b`, `\bTổ\s*chức\s*thực\s*hiện\b` | `implements` | CV triển khai QĐ/KH |
+| Khớp số nhưng không có anchor rõ | `related` | Liên kết lỏng, cần review |
+
+`relation_type` phải ∈ `RELATION_TYPES` Phase 15 (`references`, `appendix_of`, `implements`, `related`).
+
+### Loại Trừ (Bắt Buộc)
+
+Service **không** đưa vào danh sách gợi ý khi:
+
+| Loại trừ | Kiểm tra |
+|----------|----------|
+| **Self-link** | `target_document_id == source_document_id` |
+| **Relation active trùng triple** | Đã tồn tại `(source_document_id, target_document_id, relation_type)` với `deleted_at IS NULL` |
+| **Target không searchable** | `documents.status != 'searchable'` hoặc `deleted_at IS NOT NULL` |
+| **Source không searchable** | API layer trả `404` hoặc `[]` — service không chạy heuristic |
+
+Document nguồn không tồn tại / đã xóa: API `404` (mục tiêu 3).
+
+### Confidence Và Ngưỡng UI
+
+Điểm `confidence` ∈ [0.0, 1.0]; `reasons[]` giải thích từng thành phần (debug + UI tooltip).
+
+**Công thức gợi ý** (cộng dồn, cap 1.0):
+
+| Thành phần | Điểm | `reasons[]` mẫu |
+|------------|------|-----------------|
+| Exact match `document_number` | +0.55 | `exact_document_number_match` |
+| Pattern chính (có tiền tố loại VB) | +0.20 | `strong_reference_pattern` |
+| Pattern phụ / standalone | +0.10 | `weak_reference_pattern` |
+| Anchor phrase khớp `relation_type` | +0.15 | `anchor:can_cu` / `anchor:phu_luc` / … |
+| Chunk trang 1 | +0.05 | `source_page_1` |
+| Chunk `section_role=article` | +0.05 | `source_section_article` |
+
+**Ngưỡng hiển thị** (field `confidence_tier` trong response — không lưu DB):
+
+| Tier | Điều kiện | UX |
+|------|-----------|-----|
+| `high` | `confidence >= 0.80` | Nút **Tạo liên kết** nổi bật |
+| `review` | `0.50 <= confidence < 0.80` | Style nhắc xem lại; vẫn cho phép tạo |
+| (ẩn) | `< 0.50` | Không trả về client |
+
+Không chặn workflow: tier `review` vẫn hiển thị; user quyết định.
+
+### DTO Gợi Ý
+
+**`RelationSuggestionRead`** (Pydantic, mục tiêu 3):
+
+```json
+{
+  "target_document_id": "uuid",
+  "relation_type": "references",
+  "confidence": 0.92,
+  "confidence_tier": "high",
+  "matched_reference": "Quyết định số 01/QD-REL-abc",
+  "source_chunk_id": "uuid",
+  "source_chunk_quote": "Căn cứ Quyết định số 01/QD-REL-abc của Giám đốc...",
+  "target_document_preview": {
+    "id": "uuid",
+    "title": "...",
+    "document_number": "01/QD-REL-abc",
+    "document_type": "QĐ",
+    "status": "searchable"
+  },
+  "reasons": ["exact_document_number_match", "strong_reference_pattern", "anchor:can_cu", "source_page_1"]
+}
+```
+
+| Field | Bắt buộc | Mô tả |
+|-------|----------|-------|
+| `target_document_id` | ✓ | UUID document đích đã match |
+| `relation_type` | ✓ | Một trong `RELATION_TYPES` |
+| `confidence` | ✓ | Float 0–1 |
+| `confidence_tier` | ✓ | `high` \| `review` |
+| `matched_reference` | ✓ | Chuỗi regex bắt được |
+| `source_chunk_id` | ✓ | Chunk nguồn |
+| `source_chunk_quote` | ✓ | Trích ≤200 ký tự quanh reference (UI quote) |
+| `target_document_preview` | ✓ | Snapshot gọn cho UI (không embed full relations) |
+| `reasons` | ✓ | Mảng string, thứ tự ổn định |
+
+**`RelationSuggestionsResponse`**:
+
+```json
+{
+  "document_id": "uuid",
+  "suggestions": [ "...RelationSuggestionRead..." ],
+  "candidate_count": 1
+}
+```
+
+Dedupe: giữ bản ghi **confidence cao nhất** cho mỗi `(target_document_id, relation_type)`.
+
+### API Shape (Mục Tiêu 3)
+
+**GET** `/api/v1/documents/{document_id}/relation-suggestions`
+
+- Auth: user đăng nhập (giống GET relations).
+- `404`: document không tồn tại / đã xóa.
+- `404` hoặc `[]`: document không `searchable` (implement chọn một — khuyến nghị `404` với message rõ cho document chưa OCR xong).
+- Không side-effect; không ghi `document_relations`.
+- Audit tùy chọn: `document.relation_suggested`, metadata `{ "candidate_count": N }` — chỉ nếu không làm chậm smoke.
+
+### Frontend UX (Mục Tiêu 4–5 — Tham Chiếu)
+
+Subsection **Gợi ý liên kết** trong `DocumentRelationsCard`:
+
+- `high`: border/emphasis mặc định; `review`: badge “Cần xem lại”.
+- Hiển thị: nhãn `relation_type`, `target_document_preview.document_number`, `source_chunk_quote`.
+- **Tạo liên kết** → `POST /documents/{source_id}/relations` (≤2 thao tác).
+- **Bỏ qua** → client-side dismiss (session/ref Set); không API.
+
+### Smoke Fixture (Mục Tiêu 6)
+
+Mirror `smoke_document_relations`:
+
+1. Seed QĐ A: `document_number = 01/QD-REL-{suffix}`, `status = searchable`, chunk text trang 1 (metadata classifier).
+2. Seed CV B: searchable, chunk chứa `Căn cứ Quyết định số 01/QD-REL-{suffix}`.
+3. `GET .../relation-suggestions` trên B → ≥1 gợi ý, `target_document_id = A`, `relation_type = references`, `confidence_tier` ∈ {`high`, `review`}.
+4. `POST` relation B→A → gợi ý biến mất (triple đã tồn tại).
+
+### Phân Biệt Với Phase 15 / Chunk Appendix
+
+| | Chunk `section_role=appendix` | Relation suggestion |
+|--|------------------------------|---------------------|
+| Phạm vi | Trong một document | Giữa hai document searchable |
+| Tự động | Chunking pipeline | Heuristic read-only; user xác nhận |
+| Lưu trữ | `document_chunks` | Chỉ gợi ý; persist qua `document_relations` khi user POST |
+
+### Hướng Dẫn Cho Mục Tiêu Tiếp Theo (Phase 16)
+
+**Mục tiêu 2** `DocumentRelationSuggestionService` + `normalize_document_number` shared + lookup `DocumentRepository`.
+
+**Mục tiêu 3** schema `RelationSuggestionRead`, router GET `relation-suggestions`.
+
+**Mục tiêu 4–5** frontend subsection + apply/dismiss.
+
+**Mục tiêu 6** `smoke_relation_suggestions` + regression; đóng phase.

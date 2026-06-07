@@ -6,15 +6,18 @@ Cập nhật lần cuối: 2026-06-07
 
 **Phase 0–15 đã hoàn thành.** Phase 15 đóng ngày 2026-06-07.
 
+**Phase 16 đang làm** (bắt đầu 2026-06-07): gợi ý liên kết document từ nội dung OCR/chunk (rule-based, user xác nhận).
+
 Hệ thống chạy on-prem bằng Docker Compose (`api`, `worker`, `web`, `postgres`, `redis`, `qdrant`). Workflow web end-to-end: upload → OCR/extract → searchable → semantic search → RAG Q&A → review chunk → audit. Module nghiệp vụ MVP: hợp đồng (`/contracts`), công văn (`/dispatches`), quyết định/thông báo (`/decisions`), mua sắm (`/procurements`) — liên kết hai chiều với document detail; dashboard lọc search/RAG theo metadata hợp đồng, công văn, quyết định và mua sắm. RAG citation và search result deep-link tới `#chunk-{id}` trên document detail. Onboarding metadata module: gợi ý sau OCR, banner document detail, filter list thiếu metadata module. Liên kết chéo document: card **Văn bản liên quan** trên document detail, filter/badge trên list documents.
 
-Con trỏ tiếp theo: chưa lập Phase 16 — xem `ROADMAP.md` (giới hạn còn lại) khi ưu tiên phase mới.
+Con trỏ tiếp theo: Phase 16 / Mục tiêu 2 — `DocumentRelationSuggestionService` + lookup `document_number` (`TASK_NEXT.md`).
 
 ## Giới Hạn Còn Lại
 
 Giới hạn còn lại (đồng bộ `ROADMAP.md`):
+- Gợi ý liên kết document rule-based đang triển khai Phase 16 (chưa có service/API/UI).
 - Chưa có LLM/generator nội bộ nâng cao; RAG hiện extractive từ chunk truy xuất.
-- Inventory/tồn kho, workflow phê duyệt nhiều bước, line items procurement, auto-trích quan hệ document từ OCR: ngoài scope MVP hiện tại.
+- Inventory/tồn kho, workflow phê duyệt nhiều bước, line items procurement: ngoài scope MVP hiện tại.
 
 ## Đã Xây Dựng
 
@@ -2641,3 +2644,28 @@ Kết quả: tất cả smoke API pass; web client + SSR compile pass (Nitro `EB
 
 - Tiêu chí hoàn thành Phase 15 trong `ROADMAP.md` đạt.
 - Phase 15 đóng; `ROADMAP.md` và `TASK_NEXT.md` cập nhật (chưa lập Phase 16).
+
+## Phase 16 — Gợi Ý Liên Kết Document Từ Nội Dung (Rule-Based)
+
+Trạng thái: đang làm (bắt đầu 2026-06-07).
+
+### Mục tiêu 1 — Thiết kế heuristic và DTO gợi ý liên kết (2026-06-07)
+
+**Khảo sát mã nguồn**
+
+- `DocumentClassifierService._extract_document_number_and_symbol()`: regex `\bSố\s*:\s*([^\n]+)`, tách symbol sau `/`, cắt phần date/place — dùng làm mirror cho pattern phụ và `normalize_document_number`.
+- `ocr_chunking/anchors.py`: `GROUP_B_ANCHORS` chứa `Căn cứ`, `V/v`, `Thực hiện` — phù hợp chunk công văn tham chiếu QĐ; `APPENDIX_RE` đã có cho phụ lục trong cùng document (khác `document_relations` cross-document).
+- `DocumentRepository.list_chunks_for_document`: đủ để lọc trang 1–2 và `section_role`; lookup `document_number` hiện exact match (`==`) trong filter chunk search.
+- Phase 15: `RELATION_TYPES` = `references`, `appendix_of`, `implements`, `related`; unique triple active; smoke seed QĐ `01/QD-REL-{suffix}` + CV `01/CV-REL-{suffix}` — fixture Phase 16 mở rộng CV chunk text chứa số QĐ.
+
+**Kết quả thiết kế**
+
+- Ghi mục **Relation Suggestions** trong `docs/DOMAIN_MODULE_DECISION.md`: regex 3 tầng, anchor → `relation_type`, normalize số văn bản, DTO `RelationSuggestionRead` / `RelationSuggestionsResponse`, ngưỡng `high` (≥0.80) / `review` (≥0.50), loại trừ self-link / triple trùng / target không searchable.
+
+**Kiểm tra**
+
+```bash
+git diff --check
+```
+
+Kết quả: pass.
