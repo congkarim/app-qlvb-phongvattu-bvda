@@ -25,7 +25,7 @@ Phase trước: Phase 12 hoàn thành ngày 2026-06-07.
 
 Phase hiện tại: Phase 13 - Module Đề Xuất / Kế Hoạch Mua Sắm MVP.
 
-Mục tiêu tiếp theo: Phase 13 / Mục Tiêu 1 - Thiết Kế Module Procurement Trong DOMAIN_MODULE_DECISION.md.
+Mục tiêu tiếp theo: Phase 13 / Mục Tiêu 2 - Migration Và Model procurement_records.
 
 Điều kiện chuyển sang mục tiêu kế tiếp:
 - Mục tiêu hiện tại pass tiêu chí chấp nhận.
@@ -37,7 +37,7 @@ Mục tiêu tiếp theo: Phase 13 / Mục Tiêu 1 - Thiết Kế Module Procurem
 
 ## Phase 13 - Module Đề Xuất / Kế Hoạch Mua Sắm MVP
 
-Trạng thái: chưa bắt đầu (kế hoạch sẵn sàng 2026-06-07).
+Trạng thái: đang làm (bắt đầu 2026-06-07).
 
 Mục tiêu phase: mở module nghiệp vụ thứ tư — sổ đề xuất mua sắm và kế hoạch vật tư — theo pattern metadata 1-1 với document core.
 
@@ -54,7 +54,7 @@ Không làm trong phase này:
 
 ### Mục Tiêu 1 - Thiết Kế Module Procurement Trong DOMAIN_MODULE_DECISION.md
 
-Trạng thái: chưa làm (tiếp theo).
+Trạng thái: hoàn thành (2026-06-07).
 
 Skill bắt buộc: `solution-architect`, `database-designer`, `project-git-manager`.
 
@@ -77,7 +77,7 @@ git diff --check
 
 ### Mục Tiêu 2 - Migration Và Model procurement_records
 
-Trạng thái: chưa làm.
+Trạng thái: chưa làm (tiếp theo).
 
 Skill bắt buộc: `database-designer`, `backend-fastapi`, `project-git-manager`.
 

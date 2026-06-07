@@ -4,17 +4,16 @@ Cập nhật lần cuối: 2026-06-07
 
 ## Giai Đoạn Hiện Tại
 
-**Phase 0–12 đã hoàn thành.** **Phase 13 chưa bắt đầu**: module đề xuất/kế hoạch mua sắm vật tư.
+**Phase 0–12 đã hoàn thành.** **Phase 13 đang làm** (bắt đầu 2026-06-07): module đề xuất/kế hoạch mua sắm vật tư.
 
 Hệ thống chạy on-prem bằng Docker Compose (`api`, `worker`, `web`, `postgres`, `redis`, `qdrant`). Workflow web end-to-end: upload → OCR/extract → searchable → semantic search → RAG Q&A → review chunk → audit. Module nghiệp vụ MVP: hợp đồng (`/contracts`), công văn (`/dispatches`), quyết định/thông báo (`/decisions`) — liên kết hai chiều với document detail; dashboard lọc search/RAG theo metadata hợp đồng, công văn và quyết định. RAG citation và search result deep-link tới `#chunk-{id}` trên document detail.
 
-Con trỏ tiếp theo: Phase 13 / Mục tiêu 1 — thiết kế module procurement trong `DOMAIN_MODULE_DECISION.md`.
+Con trỏ tiếp theo: Phase 13 / Mục tiêu 2 — migration và model `procurement_records`.
 
 ## Giới Hạn Còn Lại
 
 Giới hạn còn lại (đồng bộ `ROADMAP.md`):
-- Chưa có module sổ đề xuất/kế hoạch mua sắm (Phase 13).
-- Chưa có module sổ đề xuất/kế hoạch mua sắm (Phase 13).
+- Chưa có module sổ đề xuất/kế hoạch mua sắm (`/procurements`) — Phase 13 mục tiêu 2–5.
 - Chưa có LLM/generator nội bộ nâng cao; RAG hiện extractive từ chunk truy xuất.
 
 ## Đã Xây Dựng
@@ -2250,3 +2249,36 @@ Kết quả: cả 3 smoke pass; frontend build pass; `git diff --check` pass.
 - `ROADMAP.md` Phase 12 hoàn thành; `TASK_NEXT.md` thay bằng checklist Phase 13.
 
 **Phase 12 hoàn thành ngày 2026-06-07.**
+
+---
+
+## Phase 13 — Module Đề Xuất / Kế Hoạch Mua Sắm MVP
+
+### Mục tiêu 1 — Thiết kế module procurement trong DOMAIN_MODULE_DECISION.md (2026-06-07)
+
+Kiểm tra bắt buộc:
+
+```bash
+git diff --check
+```
+
+Kết quả: pass.
+
+**Khảo sát pattern module hiện có**
+
+| Module | Bảng | API | Route | Quan hệ document |
+|--------|------|-----|-------|------------------|
+| Hợp đồng | `contract_records` | `/api/v1/contracts` | `/contracts` | 1-1 partial unique `document_id` |
+| Công văn | `dispatch_records` | `/api/v1/dispatches` | `/dispatches` | 1-1 |
+| Quyết định | `decision_records` | `/api/v1/decisions` | `/decisions` | 1-1 |
+
+Catalog `business_type` hiện có: `incoming_dispatch`, `outgoing_dispatch`, `contract`, `decision` (migration `0012_admin_catalogs`). Benchmark fixture `procurement_plan` tạm dùng `business_type=incoming_dispatch` — sẽ chuẩn hóa `procurement` khi có seed catalog.
+
+**Quyết định thiết kế (ghi trong `docs/DOMAIN_MODULE_DECISION.md`)**
+
+- Module thứ tư: `procurement_records`, API `/api/v1/procurements`, route `/procurements`, audit `procurement`.
+- `procurement_kind`: `proposal` | `plan` | `acceptance` (≤3 giá trị MVP).
+- `business_type=procurement` (một mã catalog; phân biệt bằng `procurement_kind` — giống `decision` + `decision_kind`).
+- Metadata: `reference_number`, `title_summary`, `requesting_unit`, `estimated_value`, `currency` (default VND), `requested_date`, `status`, `notes`.
+- Status: `draft`, `submitted`, `approved`, `rejected`, `completed`, `archived` — PATCH trực tiếp, không rule engine.
+- Quyền/audit giống module trước; search filter procurement draft cho mục tiêu 6 tùy chọn.

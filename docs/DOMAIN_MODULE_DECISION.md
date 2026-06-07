@@ -1,6 +1,6 @@
 # Domain Module Decision
 
-Cập nhật lần cuối: 2026-06-07 (Phase 10 hoàn thành)
+Cập nhật lần cuối: 2026-06-07 (Phase 13 mục tiêu 1 — thiết kế procurement)
 
 ## Module Đầu Tiên
 
@@ -644,3 +644,249 @@ Cập nhật: 2026-06-07 (Phase 11 hoàn thành).
 | `/dispatches` | `q`, `document_number`, `issuing_agency`, `dispatch_type`, `dispatch_status`, `business_type` (`incoming_dispatch` / `outgoing_dispatch`) |
 | `/decisions` | `q`, `document_number`, `issuing_agency`, `business_type=decision`, `decision_kind`, `decision_status`, `effective_from`, `effective_to` |
 | `/contracts` | `q`, `document_number` (giữ pattern hiện có) |
+
+---
+
+## Module Thứ Tư (Phase 13)
+
+Chọn module nghiệp vụ thứ tư cho Phase 13: **Đề xuất / kế hoạch mua sắm vật tư** (và biên bản nghiệm thu đơn giản).
+
+## Lý Do Chọn
+
+- Phòng vật tư cần sổ theo dõi đề xuất mua sắm, kế hoạch/dự toán vật tư và biên bản nghiệm thu gắn với hồ sơ văn bản (công văn đề xuất, kế hoạch nội bộ, biên bản) — metadata chuyên biệt mà document list thuần OCR chưa đủ.
+- Pattern `contract_records` / `dispatch_records` / `decision_records` đã chứng minh: metadata 1-1 với `documents`, CRUD/filter UI, audit log, liên kết hai chiều document detail, search filter module (Phase 11).
+- Benchmark search đã có fixture `procurement_plan` (kế hoạch mua sắm vật tư) — có thể nối vào smoke procurement/search ở mục tiêu 6.
+- Scope giữ **metadata layer** quanh document core; **không** mở inventory, tồn kho, phiếu xuất/nhập hay workflow phê duyệt nhiều bước.
+
+## Ứng Viên Không Chọn Ở Phase 13
+
+- Tách module inventory/tồn kho: vượt scope MVP, dễ kéo sang ERP nhẹ.
+- Tách ba module riêng (đề xuất / kế hoạch / nghiệm thu): trùng metadata và workflow; gộp một module với `procurement_kind` đơn giản hơn cho MVP.
+- Dùng `business_type=incoming_dispatch` cho mọi hồ sơ procurement: benchmark fixture hiện tạm dùng giá trị này; module mới sẽ chuẩn hóa `business_type=procurement` + `procurement_kind`.
+
+## Tên Kỹ Thuật
+
+- Bảng: `procurement_records`
+- Model: `ProcurementRecord`
+- API prefix: `/api/v1/procurements`
+- Frontend route: `/procurements`
+- Entity audit: `procurement`
+
+`procurement` ở đây là tên module nghiệp vụ (đề xuất/kế hoạch mua sắm), không nhầm với quy trình mua sắm đầy đủ hay hệ thống đấu thầu.
+
+## Scope MVP
+
+MVP chỉ quản lý sổ đề xuất/kế hoạch/nghiệm thu như lớp metadata nghiệp vụ liên kết document core, không thay thế OCR/search/document workflow.
+
+### Metadata Tối Thiểu
+
+| Trường | Mô tả | Ghi chú |
+|--------|--------|---------|
+| `document_id` | Liên kết 1-1 tới `documents` | Bắt buộc; partial unique index active |
+| `procurement_kind` | Loại hồ sơ module | `proposal` \| `plan` \| `acceptance` — xem bảng mapping |
+| `reference_number` | Số đề xuất / kế hoạch / biên bản | Ví dụ `DX-12/VT`, `KH-42/VT`; nullable nhưng khuyến nghị nhập |
+| `title_summary` | Trích yếu / tên hồ sơ nghiệp vụ | Text ngắn; mặc định lấy `documents.title` nếu chưa nhập |
+| `requesting_unit` | Đơn vị đề xuất / yêu cầu | Ví dụ tên phòng/ban; có thể pre-fill từ `issuing_agency` |
+| `estimated_value` | Giá trị dự kiến / dự toán | `Numeric(18,2)`, nullable |
+| `currency` | Đơn vị tiền | Mặc định `VND` |
+| `requested_date` | Ngày lập đề xuất / kế hoạch | Date; có thể pre-fill từ `issued_date` |
+| `status` | Trạng thái xử lý nghiệp vụ module | Xem bảng status bên dưới |
+| `notes` | Ghi chú nội bộ | Optional |
+
+Trường bổ sung khi tạo từ document (read-only trong response, join từ `documents` — không lưu trùng vào bảng module):
+
+- `document_title`, `document_status`, `document_number`, `issued_date`, `issuing_agency`, `excerpt` (hiển thị/pre-fill form; `document_number` có thể gợi ý `reference_number`).
+
+### `procurement_kind`
+
+| Giá trị | Nhãn UI | Ý nghĩa |
+|---------|---------|---------|
+| `proposal` | Đề xuất mua sắm | Phiếu/tờ trình đề xuất vật tư, dự trù |
+| `plan` | Kế hoạch / dự toán | Kế hoạch mua sắm, dự toán vật tư theo kỳ |
+| `acceptance` | Biên bản nghiệm thu | Biên bản nghiệm thu hàng hóa/dịch vụ đơn giản (metadata, không line items) |
+
+Validate `procurement_kind` ∈ `{proposal, plan, acceptance}`.
+
+### Mapping `business_type`
+
+| `procurement_kind` | `documents.business_type` khuyến nghị | `documents.document_type` OCR thường gặp |
+|--------------------|--------------------------------------|------------------------------------------|
+| `proposal` | `procurement` | `ĐX`, `CV` (công văn đề xuất) |
+| `plan` | `procurement` | `KH` (kế hoạch) |
+| `acceptance` | `procurement` | `BB` (biên bản), `BBNT` |
+
+**Catalog admin:** thêm một mã `business_type=procurement` (nhãn ví dụ "Đề xuất / kế hoạch mua sắm") trong migration hoặc seed đi kèm mục tiêu 2 — **không** thêm `purchase_plan` / `proposal` riêng vào catalog; phân biệt bằng `procurement_kind` (giống `decision` + `decision_kind`).
+
+Khuyến nghị (không hard-fail MVP): khi tạo procurement từ document, `documents.business_type` nên là `procurement`; nếu document cũ còn `incoming_dispatch`/`outgoing_dispatch` vẫn cho phép tạo metadata nhưng UI có thể gợi ý đổi `business_type` trên document.
+
+### Trạng Thái MVP (`status`)
+
+| Giá trị | Nhãn UI | Ý nghĩa |
+|---------|---------|---------|
+| `draft` | Nháp | Metadata chưa chốt |
+| `submitted` | Đã trình | Đã gửi/trình nội bộ |
+| `approved` | Đã duyệt | Được phê duyệt (ghi nhận, không mô phỏng workflow trình ký) |
+| `rejected` | Từ chối | Không duyệt / trả lại |
+| `completed` | Hoàn thành | Đã thực hiện xong (mua sắm/nghiệm thu hoàn tất theo hồ sơ) |
+| `archived` | Lưu trữ | Đóng hồ sơ, chỉ tra cứu |
+
+Không mở workflow chuyển trạng thái nhiều bước có rule engine; user/admin cập nhật `status` trực tiếp qua form PATCH.
+
+### Workflow MVP
+
+- User đăng nhập upload hoặc chọn document có `business_type=procurement` (hoặc document đã searchable khác loại nếu cần backfill).
+- Tạo/cập nhật metadata procurement liên kết `document_id`; form pre-fill từ metadata document (`document_number` → `reference_number`, `title` → `title_summary`, `issuing_agency` → `requesting_unit`, `issued_date` → `requested_date`, `excerpt` → gợi ý `title_summary`).
+- List/filter theo: `procurement_kind`, `reference_number`, `requesting_unit`, trích yếu (`q`), trạng thái, khoảng `requested_date`, `document_id`.
+- Detail/link document nguồn, drill-down sang chunks/search dashboard (preset `q`, `reference_number`, `business_type=procurement`; filter procurement đầy đủ ở mục tiêu 6 tùy chọn).
+- Audit log cho create/update/delete mềm metadata.
+
+### Không Làm Trong MVP
+
+- Không quản lý tồn kho, phiếu xuất/nhập kho, tồn tối thiểu, đối soát tồn.
+- Không workflow trình ký nhiều bước, SLA, assignee, comment thread, luồng phê duyệt có rule.
+- Không bảng dòng hàng vật tư chi tiết (line items), đơn giá từng mặt hàng, nhà cung cấp trên từng dòng.
+- Không tạo bảng file đính kèm riêng — file vẫn ở `document_files` / document core.
+- Không tự động trích xuất toàn bộ metadata bằng LLM; chỉ pre-fill từ metadata document/OCR đã có.
+- Không denormalize OCR text/chunk vào `procurement_records` hoặc Qdrant payload ở giai đoạn schema/API MVP.
+- Không thêm service ngoài PostgreSQL/Qdrant/Redis hiện có.
+
+## Boundary Kỹ Thuật
+
+### Backend
+
+```text
+router -> service -> repository
+```
+
+- Module có `procurements` router, `ProcurementService`, `ProcurementRepository` riêng.
+- Bảng `procurement_records`: UUID primary key, `created_at`, `updated_at`, `deleted_at`.
+- Không hard delete metadata.
+- Liên kết document core qua `document_id`; validate document active và chưa có procurement active khác (1-1 như các module trước).
+- Validate `procurement_kind` ∈ `{proposal, plan, acceptance}`; `currency` default `VND`; `estimated_value` ≥ 0 nếu có.
+
+### Frontend
+
+```text
+page -> composable -> service -> API
+```
+
+- Page `/procurements` dùng `useProcurements` + `procurement.service.ts`.
+- Không gọi API trực tiếp trong component.
+- Tái sử dụng layout list/filter/pagination/form từ `/contracts`, `/dispatches`, `/decisions`.
+
+### Search/RAG
+
+- Search/RAG tiếp tục dựa trên document/chunk core.
+- Filter search theo metadata procurement (`procurement_kind`, `reference_number`, `requesting_unit`, `status`) là **mục tiêu 6 tùy chọn** — theo pattern Phase 11 pre-resolve `document_id` từ `procurement_records`.
+- Citation/deep link `#chunk-{id}` giữ nguyên (Phase 12); enrich response có thể thêm `procurement_id`, `procurement_kind`, `procurement_status` ở mục tiêu 6.
+- Benchmark fixture `procurement_plan`: cập nhật `business_type` → `procurement` khi catalog seed có mã mới (mục tiêu 6 hoặc kèm smoke procurement).
+
+## Quyền Và Audit
+
+### Quyền
+
+| Hành động | User đăng nhập | Admin |
+|-----------|----------------|-------|
+| List / get | Có | Có |
+| Get by `document_id` | Có | Có |
+| Create / update metadata | Có | Có |
+| Soft delete | Không (`403`) | Có |
+
+Giữ nhất quán với module hợp đồng, công văn và quyết định.
+
+### Audit Actions
+
+- `procurement.created`
+- `procurement.updated`
+- `procurement.deleted`
+
+`entity_type=procurement`, `entity_id=<procurement_record.id>`, metadata JSON gọn (ví dụ `procurement_kind`, `reference_number`, `status`).
+
+## Schema Dự Kiến (Mục Tiêu 2)
+
+Migration đề xuất: `0015_procurement_records` (và có thể `0015` kèm seed catalog `business_type=procurement`).
+
+### Các Cột Chính
+
+- `id`: UUID primary key.
+- `document_id`: FK `documents.id`, not null.
+- `procurement_kind`: `String(16)`, not null — `proposal` | `plan` | `acceptance`.
+- `reference_number`: `String(128)`, nullable.
+- `title_summary`: `Text`, nullable.
+- `requesting_unit`: `String(255)`, nullable.
+- `estimated_value`: `Numeric(18, 2)`, nullable.
+- `currency`: `String(8)`, not null, default `VND`.
+- `requested_date`: `Date`, nullable.
+- `status`: `String(32)`, not null, default `draft`.
+- `notes`: `Text`, nullable.
+- `created_at`, `updated_at`, `deleted_at`.
+
+### Indexes Dự Kiến
+
+- `ux_procurement_records_document_active`: unique partial trên `document_id` WHERE `deleted_at IS NULL`.
+- `ix_procurement_records_procurement_kind_active`: (`procurement_kind`, `deleted_at`).
+- `ix_procurement_records_reference_number_active`: (`reference_number`, `deleted_at`).
+- `ix_procurement_records_requesting_unit_active`: (`requesting_unit`, `deleted_at`).
+- `ix_procurement_records_status_active`: (`status`, `deleted_at`).
+- `ix_procurement_records_requested_date_active`: (`requested_date`, `deleted_at`).
+
+### Quan Hệ Model
+
+- `Document.procurement_record` — `uselist=False`, tương tự `contract_record` / `dispatch_record` / `decision_record`.
+- `ProcurementRecord.document` — `relationship` back_populates.
+
+## API Dự Kiến (Mục Tiêu 3)
+
+| Method | Path | Mô tả |
+|--------|------|--------|
+| `GET` | `/api/v1/procurements` | List + filter + pagination |
+| `GET` | `/api/v1/procurements/{procurement_id}` | Chi tiết |
+| `GET` | `/api/v1/procurements/by-document/{document_id}` | Lookup theo document (đặt trước `/{procurement_id}`) |
+| `POST` | `/api/v1/procurements` | Tạo metadata |
+| `PATCH` | `/api/v1/procurements/{procurement_id}` | Cập nhật |
+| `DELETE` | `/api/v1/procurements/{procurement_id}` | Soft delete (admin) |
+
+Filter list tối thiểu: `q`, `document_id`, `procurement_kind`, `reference_number`, `requesting_unit`, `status`, `requested_date_from`, `requested_date_to`, `sort_by`, `sort_dir`, `limit`, `offset`.
+
+`sort_by` khuyến nghị: `requested_date`, `reference_number`, `status`, `created_at`, `updated_at`.
+
+Response list: `{ items, total, limit, offset }` — pattern `DecisionListResponse`.
+
+Lỗi nghiệp vụ: `404` không tìm thấy; `409` trùng procurement active cho cùng `document_id`; `403` user delete.
+
+Smoke script đề xuất: `python -m app.scripts.smoke_procurement_api`.
+
+## Frontend Dự Kiến (Mục Tiêu 4–5)
+
+- Route `/procurements`: bảng list, filter, pagination, form tạo/sửa.
+- Query `document_id` / `create=1` để drill-down từ document detail.
+- Link document nguồn, nút "Search trong văn bản" preset dashboard (`business_type=procurement`, `q`, `reference_number`).
+- Nav item `Mua sắm` (hoặc `Đề xuất & KH`) trong app shell.
+- Card trên `/documents/[id]` liên kết hai chiều với module procurement khi document có metadata module.
+
+## Thiết Kế Search Filter Procurement (Draft — Mục Tiêu 6 Tùy Chọn)
+
+Bám pattern Phase 11; chưa triển khai trong mục tiêu 1.
+
+### Tham Số API (`POST /search/semantic`, `POST /search/answer`)
+
+| Tham số | Repository param | Match logic |
+|---------|------------------|-------------|
+| `procurement_kind` | `procurement_kind` | Exact `proposal` \| `plan` \| `acceptance` |
+| `procurement_status` | `status` | Exact enum MVP |
+| `reference_number` | `reference_number` | `ilike %value%` (khi nhóm procurement active) |
+| `requesting_unit` | `requesting_unit` | `ilike %value%` |
+
+`ProcurementRepository.list_document_ids_by_metadata(...)` — chỉ `deleted_at IS NULL`; intersection với contract/dispatch/decision filter groups nếu nhiều nhóm active.
+
+Enrich `SemanticSearchResult` (nullable): `procurement_id`, `procurement_kind`, `procurement_status`, `reference_number`, `requesting_unit`.
+
+Preset từ `/procurements` sang `/dashboard`: `q`, `reference_number`, `requesting_unit`, `business_type=procurement`, `procurement_kind`, `procurement_status`.
+
+## Hướng Dẫn Cho Mục Tiêu Tiếp Theo
+
+**Mục tiêu 2** nên tạo migration `procurement_records` + model SQLAlchemy + seed catalog `business_type=procurement` theo schema/index ở trên.
+
+**Mục tiêu 3** thêm `ProcurementRepository`, `ProcurementService`, router và `smoke_procurement_api`.
+
+**Mục tiêu 4–5** thêm frontend `/procurements` và card liên kết document detail theo `page -> composable -> service -> API`.

@@ -301,7 +301,7 @@ Mục tiêu gợi ý cho `TASK_NEXT.md`:
 
 ### Phase 13 - Module Đề Xuất / Kế Hoạch Mua Sắm MVP
 
-Trạng thái: chưa bắt đầu (kế hoạch sẵn sàng; checklist trong `TASK_NEXT.md`).
+Trạng thái: đang làm (bắt đầu 2026-06-07; mục tiêu 1 hoàn thành).
 
 Mục tiêu: mở module nghiệp vụ thứ tư — sổ đề xuất mua sắm và kế hoạch vật tư — theo pattern metadata 1-1 với document core; **không** mở workflow inventory/phê duyệt nhiều bước.
 
