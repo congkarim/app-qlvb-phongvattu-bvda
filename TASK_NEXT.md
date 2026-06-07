@@ -25,7 +25,7 @@ Phase trước: Phase 16 hoàn thành ngày 2026-06-07.
 
 Phase hiện tại: Phase 17 - RAG Generative Local LLM (Ollama On-Prem).
 
-Mục tiêu tiếp theo: Phase 17 / Mục Tiêu 5 - API Schema, Router Và Ops LLM Status.
+Mục tiêu tiếp theo: Phase 17 / Mục Tiêu 6 - Frontend Dashboard Và Trang Status.
 
 Điều kiện chuyển sang mục tiêu kế tiếp:
 - Mục tiêu hiện tại pass tiêu chí chấp nhận.
@@ -177,7 +177,7 @@ git diff --check
 
 ### Mục Tiêu 5 - API Schema, Router Và Ops LLM Status
 
-Trạng thái: chưa làm (tiếp theo).
+Trạng thái: hoàn thành (2026-06-07).
 
 Skill bắt buộc: `backend-fastapi`, `project-git-manager`.
 
@@ -208,7 +208,7 @@ git diff --check
 
 ### Mục Tiêu 6 - Frontend Dashboard Và Trang Status
 
-Trạng thái: chưa làm.
+Trạng thái: chưa làm (tiếp theo).
 
 Skill bắt buộc: `frontend-nuxt`, `project-git-manager`.
 

@@ -13,6 +13,7 @@ from app.schemas.ops import (
     SystemStatusRead,
     WorkerQueueStatusRead,
 )
+from app.services.local_llm_service import LocalLLMService
 from app.services.ocr_job_recovery_service import OCRJobRecoveryService
 from app.services.qdrant_service import QdrantCollectionConfigError, QdrantService
 
@@ -139,6 +140,7 @@ class OpsService:
             ocr=components[0],
             embedding=components[1],
             qdrant=components[2],
+            llm=self._get_llm_status(),
             worker_queue=worker_queue,
         )
 
@@ -224,3 +226,48 @@ class OpsService:
                 details=details,
                 error=f"Qdrant unavailable: {exc}",
             )
+
+    def _get_llm_status(self) -> StatusDetailRead:
+        backend = self.settings.rag_generation_backend
+        llm = LocalLLMService(self.settings)
+        details: dict[str, str | int | bool | float | None] = {
+            "generation_backend": backend,
+            "model": self.settings.rag_llm_model,
+            "ollama_base_url": self.settings.ollama_base_url,
+            "reachable": False,
+            "model_loaded": False,
+        }
+
+        if backend != "ollama":
+            return StatusDetailRead(
+                status="ok",
+                name=backend,
+                details=details,
+                error=None,
+            )
+
+        reachable = llm.is_available()
+        details["reachable"] = reachable
+        model_loaded = llm.is_model_loaded() if reachable else False
+        details["model_loaded"] = model_loaded
+
+        if not reachable:
+            return StatusDetailRead(
+                status="unavailable",
+                name=backend,
+                details=details,
+                error="Ollama is not reachable",
+            )
+        if not model_loaded:
+            return StatusDetailRead(
+                status="degraded",
+                name=backend,
+                details=details,
+                error=f"Model {self.settings.rag_llm_model} is not loaded",
+            )
+        return StatusDetailRead(
+            status="ok",
+            name=backend,
+            details=details,
+            error=None,
+        )

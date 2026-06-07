@@ -60,4 +60,5 @@ class SystemStatusRead(BaseModel):
     ocr: StatusDetailRead
     embedding: StatusDetailRead
     qdrant: StatusDetailRead
+    llm: StatusDetailRead
     worker_queue: WorkerQueueStatusRead

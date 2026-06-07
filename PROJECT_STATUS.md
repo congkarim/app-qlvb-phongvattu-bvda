@@ -10,7 +10,7 @@ Cập nhật lần cuối: 2026-06-07
 
 Hệ thống chạy on-prem bằng Docker Compose (`api`, `worker`, `web`, `postgres`, `redis`, `qdrant`). Workflow web end-to-end: upload → OCR/extract → searchable → semantic search → RAG Q&A (extractive) → review chunk → audit. Module nghiệp vụ MVP: hợp đồng, công văn, quyết định, mua sắm — liên kết document detail; gợi ý liên kết document rule-based (Phase 16).
 
-Con trỏ tiếp theo: Phase 17 / Mục tiêu 5 — API schema + ops LLM status (`TASK_NEXT.md`).
+Con trỏ tiếp theo: Phase 17 / Mục tiêu 6 — frontend dashboard + `/status` (`TASK_NEXT.md`).
 
 ## Giới Hạn Còn Lại
 
@@ -2848,3 +2848,24 @@ git diff --check
 ```
 
 Kết quả: 7 unit tests pass; smoke `smoke_rag_answer` pass; `git diff --check` pass.
+
+### Mục tiêu 5 — API schema, router và ops LLM status (2026-06-07)
+
+**Triển khai**
+
+- `RagAnswerResponse`: `generation_mode`, `model_name`, `latency_ms`; `fallback_reason` typed (`insufficient_evidence`, `llm_unavailable`, `validation_failed`).
+- `SystemStatusRead.llm` + `OpsService._get_llm_status()` (backend, model, reachable, model_loaded).
+- `LocalLLMService.is_model_loaded()`; smoke health kiểm tra component `llm`.
+
+**Kiểm tra**
+
+```bash
+PYTHONPYCACHEPREFIX=/tmp/qlvb-pycache PYTHONPATH=apps/api python3 -m py_compile \
+  apps/api/app/schemas/search.py apps/api/app/routers/search.py apps/api/app/services/ops_service.py
+docker compose exec -T api python -m unittest app.services.tests.test_ops_service_llm -v
+docker compose exec -T api python -m app.scripts.smoke_rag_answer
+docker compose exec -T api python -m app.scripts.smoke_health_checks
+git diff --check
+```
+
+Kết quả: unit + smoke pass; `system_status_llm.generation_backend=extractive`; `git diff --check` pass.

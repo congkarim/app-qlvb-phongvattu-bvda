@@ -64,6 +64,27 @@ class LocalLLMService:
             logger.debug("Ollama health check failed: %s", exc)
             return False
 
+    def is_model_loaded(self) -> bool:
+        if not self.is_generative_enabled():
+            return False
+        try:
+            tags = self._get_json(f"{self._base_url()}/api/tags", timeout=HEALTH_TIMEOUT_SECONDS)
+        except LocalLLMError:
+            return False
+
+        models = tags.get("models")
+        if not isinstance(models, list):
+            return False
+
+        target = self.settings.rag_llm_model.strip()
+        for item in models:
+            if not isinstance(item, dict):
+                continue
+            name = str(item.get("name") or item.get("model") or "").strip()
+            if name == target or name.startswith(f"{target}:"):
+                return True
+        return False
+
     def generate(self, *, system: str, user: str) -> GenerateResult:
         if not self.is_generative_enabled():
             raise LocalLLMBackendDisabledError(

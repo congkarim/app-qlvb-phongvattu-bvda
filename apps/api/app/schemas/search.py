@@ -87,6 +87,10 @@ class RagAnswerRequest(SemanticSearchRequest):
     max_citations: int = Field(default=4, ge=1, le=8)
 
 
+GenerationMode = Literal["extractive", "generative"]
+RagFallbackReason = Literal["insufficient_evidence", "llm_unavailable", "validation_failed"]
+
+
 class RagCitation(BaseModel):
     document_id: str
     chunk_id: str
@@ -109,5 +113,8 @@ class RagAnswerResponse(BaseModel):
     answer: str
     grounded: bool
     confidence: float
-    fallback_reason: str | None = None
+    fallback_reason: RagFallbackReason | None = None
     citations: list[RagCitation] = Field(default_factory=list)
+    generation_mode: GenerationMode = "extractive"
+    model_name: str | None = None
+    latency_ms: int | None = None
