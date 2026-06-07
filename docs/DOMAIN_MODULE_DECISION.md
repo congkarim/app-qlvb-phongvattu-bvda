@@ -1073,10 +1073,11 @@ Endpoint áp dụng `business_type` (mục tiêu 4): dùng `PATCH /api/v1/docume
 
 ### Worker / Audit (Mục Tiêu 3)
 
-Trong `_extract_and_store_metadata` sau classify:
+Trong `_extract_and_store_metadata` sau classify (đã triển khai mục tiêu 3):
 
-- Nếu upload **không** chọn `business_type` (null/empty) và `module_confidence` ≥ **0.85** và không manual guard → audit `document.onboarding_suggested` với payload gợi ý; **không** đổi `business_type` trên document trong MVP worker (chỉ audit) — user apply qua UI hoặc PATCH.
-- Tùy chọn sau MVP: auto-set `business_type` + `metadata_source=mixed` khi high confidence; Phase 14 mặc định **audit-only** để tránh ghi đè nhầm.
+- Nếu upload **không** chọn `business_type` (null/empty) và không manual guard → audit `document.onboarding_suggested` với payload gợi ý (`applied=false`); **không** đổi `business_type` trên document (audit-only).
+- Nếu upload đã chọn `business_type` → không ghi audit onboarding; worker vẫn giữ `business_type` như cũ khi auto-extract metadata.
+- Tùy chọn sau MVP: auto-set `business_type` + `metadata_source=mixed` khi `module_confidence` ≥ 0.85; Phase 14 mặc định **audit-only**.
 
 Audit actions:
 

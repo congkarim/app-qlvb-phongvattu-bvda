@@ -4,16 +4,16 @@ Cập nhật lần cuối: 2026-06-07
 
 ## Giai Đoạn Hiện Tại
 
-**Phase 0–13 đã hoàn thành.** **Phase 14 đang làm** (bắt đầu 2026-06-07; mục tiêu 1 hoàn thành).
+**Phase 0–13 đã hoàn thành.** **Phase 14 đang làm** (bắt đầu 2026-06-07; mục tiêu 1–4 hoàn thành).
 
 Hệ thống chạy on-prem bằng Docker Compose (`api`, `worker`, `web`, `postgres`, `redis`, `qdrant`). Workflow web end-to-end: upload → OCR/extract → searchable → semantic search → RAG Q&A → review chunk → audit. Module nghiệp vụ MVP: hợp đồng (`/contracts`), công văn (`/dispatches`), quyết định/thông báo (`/decisions`), mua sắm (`/procurements`) — liên kết hai chiều với document detail; dashboard lọc search/RAG theo metadata hợp đồng, công văn, quyết định và mua sắm. RAG citation và search result deep-link tới `#chunk-{id}` trên document detail.
 
-Con trỏ tiếp theo: Phase 14 / Mục tiêu 4 — document detail banner gợi ý + CTA tạo metadata.
+Con trỏ tiếp theo: Phase 14 / Mục tiêu 5 — document list badge/filter `missing_module_metadata`.
 
 ## Giới Hạn Còn Lại
 
 Giới hạn còn lại (đồng bộ `ROADMAP.md`):
-- Classifier OCR (`DocumentClassifierService`) trích metadata document nhưng chưa gợi ý `business_type` và chưa có luồng onboarding tạo metadata module sau searchable → **Phase 14**.
+- Document detail đã có banner gợi ý onboarding + CTA pre-fill module; còn thiếu badge/filter list `missing_module_metadata` và smoke end-to-end Phase 14.
 - Chưa có liên kết chéo giữa các document (`document_relations`) — phase sau, không Phase 14.
 - Chưa có LLM/generator nội bộ nâng cao; RAG hiện extractive từ chunk truy xuất.
 - Inventory/tồn kho, workflow phê duyệt nhiều bước, line items procurement: ngoài scope Phase 14.
@@ -2381,7 +2381,7 @@ Kết quả: smoke procurement API, search module filters (gồm procurement), R
 
 ## Phase 14 — Gợi Ý Metadata Module Và Onboarding Sau OCR
 
-Trạng thái: đang làm (bắt đầu 2026-06-07; mục tiêu 1–2 hoàn thành).
+Trạng thái: đang làm (bắt đầu 2026-06-07; mục tiêu 1–4 hoàn thành).
 
 Mục tiêu phase: nối classifier OCR rule-based với 4 module nghiệp vụ — gợi ý `business_type`, loại module và pre-fill form tạo metadata; không auto-create module record im lặng.
 
@@ -2436,3 +2436,39 @@ Kết quả: classifier check pass; 9 unit tests pass; `git diff --check` pass.
 - `ModuleOnboardingService`: mapping `document_type` → module, heuristic CV incoming/outgoing, pre-fill fields, guard manual review / not searchable / module exists / low confidence.
 - Schema `OnboardingSuggestionResponse`; `GET /api/v1/documents/{document_id}/onboarding-suggestions`.
 - Unit tests `test_module_onboarding_service.py` (contract, decision, dispatch, guards).
+
+### Mục tiêu 3 — Worker/audit gợi ý business_type có kiểm soát (2026-06-07)
+
+Kiểm tra bắt buộc:
+
+```bash
+docker compose exec -T api python -m app.scripts.smoke_api_workflows
+docker compose exec -T api python -m unittest app.services.tests.test_module_onboarding_service
+git diff --check
+```
+
+Kết quả: smoke API workflows pass; 12 unit tests pass; `git diff --check` pass.
+
+**Đã triển khai**
+
+- Worker `_extract_and_store_metadata`: sau auto-extract, audit `document.onboarding_suggested` khi upload **chưa** chọn `business_type`; **không** auto-apply `business_type` (audit-only).
+- `build_worker_onboarding_audit_metadata()` + `require_searchable=False` cho ngữ cảnh worker (document chưa searchable).
+- Bỏ qua audit onboarding khi user đã chọn `business_type` lúc upload hoặc metadata manual/mixed.
+
+### Mục tiêu 4 — Document detail banner gợi ý và CTA tạo metadata (2026-06-07)
+
+Kiểm tra bắt buộc:
+
+```bash
+WEB_MEMORY_LIMIT=4g docker compose run --rm --no-deps -e NODE_OPTIONS=--max-old-space-size=3072 web npm run build
+git diff --check
+```
+
+Kết quả: client + server compile OK; Nitro `EBUSY` khi `rmdir .output` (anonymous volume compose) — build production pass qua `docker compose build web` + `docker run --rm --memory=4g ... npm run build`; `git diff --check` pass.
+
+**Đã triển khai**
+
+- Types `onboarding.ts`; `document.service.getOnboardingSuggestions()`; composable `useDocumentOnboarding`.
+- `DocumentOnboardingBanner.vue` trên `/documents/[id]`: hiện khi searchable, có `target_module`, chưa có module active; low-confidence hiển thị cảnh báo, không chặn workflow.
+- Nút **Áp dụng loại nghiệp vụ** (PATCH metadata `business_type`); nút **Tạo metadata {module}** deep link `?document_id=&create=1` + query pre-fill.
+- `utils/moduleOnboarding.ts`: `buildModuleCreateLink`, `applyRoutePrefill`; 4 trang module hydrate form từ query khi `create=1`.

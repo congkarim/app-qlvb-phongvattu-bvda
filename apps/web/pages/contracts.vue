@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { ContractInput, ContractItem, ContractListFilters, ContractStatus } from '~/types/contract'
 import { formatDate, formatDateTime } from '~/utils/format'
+import { applyRoutePrefill } from '~/utils/moduleOnboarding'
 
 const authStore = useAuthStore()
 const route = useRoute()
@@ -186,6 +187,18 @@ onMounted(async () => {
   await loadContracts(Boolean(documentId))
   if (route.query.create === '1' && documentId) {
     form.document_id = documentId
+    applyRoutePrefill(route.query, form, [
+      'contract_number',
+      'contract_title',
+      'supplier_name',
+      'sign_date',
+      'effective_from',
+      'effective_to',
+      'contract_value',
+      'currency',
+      'status',
+      'notes'
+    ])
   }
 })
 </script>

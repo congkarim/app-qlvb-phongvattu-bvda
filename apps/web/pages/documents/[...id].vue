@@ -4,7 +4,9 @@ import type { DecisionKind, DecisionStatus } from '~/types/decision'
 import type { DispatchStatus, DispatchType } from '~/types/dispatch'
 import type { ProcurementKind, ProcurementStatus } from '~/types/procurement'
 import type { DocumentChunk, DocumentMetadataUpdateInput } from '~/types/document'
+import type { TargetModule } from '~/types/onboarding'
 import { formatDate, formatDateTime, formatFileSize } from '~/utils/format'
+import { buildModuleCreateLink } from '~/utils/moduleOnboarding'
 
 const route = useRoute()
 const authStore = useAuthStore()
@@ -58,7 +60,15 @@ const {
   deleteSourceFile,
   markChunkReviewed
 } = useDocuments()
+const {
+  suggestion: onboardingSuggestion,
+  loading: onboardingLoading,
+  error: onboardingError,
+  fetchOnboardingSuggestions,
+  clearOnboardingSuggestions
+} = useDocumentOnboarding()
 let pollTimer: ReturnType<typeof setInterval> | undefined
+const applyingBusinessType = ref(false)
 const reprocessReason = ref('')
 const selectedSourceFiles = ref<File[]>([])
 const lastDetailRefreshedAt = ref<Date | null>(null)
@@ -257,6 +267,70 @@ const decisionsPageLink = computed(() => `/decisions?document_id=${encodeURIComp
 const createDecisionLink = computed(() => `${decisionsPageLink.value}&create=1`)
 const procurementsPageLink = computed(() => `/procurements?document_id=${encodeURIComponent(documentId.value)}`)
 const createProcurementLink = computed(() => `${procurementsPageLink.value}&create=1`)
+
+function hasActiveModuleForTarget(target: TargetModule | null) {
+  if (!target) return false
+  if (target === 'contract') return Boolean(contractByDocument.value)
+  if (target === 'dispatch') return Boolean(dispatchByDocument.value)
+  if (target === 'decision') return Boolean(decisionByDocument.value)
+  return Boolean(procurementByDocument.value)
+}
+
+const showOnboardingBanner = computed(() => {
+  if (!document.value || document.value.status !== 'searchable') return false
+  const suggestion = onboardingSuggestion.value
+  if (!suggestion?.target_module) return false
+  if (suggestion.block_reason === 'manual_metadata' || suggestion.block_reason === 'not_searchable') {
+    return false
+  }
+  if (hasActiveModuleForTarget(suggestion.target_module)) return false
+  return suggestion.eligible || suggestion.needs_metadata_review
+})
+
+const showApplyBusinessType = computed(() => {
+  const suggestion = onboardingSuggestion.value
+  if (!suggestion?.suggested_business_type) return false
+  const current = (document.value?.business_type || '').trim()
+  return suggestion.suggested_business_type !== current
+})
+
+const createModuleLinkFromSuggestion = computed(() => {
+  const suggestion = onboardingSuggestion.value
+  if (!suggestion?.target_module) return '#'
+  const fields: Record<string, unknown> = { ...suggestion.suggested_module_fields }
+  if (suggestion.module_kind) {
+    if (suggestion.target_module === 'dispatch') fields.dispatch_type = suggestion.module_kind
+    if (suggestion.target_module === 'decision') fields.decision_kind = suggestion.module_kind
+    if (suggestion.target_module === 'procurement') fields.procurement_kind = suggestion.module_kind
+  }
+  return buildModuleCreateLink(suggestion.target_module, documentId.value, fields)
+})
+
+async function refreshOnboardingSuggestions() {
+  if (!document.value || document.value.status !== 'searchable') {
+    clearOnboardingSuggestions()
+    return
+  }
+  await fetchOnboardingSuggestions(documentId.value)
+}
+
+async function submitApplyBusinessType() {
+  const suggestion = onboardingSuggestion.value
+  if (!document.value || !suggestion?.suggested_business_type || applyingBusinessType.value) return
+  syncMetadataForm()
+  metadataForm.business_type = suggestion.suggested_business_type
+  applyingBusinessType.value = true
+  try {
+    const result = await updateDocumentMetadata(document.value.id, metadataForm)
+    if (!result) return
+    await fetchDocument(documentId.value, { silent: true })
+    syncMetadataForm()
+    markDetailRefreshed()
+    await refreshOnboardingSuggestions()
+  } finally {
+    applyingBusinessType.value = false
+  }
+}
 
 const procurementDashboardSearchLink = computed(() => {
   const item = procurementByDocument.value
@@ -511,6 +585,7 @@ onMounted(async () => {
   ])
   syncMetadataForm()
   markDetailRefreshed()
+  await refreshOnboardingSuggestions()
   if (shouldPoll.value) startPolling()
   await focusChunkFromHash()
 })
@@ -525,10 +600,23 @@ watch(documentId, async (value) => {
   ])
   syncMetadataForm()
   markDetailRefreshed()
+  await refreshOnboardingSuggestions()
   if (shouldPoll.value) startPolling()
   else stopPolling()
   await focusChunkFromHash()
 })
+
+watch(
+  () => document.value?.status,
+  async (status, previousStatus) => {
+    if (status === previousStatus) return
+    if (status === 'searchable') {
+      await refreshOnboardingSuggestions()
+      return
+    }
+    clearOnboardingSuggestions()
+  }
+)
 
 watch(shouldPoll, (value) => {
   if (value) startPolling()
@@ -557,6 +645,17 @@ onBeforeUnmount(() => {
         </div>
         <BaseStatusBadge :status="document.status" />
       </div>
+
+      <Message v-if="onboardingError" severity="warn">{{ onboardingError }}</Message>
+      <DocumentOnboardingBanner
+        v-if="showOnboardingBanner && onboardingSuggestion"
+        :suggestion="onboardingSuggestion"
+        :loading="onboardingLoading"
+        :applying="applyingBusinessType"
+        :show-apply-business-type="showApplyBusinessType"
+        :create-module-link="createModuleLinkFromSuggestion"
+        @apply-business-type="submitApplyBusinessType"
+      />
 
       <Card>
         <template #title>Hợp đồng</template>

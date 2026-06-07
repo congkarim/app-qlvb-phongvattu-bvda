@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { DispatchInput, DispatchItem, DispatchListFilters, DispatchStatus, DispatchType } from '~/types/dispatch'
 import { formatDate, formatDateTime } from '~/utils/format'
+import { applyRoutePrefill } from '~/utils/moduleOnboarding'
 
 const authStore = useAuthStore()
 const route = useRoute()
@@ -201,6 +202,17 @@ onMounted(async () => {
   await loadDispatches(Boolean(documentId))
   if (route.query.create === '1' && documentId) {
     form.document_id = documentId
+    applyRoutePrefill(route.query, form, [
+      'dispatch_type',
+      'document_number',
+      'document_symbol',
+      'issued_date',
+      'issuing_agency',
+      'recipient',
+      'excerpt',
+      'status',
+      'notes'
+    ])
   }
 })
 </script>

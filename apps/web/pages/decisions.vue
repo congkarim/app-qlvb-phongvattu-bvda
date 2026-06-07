@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { DecisionInput, DecisionItem, DecisionKind, DecisionListFilters, DecisionStatus } from '~/types/decision'
 import { formatDate, formatDateTime } from '~/utils/format'
+import { applyRoutePrefill } from '~/utils/moduleOnboarding'
 
 const authStore = useAuthStore()
 const route = useRoute()
@@ -204,6 +205,18 @@ onMounted(async () => {
   await loadDecisions(Boolean(documentId))
   if (route.query.create === '1' && documentId) {
     form.document_id = documentId
+    applyRoutePrefill(route.query, form, [
+      'decision_kind',
+      'document_number',
+      'document_symbol',
+      'issued_date',
+      'issuing_agency',
+      'excerpt',
+      'effective_from',
+      'effective_to',
+      'status',
+      'notes'
+    ])
   }
 })
 </script>

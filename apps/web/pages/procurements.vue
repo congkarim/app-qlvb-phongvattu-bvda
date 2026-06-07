@@ -7,6 +7,7 @@ import type {
   ProcurementStatus
 } from '~/types/procurement'
 import { formatDate, formatDateTime } from '~/utils/format'
+import { applyRoutePrefill } from '~/utils/moduleOnboarding'
 
 const authStore = useAuthStore()
 const route = useRoute()
@@ -216,6 +217,17 @@ onMounted(async () => {
   await loadProcurements(Boolean(documentId))
   if (route.query.create === '1' && documentId) {
     form.document_id = documentId
+    applyRoutePrefill(route.query, form, [
+      'procurement_kind',
+      'reference_number',
+      'title_summary',
+      'requesting_unit',
+      'estimated_value',
+      'currency',
+      'requested_date',
+      'status',
+      'notes'
+    ])
   }
 })
 </script>

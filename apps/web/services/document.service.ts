@@ -14,6 +14,7 @@ import type {
   SourceFileMutationResponse,
   UploadResponse
 } from '~/types/document'
+import type { OnboardingSuggestion } from '~/types/onboarding'
 import { useAuthStore } from '~/stores/auth'
 import { useApiClient } from './api'
 
@@ -33,6 +34,9 @@ export function createDocumentService() {
     },
     get(id: string) {
       return api<DocumentDetail>(`/documents/${id}`)
+    },
+    getOnboardingSuggestions(id: string) {
+      return api<OnboardingSuggestion>(`/documents/${id}/onboarding-suggestions`)
     },
     listReviewQueue(filters: ReviewQueueFilters = {}) {
       const params = new URLSearchParams()
