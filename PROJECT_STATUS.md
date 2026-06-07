@@ -8,12 +8,12 @@ Cập nhật lần cuối: 2026-06-07
 
 Hệ thống chạy on-prem bằng Docker Compose (`api`, `worker`, `web`, `postgres`, `redis`, `qdrant`). Workflow web end-to-end: upload → OCR/extract → searchable → semantic search → RAG Q&A → review chunk → audit. Module nghiệp vụ MVP: hợp đồng (`/contracts`), công văn (`/dispatches`), quyết định/thông báo (`/decisions`) — liên kết hai chiều với document detail; dashboard lọc search/RAG theo metadata hợp đồng, công văn và quyết định.
 
-Con trỏ tiếp theo: Phase 12 / Mục tiêu 4 — search result badges và nút "Mở đoạn".
+Con trỏ tiếp theo: Phase 12 / Mục tiêu 5 — smoke regression và hoàn tất phase.
 
 ## Giới Hạn Còn Lại
 
 Giới hạn còn lại (đồng bộ `ROADMAP.md`):
-- RAG citation đã deep-link chunk; search result dashboard chưa có nút "Mở đoạn" — Phase 12 mục tiêu 4.
+- Deep link chunk trên document detail, RAG citation và search result đã có; Phase 12 còn smoke regression và đóng phase.
 - Chưa có module sổ đề xuất/kế hoạch mua sắm (Phase 13).
 - Chưa có LLM/generator nội bộ nâng cao; RAG hiện extractive từ chunk truy xuất.
 
@@ -2211,3 +2211,18 @@ Kết quả: smoke RAG pass (3 citations, `citation_deep_links` chứa `#chunk-`
 
 - `RagAnswerPanel.vue`: title link và "Mở văn bản" dùng `buildDocumentChunkUrl(document_id, chunk_id)` → `/documents/{id}#chunk-{chunk_id}`; fallback về `/documents/{id}` khi thiếu `chunk_id`.
 - `smoke_rag_answer.py`: assert deep link format, trả `citation_deep_links` trong output để manual UI checklist.
+
+### Mục tiêu 4 — Search result badges và nút "Mở đoạn" (2026-06-07)
+
+Kiểm tra bắt buộc:
+
+```bash
+docker compose build web && docker run --rm --memory=4g -e NODE_OPTIONS=--max-old-space-size=3072 app-qlvb-phongvattu-web:latest npm run build
+git diff --check
+```
+
+Kết quả: frontend build pass; `git diff --check` pass.
+
+**Đã triển khai**
+
+- `dashboard.vue` kết quả semantic search: title và nút "Mở đoạn" dùng `buildDocumentChunkUrl(document_id, chunk_id)`; badge `Tag` HĐ/công văn/quyết định khi có metadata module enrich.

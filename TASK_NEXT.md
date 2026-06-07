@@ -25,7 +25,7 @@ Phase trước: Phase 11 hoàn thành ngày 2026-06-07.
 
 Phase hiện tại: Phase 12 - RAG Citation UX Và Search Enrichment.
 
-Mục tiêu tiếp theo: Phase 12 / Mục Tiêu 4 - Search Result Badges Và Nút "Mở Đoạn".
+Mục tiêu tiếp theo: Phase 12 / Mục Tiêu 5 - Tin Chỉnh Extractive Answer, Smoke Và Hoàn Tất Phase.
 
 Điều kiện chuyển sang mục tiêu kế tiếp:
 - Mục tiêu hiện tại pass tiêu chí chấp nhận.
@@ -123,7 +123,7 @@ git diff --check
 
 ### Mục Tiêu 4 - Search Result Badges Và Nút "Mở Đoạn"
 
-Trạng thái: chưa làm (tiếp theo).
+Trạng thái: hoàn thành (2026-06-07).
 
 Skill bắt buộc: `frontend-nuxt`, `project-git-manager`.
 

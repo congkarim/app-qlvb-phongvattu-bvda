@@ -2,7 +2,8 @@
 import type { ContractStatus } from '~/types/contract'
 import type { DecisionKind, DecisionStatus } from '~/types/decision'
 import type { DispatchStatus, DispatchType } from '~/types/dispatch'
-import type { ReviewQueueChunk, ReviewQueueFilters, SemanticSearchFilters } from '~/types/document'
+import type { ReviewQueueChunk, ReviewQueueFilters, SearchResult, SemanticSearchFilters } from '~/types/document'
+import { buildDocumentChunkUrl } from '~/utils/documentLinks'
 
 const query = ref('')
 const route = useRoute()
@@ -290,6 +291,21 @@ function formatSectionRole(value?: string | null) {
   if (value === 'signature') return 'Chữ ký'
   if (value === 'unknown') return 'Không xác định'
   return value || ''
+}
+
+function searchResultUrl(result: SearchResult) {
+  return buildDocumentChunkUrl(result.document_id, result.chunk_id)
+}
+
+function hasModuleMetadata(result: SearchResult) {
+  return Boolean(
+    result.contract_id
+      || result.contract_number
+      || result.dispatch_id
+      || result.dispatch_type
+      || result.decision_id
+      || result.decision_kind
+  )
 }
 
 function formatConfidence(value?: number | null) {
@@ -585,9 +601,37 @@ onMounted(async () => {
         <p v-else-if="hasSearched && !results.length" class="mt-4 text-sm text-slate-600">Không có kết quả phù hợp.</p>
         <div class="mt-5 space-y-3">
           <article v-for="result in results" :key="result.chunk_id" class="border-b border-slate-200 pb-3">
-            <NuxtLink class="font-medium text-sky-700" :to="`/documents/${result.document_id}`">
-              {{ result.title || result.document_id }}
-            </NuxtLink>
+            <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <NuxtLink class="font-medium text-sky-700" :to="searchResultUrl(result)">
+                  {{ result.title || result.document_id }}
+                </NuxtLink>
+                <div v-if="hasModuleMetadata(result)" class="mt-1 flex flex-wrap gap-1">
+                  <Tag
+                    v-if="result.contract_id || result.contract_number"
+                    :value="result.contract_number ? `HĐ ${result.contract_number}` : 'Hợp đồng'"
+                    severity="info"
+                  />
+                  <Tag
+                    v-if="result.dispatch_id || result.dispatch_type"
+                    :value="formatDispatchType(result.dispatch_type) || 'Công văn'"
+                    severity="secondary"
+                  />
+                  <Tag
+                    v-if="result.decision_id || result.decision_kind"
+                    :value="formatDecisionKind(result.decision_kind) || 'Quyết định'"
+                    severity="contrast"
+                  />
+                </div>
+              </div>
+              <NuxtLink
+                :to="searchResultUrl(result)"
+                class="inline-flex shrink-0 items-center gap-1 text-sm text-sky-700 hover:underline"
+              >
+                <i class="pi pi-external-link text-xs" />
+                Mở đoạn
+              </NuxtLink>
+            </div>
             <p class="mt-1 text-sm text-slate-700">{{ result.text }}</p>
             <p class="mt-1 text-xs text-slate-500">
               Score: {{ result.score.toFixed(4) }}
