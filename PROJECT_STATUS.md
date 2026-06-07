@@ -4,11 +4,11 @@ Cập nhật lần cuối: 2026-06-07
 
 ## Giai Đoạn Hiện Tại
 
-**Phase 0–13 đã hoàn thành.** **Phase 14 đã lập kế hoạch** (2026-06-07), chưa bắt đầu thực thi.
+**Phase 0–13 đã hoàn thành.** **Phase 14 đang làm** (bắt đầu 2026-06-07; mục tiêu 1 hoàn thành).
 
 Hệ thống chạy on-prem bằng Docker Compose (`api`, `worker`, `web`, `postgres`, `redis`, `qdrant`). Workflow web end-to-end: upload → OCR/extract → searchable → semantic search → RAG Q&A → review chunk → audit. Module nghiệp vụ MVP: hợp đồng (`/contracts`), công văn (`/dispatches`), quyết định/thông báo (`/decisions`), mua sắm (`/procurements`) — liên kết hai chiều với document detail; dashboard lọc search/RAG theo metadata hợp đồng, công văn, quyết định và mua sắm. RAG citation và search result deep-link tới `#chunk-{id}` trên document detail.
 
-Con trỏ tiếp theo: Phase 14 / Mục tiêu 1 — thiết kế mapping classifier → business_type/module trong `DOMAIN_MODULE_DECISION.md`.
+Con trỏ tiếp theo: Phase 14 / Mục tiêu 2 — `ModuleOnboardingService` và API `onboarding-suggestions`.
 
 ## Giới Hạn Còn Lại
 
@@ -2381,9 +2381,27 @@ Kết quả: smoke procurement API, search module filters (gồm procurement), R
 
 ## Phase 14 — Gợi Ý Metadata Module Và Onboarding Sau OCR
 
-Trạng thái: đã lập kế hoạch (2026-06-07); chưa bắt đầu thực thi.
+Trạng thái: đang làm (bắt đầu 2026-06-07; mục tiêu 1 hoàn thành).
 
 Mục tiêu phase: nối classifier OCR rule-based với 4 module nghiệp vụ — gợi ý `business_type`, loại module và pre-fill form tạo metadata; không auto-create module record im lặng.
+
+### Mục tiêu 1 — Thiết kế mapping classifier → business_type/module (2026-06-07)
+
+Kiểm tra bắt buộc:
+
+```bash
+git diff --check
+```
+
+Kết quả: `git diff --check` pass.
+
+**Đã ghi trong `docs/DOMAIN_MODULE_DECISION.md` (mục Module Onboarding Sau OCR)**
+
+- Bảng mapping `document_type` → `target_module` + `business_type` + sub-kind (`dispatch_type`, `decision_kind`, `procurement_kind`).
+- Heuristic `CV`/`CĐ` incoming vs outgoing; ngưỡng confidence high/medium/low (0.85 / 0.70).
+- Guard manual review (`metadata_reviewed_at`, `metadata_source` manual/mixed); upload đã chọn `business_type` không bị worker đổi.
+- Map field classifier/document → form từng module; shape API `OnboardingSuggestionResponse`.
+- Worker audit-only mặc định (`document.onboarding_suggested`); filter list `missing_module_metadata`.
 
 ### Khảo sát / bối cảnh (trước mục tiêu 1)
 

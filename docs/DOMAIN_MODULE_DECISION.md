@@ -1,6 +1,6 @@
 # Domain Module Decision
 
-Cập nhật lần cuối: 2026-06-07 (Phase 13 mục tiêu 1 — thiết kế procurement)
+Cập nhật lần cuối: 2026-06-07 (Phase 14 mục tiêu 1 — thiết kế module onboarding)
 
 ## Module Đầu Tiên
 
@@ -887,10 +887,242 @@ Enrich `SemanticSearchResult` (nullable): `procurement_id`, `procurement_kind`, 
 
 Preset từ `/procurements` sang `/dashboard`: `q`, `reference_number`, `requesting_unit`, `business_type=procurement`, `procurement_kind`, `procurement_status`.
 
-## Hướng Dẫn Cho Mục Tiêu Tiếp Theo
+## Module Onboarding Sau OCR (Phase 14 — Mục Tiêu 1)
 
-**Mục tiêu 2** nên tạo migration `procurement_records` + model SQLAlchemy + seed catalog `business_type=procurement` theo schema/index ở trên.
+Trạng thái: thiết kế đã chốt (2026-06-07); triển khai code từ mục tiêu 2.
 
-**Mục tiêu 3** thêm `ProcurementRepository`, `ProcurementService`, router và `smoke_procurement_api`.
+### Mục Tiêu Nghiệp Vụ
 
-**Mục tiêu 4–5** thêm frontend `/procurements` và card liên kết document detail theo `page -> composable -> service -> API`.
+Sau OCR/searchable, hệ thống **gợi ý** (không tự tạo im lặng):
+
+1. `documents.business_type` phù hợp catalog admin.
+2. Module đích (`contract` | `dispatch` | `decision` | `procurement`) và field pre-fill cho form CRUD module.
+3. CTA trên document detail và filter list “thiếu metadata module”.
+
+Nguồn dữ liệu: `DocumentClassifierService` (rule-based, đã chạy trong worker) + metadata document đã lưu (`document_type`, `classification_confidence`, `document_number`, `issuing_agency`, `excerpt`, `recipient`, `issued_date`, …).
+
+Không dùng LLM. Không auto-create `*_records` — user xác nhận qua form/API CRUD hiện có.
+
+### Catalog `business_type` (Migration `0012` + `0015`)
+
+| Code | Nhãn catalog | Module liên kết |
+|------|--------------|-----------------|
+| `incoming_dispatch` | Công văn đến | `dispatch` (`dispatch_type=incoming`) |
+| `outgoing_dispatch` | Công văn đi | `dispatch` (`dispatch_type=outgoing`) |
+| `contract` | Hợp đồng | `contract` |
+| `decision` | Quyết định | `decision` (`decision_kind` phân nhánh) |
+| `procurement` | Đề xuất / kế hoạch mua sắm | `procurement` (`procurement_kind` phân nhánh) |
+
+Frontend lấy option từ Catalog API (`useCatalogs`); không hardcode danh sách trên UI onboarding.
+
+### Bảng Mapping `document_type` → Module
+
+`document_type` là nhãn classifier (`DocumentClassifierService` / skill `vn-admin-doc-ocr-classifier`). Cột **confidence base** là điểm gợi ý module trước khi cộng/trừ heuristic; service onboarding lấy `min(confidence base, classification_confidence)` làm `module_confidence`.
+
+| `document_type` | `target_module` | `suggested_business_type` | Sub-kind | Confidence base | Ghi chú |
+|-----------------|-----------------|---------------------------|----------|-----------------|---------|
+| `HĐ` | `contract` | `contract` | — | 0.90 | Hợp đồng |
+| `BGN`, `BTT` | `contract` | `contract` | — | 0.82 | Bản ghi nhớ / thỏa thuận — gần hợp đồng, confidence thấp hơn |
+| `CV`, `CĐ` | `dispatch` | *heuristic* | `dispatch_type` | 0.90 | Xem mục heuristic CV bên dưới |
+| `PG`, `PC`, `PB`, `TCg` | `dispatch` | `incoming_dispatch` | `incoming` | 0.78 | Phiếu gửi/chuyển/báo — mặc định đến, cần xác nhận |
+| `QĐ` | `decision` | `decision` | `decision` | 0.94 | Quyết định |
+| `TB` | `decision` | `decision` | `notification` | 0.93 | Thông báo |
+| `NQ` | `decision` | `decision` | `decision` | 0.80 | Nghị quyết cá biệt — gợi ý yếu hơn QĐ |
+| `KH` | `procurement` | `procurement` | `plan` | 0.90 | Kế hoạch |
+| `TTr` | `procurement` | `procurement` | `proposal` | 0.91 | Tờ trình đề xuất |
+| `BB` | `procurement` | `procurement` | `acceptance` | 0.92 | Biên bản nghiệm thu |
+| `BC`, `PA`, `ĐA`, `DA`, `CTr` | `procurement` | `procurement` | `proposal` | 0.72 | Báo cáo/phương án/đề án — gợi ý yếu, thường `needs_metadata_review` |
+| `CT`, `QC`, `QYĐ`, `TC`, `HD`, `GM`, `GGT`, `GUQ`, `GNP` | — | — | — | — | **Không** gợi ý module Phase 14; có thể chỉ nhắc review metadata document |
+| `UNKNOWN` | — | — | — | ≤0.45 | Không gợi ý module; nhắc review OCR/metadata |
+
+Nếu `documents.business_type` đã khớp một module (ví dụ `contract`) nhưng `document_type` map sang module khác → **ưu tiên `business_type` đã có** cho `target_module`; ghi `reasons[]` cảnh báo lệch loại, không ép đổi business_type tự động.
+
+### Heuristic `CV` / `CĐ` → `incoming_dispatch` vs `outgoing_dispatch`
+
+Áp dụng khi `document_type` ∈ `{CV, CĐ}` và upload **chưa** chọn `business_type` (hoặc đang gợi ý đổi từ rỗng):
+
+1. **Outgoing** (`outgoing_dispatch`, `dispatch_type=outgoing`) nếu **một trong**:
+   - `excerpt` khớp `^V/v\s` (công văn đi “V/v …”).
+   - Có `recipient` và **không** có dòng `Kính gửi` ở 15 dòng đầu (cấu trúc gửi đi, nơi nhận ở cuối/thân).
+2. **Incoming** (`incoming_dispatch`, `dispatch_type=incoming`) nếu **một trong**:
+   - 15 dòng đầu có `Kính gửi` (công văn đến từ đơn vị khác).
+   - `document_type=CĐ` (công điện thường đến).
+3. **Mặc định khi mơ hồ:** `incoming_dispatch`, `dispatch_type=incoming`, cap `module_confidence` ≤ **0.75**, `reasons` += `dispatch_direction_ambiguous`.
+
+Khi user đã chọn `incoming_dispatch` / `outgoing_dispatch` lúc upload → dùng giá trị đó, map `dispatch_type` tương ứng, không chạy heuristic hướng.
+
+### Ngưỡng Confidence Và Trạng Thái UI
+
+| Ngưỡng | Điều kiện | Hành vi |
+|--------|-----------|---------|
+| **High** | `module_confidence` ≥ **0.85** | Banner gợi ý nổi bật; đủ điều kiện worker **audit** gợi ý `business_type` (mục tiêu 3) |
+| **Medium** | **0.70** ≤ confidence &lt; 0.85 | Hiển thị gợi ý kèm nhãn “cần xác nhận”; không auto-apply business_type trên worker |
+| **Low** | &lt; 0.70 hoặc `document_type=UNKNOWN` | Không gợi ý tạo module; chỉ nhắc review metadata document (`needs_metadata_review=true`) |
+
+`module_confidence = min(mapping_confidence_base, document.classification_confidence hoặc 1.0 nếu null)`.
+
+### Guard Manual Review Và Upload
+
+Không gợi ý áp dụng / không worker auto-suggest khi:
+
+- `documents.metadata_reviewed_at IS NOT NULL`, hoặc
+- `documents.metadata_source IN ('manual', 'mixed')`.
+
+Upload đã chọn `business_type` không rỗng → **không đổi** `business_type` trong worker; onboarding API vẫn có thể gợi ý **module pre-fill** nếu thiếu bản ghi active và `business_type` map được module.
+
+API `onboarding-suggestions` trả `eligible=false` + `block_reason` khi:
+
+| `block_reason` | Ý nghĩa |
+|----------------|---------|
+| `not_searchable` | `documents.status` chưa `searchable` |
+| `module_exists` | Đã có bản ghi module active 1-1 |
+| `manual_metadata` | Metadata document đã review thủ công |
+| `unmapped_document_type` | `document_type` không map module |
+| `low_confidence` | Dưới ngưỡng medium |
+
+### Map Field Classifier / Document → Form Module
+
+Nguồn: kết quả classify (đã persist lên `documents`) + `documents.title`. Field null thì bỏ qua trong `suggested_module_fields`.
+
+**Contract** (`ContractCreateRequest`):
+
+| Field module | Nguồn gợi ý |
+|--------------|---------------|
+| `document_id` | `documents.id` |
+| `contract_number` | `document_number` hoặc `document_symbol` |
+| `contract_title` | `title` hoặc `excerpt` hoặc `documents.title` |
+| `sign_date` | `issued_date` |
+| `currency` | `"VND"` |
+| `status` | `"draft"` |
+
+**Dispatch** (`DispatchCreateRequest`):
+
+| Field module | Nguồn gợi ý |
+|--------------|---------------|
+| `document_id` | `documents.id` |
+| `dispatch_type` | heuristic hoặc từ `business_type` hiện có |
+| `document_number` | `document_number` |
+| `document_symbol` | `document_symbol` |
+| `issued_date` | `issued_date` |
+| `issuing_agency` | `issuing_agency` hoặc `agency_name` từ classify |
+| `recipient` | `recipient` |
+| `excerpt` | `excerpt` |
+| `status` | `"draft"` |
+
+**Decision** (`DecisionCreateRequest`):
+
+| Field module | Nguồn gợi ý |
+|--------------|---------------|
+| `document_id` | `documents.id` |
+| `decision_kind` | từ bảng mapping (`QĐ`→`decision`, `TB`→`notification`) |
+| `document_number` | `document_number` |
+| `document_symbol` | `document_symbol` |
+| `issued_date` | `issued_date` |
+| `issuing_agency` | `issuing_agency` |
+| `excerpt` | `excerpt` |
+| `effective_from` | `issued_date` (gợi ý mặc định MVP) |
+| `status` | `"draft"` |
+
+**Procurement** (`ProcurementCreateRequest`):
+
+| Field module | Nguồn gợi ý |
+|--------------|---------------|
+| `document_id` | `documents.id` |
+| `procurement_kind` | từ bảng mapping (`KH`→`plan`, `TTr`→`proposal`, `BB`→`acceptance`, …) |
+| `reference_number` | `document_number` |
+| `title_summary` | `excerpt` hoặc `title` hoặc `documents.title` |
+| `requesting_unit` | `issuing_agency` |
+| `requested_date` | `issued_date` |
+| `currency` | `"VND"` |
+| `status` | `"draft"` |
+
+Form UI hiện tại (`/contracts`, `/dispatches`, `/decisions`, `/procurements`) với `?document_id=&create=1` **chỉ** set `form.document_id` — mục tiêu 4 sẽ truyền thêm query/body pre-fill từ `suggested_module_fields` hoặc hydrate từ API onboarding trước khi hiển thị form.
+
+### API `GET /api/v1/documents/{document_id}/onboarding-suggestions` (Mục Tiêu 2)
+
+Read-only. Router `documents` → `ModuleOnboardingService` (service mới; có thể delegate mapping tới helper dùng chung với worker).
+
+Response shape (Pydantic):
+
+```json
+{
+  "document_id": "uuid",
+  "eligible": true,
+  "block_reason": null,
+  "needs_metadata_review": false,
+  "suggested_business_type": "contract",
+  "business_type_confidence": 0.9,
+  "target_module": "contract",
+  "module_confidence": 0.9,
+  "module_kind": null,
+  "reasons": ["document_type=HĐ", "mapping_contract"],
+  "suggested_module_fields": {
+    "contract_number": "01/HĐ-2026",
+    "contract_title": "HỢP ĐỒNG MUA SẮM VẬT TƯ",
+    "sign_date": "2026-06-07",
+    "currency": "VND",
+    "status": "draft"
+  }
+}
+```
+
+- `target_module`: `contract` | `dispatch` | `decision` | `procurement` | `null`.
+- `module_kind`: sub-kind tùy module — `dispatch_type`, `decision_kind`, hoặc `procurement_kind` (string enum hiện có); `null` với contract.
+- `suggested_module_fields`: object flat, key trùng field `*CreateRequest`; **không** gồm `document_id` (client đã biết).
+
+Endpoint áp dụng `business_type` (mục tiêu 4): dùng `PATCH /api/v1/documents/{id}` hiện có; sau apply set `metadata_source=mixed` nếu trước đó là `auto`, và audit `document.business_type_applied`.
+
+### Worker / Audit (Mục Tiêu 3)
+
+Trong `_extract_and_store_metadata` sau classify:
+
+- Nếu upload **không** chọn `business_type` (null/empty) và `module_confidence` ≥ **0.85** và không manual guard → audit `document.onboarding_suggested` với payload gợi ý; **không** đổi `business_type` trên document trong MVP worker (chỉ audit) — user apply qua UI hoặc PATCH.
+- Tùy chọn sau MVP: auto-set `business_type` + `metadata_source=mixed` khi high confidence; Phase 14 mặc định **audit-only** để tránh ghi đè nhầm.
+
+Audit actions:
+
+| Action | Khi nào |
+|--------|---------|
+| `document.onboarding_suggested` | Sau OCR, có gợi ý module hợp lệ |
+| `document.business_type_applied` | User/UI PATCH áp dụng `suggested_business_type` |
+
+### Frontend UX (Mục Tiêu 4–5)
+
+**Document detail** (`/documents/[id]`):
+
+- Gọi onboarding API khi `status=searchable` và chưa có card module active.
+- Banner **Gợi ý metadata**: hiển thị `suggested_business_type`, `target_module`, confidence; nút **Áp dụng loại nghiệp vụ** (PATCH document); nút **Tạo metadata {module}** → `/contracts|dispatches|decisions|procurements?document_id=&create=1` kèm pre-fill (query serialized hoặc fetch lại API trên trang module).
+- Low confidence: `Message` severity warn, không ẩn workflow.
+
+**Document list** (mục tiêu 5):
+
+- Query `missing_module_metadata=true` trên list documents API.
+- Điều kiện: `status=searchable`, `business_type` ∈ module catalog codes, **không** có bản ghi active tương ứng (`contract_records` / `dispatch_records` / `decision_records` / `procurement_records`).
+- Response thêm `missing_module_metadata: boolean`; UI badge “Chưa có metadata module”.
+
+### Kiến Trúc
+
+```text
+GET /documents/{id}/onboarding-suggestions
+  -> DocumentRouter
+  -> ModuleOnboardingService
+       -> DocumentRepository (read document)
+       -> Contract/Dispatch/Decision/ProcurementRepository (check active by document_id)
+       -> mapping helper (document_type -> module, shared với worker audit)
+```
+
+Không thêm bảng DB Phase 14. Không đổi Qdrant/chunk.
+
+### Smoke (Mục Tiêu 6)
+
+`smoke_module_onboarding.py`: fixture text mỗi loại (`HĐ`, `CV` incoming/outgoing, `QĐ`, `KH`) → document searchable → GET onboarding-suggestions → assert `target_module` + key fields → PATCH business_type (optional) → POST module create với pre-fill.
+
+## Hướng Dẫn Cho Mục Tiêu Tiếp Theo (Phase 14)
+
+**Mục tiêu 2** thêm `ModuleOnboardingService`, schema `OnboardingSuggestionResponse`, router `GET .../onboarding-suggestions`.
+
+**Mục tiêu 3** bổ sung audit `document.onboarding_suggested` trong worker (audit-only mặc định).
+
+**Mục tiêu 4–5** frontend document detail banner + list filter `missing_module_metadata`.
+
+**Mục tiêu 6** smoke `smoke_module_onboarding` + regression; đóng Phase 14.
