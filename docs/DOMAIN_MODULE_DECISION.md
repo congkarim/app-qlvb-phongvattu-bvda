@@ -802,9 +802,9 @@ Giữ nhất quán với module hợp đồng, công văn và quyết định.
 
 `entity_type=procurement`, `entity_id=<procurement_record.id>`, metadata JSON gọn (ví dụ `procurement_kind`, `reference_number`, `status`).
 
-## Schema Dự Kiến (Mục Tiêu 2)
+## Schema Đã Triển Khai (Mục Tiêu 2)
 
-Migration đề xuất: `0015_procurement_records` (và có thể `0015` kèm seed catalog `business_type=procurement`).
+Migration `0015_procurement_records` (kèm seed catalog `business_type=procurement`).
 
 ### Các Cột Chính
 

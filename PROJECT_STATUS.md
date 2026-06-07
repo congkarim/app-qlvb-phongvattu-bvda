@@ -8,12 +8,12 @@ Cập nhật lần cuối: 2026-06-07
 
 Hệ thống chạy on-prem bằng Docker Compose (`api`, `worker`, `web`, `postgres`, `redis`, `qdrant`). Workflow web end-to-end: upload → OCR/extract → searchable → semantic search → RAG Q&A → review chunk → audit. Module nghiệp vụ MVP: hợp đồng (`/contracts`), công văn (`/dispatches`), quyết định/thông báo (`/decisions`) — liên kết hai chiều với document detail; dashboard lọc search/RAG theo metadata hợp đồng, công văn và quyết định. RAG citation và search result deep-link tới `#chunk-{id}` trên document detail.
 
-Con trỏ tiếp theo: Phase 13 / Mục tiêu 2 — migration và model `procurement_records`.
+Con trỏ tiếp theo: Phase 13 / Mục tiêu 3 — API CRUD và smoke backend procurement.
 
 ## Giới Hạn Còn Lại
 
 Giới hạn còn lại (đồng bộ `ROADMAP.md`):
-- Chưa có module sổ đề xuất/kế hoạch mua sắm (`/procurements`) — Phase 13 mục tiêu 2–5.
+- Schema `procurement_records` đã có; chưa có API/UI `/procurements` — Phase 13 mục tiêu 3–5.
 - Chưa có LLM/generator nội bộ nâng cao; RAG hiện extractive từ chunk truy xuất.
 
 ## Đã Xây Dựng
@@ -2282,3 +2282,20 @@ Catalog `business_type` hiện có: `incoming_dispatch`, `outgoing_dispatch`, `c
 - Metadata: `reference_number`, `title_summary`, `requesting_unit`, `estimated_value`, `currency` (default VND), `requested_date`, `status`, `notes`.
 - Status: `draft`, `submitted`, `approved`, `rejected`, `completed`, `archived` — PATCH trực tiếp, không rule engine.
 - Quyền/audit giống module trước; search filter procurement draft cho mục tiêu 6 tùy chọn.
+
+### Mục tiêu 2 — Migration và model procurement_records (2026-06-07)
+
+Kiểm tra bắt buộc:
+
+```bash
+docker compose exec -T api alembic upgrade head
+git diff --check
+```
+
+Kết quả: `alembic current` = `0015_procurement_records (head)`; `git diff --check` pass.
+
+**Đã triển khai**
+
+- Migration `0015_procurement_records`: bảng `procurement_records` với cột theo thiết kế mục tiêu 1; partial unique `ux_procurement_records_document_active`; index filter `procurement_kind`, `reference_number`, `requesting_unit`, `status`, `requested_date`.
+- Seed catalog `business_type=procurement` (nhãn "Đề xuất / kế hoạch mua sắm", `sort_order=50`).
+- Model `ProcurementRecord` tại `apps/api/app/models/procurement.py`; quan hệ `Document.procurement_record` 1-1.
