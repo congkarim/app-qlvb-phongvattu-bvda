@@ -11,6 +11,8 @@ from app.core.config import get_settings
 from app.models.user import User
 from app.repositories.audit_log_repository import AuditLogRepository
 from app.repositories.document_repository import DocumentRepository, OCRJobRepository
+from app.schemas.document import DocumentListItemRead
+from app.services.module_onboarding_service import batch_missing_module_metadata_flags
 from app.services.chunk_payload import build_qdrant_payload
 from app.services.document_classifier_service import DOCUMENT_TYPE_LABELS
 from app.services.qdrant_service import QdrantService
@@ -298,6 +300,7 @@ class DocumentService:
         status: str | None = None,
         document_type: str | None = None,
         business_type: str | None = None,
+        missing_module_metadata: bool | None = None,
         sort_by: str = "created_at",
         sort_dir: str = "desc",
     ):
@@ -312,6 +315,7 @@ class DocumentService:
             status=normalized_status,
             document_type=normalized_document_type,
             business_type=normalized_business_type,
+            missing_module_metadata=missing_module_metadata,
             sort_by=sort_by,
             sort_dir=sort_dir,
         )
@@ -320,9 +324,17 @@ class DocumentService:
             status=normalized_status,
             document_type=normalized_document_type,
             business_type=normalized_business_type,
+            missing_module_metadata=missing_module_metadata,
         )
+        missing_flags = batch_missing_module_metadata_flags(self.db, items)
+        serialized_items = [
+            DocumentListItemRead.model_validate(item).model_copy(
+                update={"missing_module_metadata": missing_flags.get(item.id, False)}
+            )
+            for item in items
+        ]
         return {
-            "items": items,
+            "items": serialized_items,
             "total": total,
             "limit": limit,
             "offset": offset,

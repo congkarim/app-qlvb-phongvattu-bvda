@@ -25,7 +25,7 @@ Phase trước: Phase 13 hoàn thành ngày 2026-06-07.
 
 Phase hiện tại: Phase 14 - Gợi Ý Metadata Module Và Onboarding Sau OCR.
 
-Mục tiêu tiếp theo: Phase 14 / Mục Tiêu 5 - Document List: Badge/Filter Thiếu Metadata Module.
+Mục tiêu tiếp theo: Phase 14 / Mục Tiêu 6 - Smoke Onboarding Và Hoàn Tất Phase 14.
 
 Điều kiện chuyển sang mục tiêu kế tiếp:
 - Mục tiêu hiện tại pass tiêu chí chấp nhận.

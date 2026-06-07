@@ -53,6 +53,10 @@ class DocumentRead(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class DocumentListItemRead(DocumentRead):
+    missing_module_metadata: bool = False
+
+
 class DocumentPageRead(BaseModel):
     id: str
     page_number: int
@@ -125,7 +129,7 @@ class ReviewQueueResponse(BaseModel):
 
 
 class DocumentListResponse(BaseModel):
-    items: list[DocumentRead]
+    items: list[DocumentListItemRead]
     total: int
     limit: int
     offset: int

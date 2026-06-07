@@ -4,12 +4,15 @@ import type { DocumentListFilters } from '~/types/document'
 const { documents, documentsTotal, documentsLimit, documentsOffset, loading, error, fetchDocuments } = useDocuments()
 const { businessTypeFilterOptions, documentTypeFilterOptions, fetchCatalogOptions } = useCatalogs()
 const filters = reactive<
-  Required<Pick<DocumentListFilters, 'q' | 'status' | 'document_type' | 'business_type' | 'sort_by' | 'sort_dir'>>
+  Required<Pick<DocumentListFilters, 'q' | 'status' | 'document_type' | 'business_type' | 'sort_by' | 'sort_dir'>> & {
+    missing_module_metadata: '' | '1'
+  }
 >({
   q: '',
   status: '',
   document_type: '',
   business_type: '',
+  missing_module_metadata: '',
   sort_by: 'created_at',
   sort_dir: 'desc'
 })
@@ -45,6 +48,7 @@ function currentFilters(): DocumentListFilters {
     status: filters.status,
     document_type: filters.document_type,
     business_type: filters.business_type,
+    missing_module_metadata: filters.missing_module_metadata === '1' ? true : undefined,
     sort_by: filters.sort_by,
     sort_dir: filters.sort_dir,
     limit: documentsLimit.value,
@@ -62,6 +66,7 @@ function resetFilters() {
   filters.status = ''
   filters.document_type = ''
   filters.business_type = ''
+  filters.missing_module_metadata = ''
   filters.sort_by = 'created_at'
   filters.sort_dir = 'desc'
   void loadDocuments(true)
@@ -101,7 +106,7 @@ onMounted(async () => {
 
     <Card>
       <template #content>
-        <div class="grid gap-3 md:grid-cols-7">
+        <div class="grid gap-3 md:grid-cols-8">
           <InputText
             v-model="filters.q"
             class="md:col-span-2"
@@ -122,6 +127,13 @@ onMounted(async () => {
             <option v-for="option in businessTypeFilterOptions" :key="option.value" :value="option.value">
               {{ option.label }}
             </option>
+          </select>
+          <select
+            v-model="filters.missing_module_metadata"
+            class="rounded border border-slate-300 px-3 py-2 text-sm"
+          >
+            <option value="">Tất cả module</option>
+            <option value="1">Chưa có metadata module</option>
           </select>
           <select v-model="filters.sort_by" class="rounded border border-slate-300 px-3 py-2 text-sm">
             <option v-for="option in sortOptions" :key="option.value" :value="option.value">

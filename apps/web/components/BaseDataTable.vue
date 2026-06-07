@@ -14,6 +14,12 @@ defineProps<{
       <template #body="{ data }">
         <div>
           <NuxtLink class="font-medium text-sky-700" :to="`/documents/${data.id}`">{{ data.title }}</NuxtLink>
+          <Tag
+            v-if="data.missing_module_metadata"
+            class="mt-1"
+            severity="warn"
+            value="Chưa có metadata module"
+          />
           <p v-if="data.issuing_agency" class="mt-1 text-xs text-slate-500">{{ data.issuing_agency }}</p>
         </div>
       </template>

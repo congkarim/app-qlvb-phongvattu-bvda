@@ -5,9 +5,14 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Any
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.models.contract import ContractRecord
+from app.models.decision import DecisionRecord
+from app.models.dispatch import DispatchRecord
 from app.models.document import Document
+from app.models.procurement import ProcurementRecord
 from app.repositories.contract_repository import ContractRepository
 from app.repositories.decision_repository import DecisionRepository
 from app.repositories.dispatch_repository import DispatchRepository
@@ -25,6 +30,8 @@ BUSINESS_TYPE_TO_MODULE: dict[str, str] = {
     "decision": "decision",
     "procurement": "procurement",
 }
+
+MODULE_BUSINESS_TYPES = frozenset(BUSINESS_TYPE_TO_MODULE.keys())
 
 BUSINESS_TYPE_TO_DISPATCH_TYPE: dict[str, str] = {
     "incoming_dispatch": "incoming",
@@ -342,6 +349,64 @@ def _module_kind_from_business_type(
     if type_mapping and type_mapping.module_kind:
         return type_mapping.module_kind
     return None
+
+
+def batch_missing_module_metadata_flags(db: Session, documents: list[Document]) -> dict[str, bool]:
+    if not documents:
+        return {}
+
+    contract_ids = {
+        document.id
+        for document in documents
+        if _normalize_business_type(document.business_type) == "contract"
+    }
+    dispatch_ids = {
+        document.id
+        for document in documents
+        if _normalize_business_type(document.business_type) in BUSINESS_TYPE_TO_DISPATCH_TYPE
+    }
+    decision_ids = {
+        document.id
+        for document in documents
+        if _normalize_business_type(document.business_type) == "decision"
+    }
+    procurement_ids = {
+        document.id
+        for document in documents
+        if _normalize_business_type(document.business_type) == "procurement"
+    }
+
+    def existing_document_ids(model: type, document_ids: set[str]) -> set[str]:
+        if not document_ids:
+            return set()
+        stmt = select(model.document_id).where(
+            model.document_id.in_(document_ids),
+            model.deleted_at.is_(None),
+        )
+        return set(db.scalars(stmt))
+
+    existing_contract = existing_document_ids(ContractRecord, contract_ids)
+    existing_dispatch = existing_document_ids(DispatchRecord, dispatch_ids)
+    existing_decision = existing_document_ids(DecisionRecord, decision_ids)
+    existing_procurement = existing_document_ids(ProcurementRecord, procurement_ids)
+
+    flags: dict[str, bool] = {}
+    for document in documents:
+        business_type = _normalize_business_type(document.business_type)
+        if document.status != "searchable" or business_type not in BUSINESS_TYPE_TO_MODULE:
+            flags[document.id] = False
+            continue
+        if business_type == "contract":
+            flags[document.id] = document.id not in existing_contract
+        elif business_type in BUSINESS_TYPE_TO_DISPATCH_TYPE:
+            flags[document.id] = document.id not in existing_dispatch
+        elif business_type == "decision":
+            flags[document.id] = document.id not in existing_decision
+        elif business_type == "procurement":
+            flags[document.id] = document.id not in existing_procurement
+        else:
+            flags[document.id] = False
+    return flags
 
 
 def _module_exists(db: Session, target_module: str, document_id: str) -> bool:

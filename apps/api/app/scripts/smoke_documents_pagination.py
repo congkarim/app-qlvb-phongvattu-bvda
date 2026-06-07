@@ -71,6 +71,21 @@ def run_smoke() -> dict[str, int]:
         _assert(searched["total"] == 1, f"Expected query by document_number to return 1 item, got {searched['total']}")
         _assert(searched["items"][0].document_number == "PG-2", "Search did not match document_number")
 
+        missing_module = service.list_documents(
+            limit=10,
+            offset=0,
+            query=SMOKE_TITLE_PREFIX,
+            missing_module_metadata=True,
+        )
+        _assert(
+            missing_module["total"] == 2,
+            f"Expected missing_module_metadata total=2, got {missing_module['total']}",
+        )
+        _assert(
+            all(item.missing_module_metadata for item in missing_module["items"]),
+            "All filtered items should have missing_module_metadata=true",
+        )
+
         _soft_delete_documents(db, created_document_ids)
         db.commit()
         return {

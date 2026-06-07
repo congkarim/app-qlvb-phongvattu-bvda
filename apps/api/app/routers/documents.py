@@ -147,6 +147,7 @@ def list_documents(
     q: str | None = Query(default=None, max_length=200),
     document_type: str | None = Query(default=None, max_length=64),
     business_type: str | None = Query(default=None, max_length=64),
+    missing_module_metadata: bool | None = Query(default=None),
     status_filter: str | None = Query(default=None, alias="status", max_length=64),
     sort_by: str = Query(default="created_at", pattern="^(created_at|updated_at|issued_date|title|status|document_type|business_type)$"),
     sort_dir: str = Query(default="desc", pattern="^(asc|desc)$"),
@@ -159,6 +160,7 @@ def list_documents(
         status=status_filter,
         document_type=document_type,
         business_type=business_type,
+        missing_module_metadata=missing_module_metadata,
         sort_by=sort_by,
         sort_dir=sort_dir,
     )

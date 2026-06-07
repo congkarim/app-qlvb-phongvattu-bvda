@@ -4,11 +4,11 @@ Cập nhật lần cuối: 2026-06-07
 
 ## Giai Đoạn Hiện Tại
 
-**Phase 0–13 đã hoàn thành.** **Phase 14 đang làm** (bắt đầu 2026-06-07; mục tiêu 1–4 hoàn thành).
+**Phase 0–13 đã hoàn thành.** **Phase 14 đang làm** (bắt đầu 2026-06-07; mục tiêu 1–5 hoàn thành).
 
 Hệ thống chạy on-prem bằng Docker Compose (`api`, `worker`, `web`, `postgres`, `redis`, `qdrant`). Workflow web end-to-end: upload → OCR/extract → searchable → semantic search → RAG Q&A → review chunk → audit. Module nghiệp vụ MVP: hợp đồng (`/contracts`), công văn (`/dispatches`), quyết định/thông báo (`/decisions`), mua sắm (`/procurements`) — liên kết hai chiều với document detail; dashboard lọc search/RAG theo metadata hợp đồng, công văn, quyết định và mua sắm. RAG citation và search result deep-link tới `#chunk-{id}` trên document detail.
 
-Con trỏ tiếp theo: Phase 14 / Mục tiêu 5 — document list badge/filter `missing_module_metadata`.
+Con trỏ tiếp theo: Phase 14 / Mục tiêu 6 — smoke onboarding và đóng phase.
 
 ## Giới Hạn Còn Lại
 

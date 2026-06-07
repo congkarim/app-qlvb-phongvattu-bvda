@@ -3,6 +3,7 @@ from datetime import date
 from types import SimpleNamespace
 
 from app.services.module_onboarding_service import (
+    batch_missing_module_metadata_flags,
     build_onboarding_suggestion,
     build_worker_onboarding_audit_metadata,
     is_upload_business_type_unset,
@@ -150,6 +151,25 @@ class ModuleOnboardingServiceTests(unittest.TestCase):
         )
         self.assertIsNone(suggestion["block_reason"])
         self.assertEqual(suggestion["target_module"], "decision")
+
+    def test_batch_missing_module_metadata_flags(self) -> None:
+        documents = [
+            _document(id="doc-contract", business_type="contract"),
+            _document(id="doc-dispatch", business_type="incoming_dispatch"),
+            _document(id="doc-failed", status="failed", business_type="decision"),
+            _document(id="doc-no-bt", business_type=None),
+        ]
+
+        class _FakeDb:
+            def scalars(self, _stmt):
+                return iter(["doc-contract"])
+
+        flags = batch_missing_module_metadata_flags(_FakeDb(), documents)
+
+        self.assertFalse(flags["doc-contract"])
+        self.assertTrue(flags["doc-dispatch"])
+        self.assertFalse(flags["doc-failed"])
+        self.assertFalse(flags["doc-no-bt"])
 
 
 if __name__ == "__main__":

@@ -25,7 +25,12 @@ export function createDocumentService() {
     list(filters: DocumentListFilters = {}) {
       const params = new URLSearchParams()
       for (const [key, value] of Object.entries(filters)) {
-        if (value !== undefined && value !== null && String(value).trim() !== '') {
+        if (value === undefined || value === null) continue
+        if (key === 'missing_module_metadata') {
+          if (value === true) params.set(key, 'true')
+          continue
+        }
+        if (String(value).trim() !== '') {
           params.set(key, String(value))
         }
       }

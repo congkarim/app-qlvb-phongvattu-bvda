@@ -59,6 +59,7 @@ export interface DocumentItem {
   metadata_source?: string | null
   metadata_reviewed_at?: string | null
   business_type?: string | null
+  missing_module_metadata?: boolean
   status: string
   created_at: string
   updated_at: string
@@ -161,6 +162,7 @@ export interface DocumentListFilters {
   status?: string
   document_type?: string
   business_type?: string
+  missing_module_metadata?: boolean
   sort_by?: 'created_at' | 'updated_at' | 'issued_date' | 'title' | 'status' | 'document_type' | 'business_type'
   sort_dir?: 'asc' | 'desc'
   limit?: number

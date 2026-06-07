@@ -2,10 +2,14 @@ import re
 from datetime import date, datetime, timezone
 from typing import Any
 
-from sqlalchemy import asc, desc, func, nullsfirst, or_, select
+from sqlalchemy import and_, asc, desc, exists, func, nullsfirst, or_, select
 from sqlalchemy.orm import Session, selectinload, with_loader_criteria
 
+from app.models.contract import ContractRecord
+from app.models.decision import DecisionRecord
+from app.models.dispatch import DispatchRecord
 from app.models.document import Document, DocumentChunk, DocumentFile, DocumentPage, OCRJob
+from app.models.procurement import ProcurementRecord
 from app.repositories.audit_log_repository import AuditLogRepository
 
 
@@ -41,6 +45,47 @@ class DocumentRepository:
         self.db.flush()
         return document
 
+    def _missing_module_metadata_condition(self):
+        contract_exists = exists(
+            select(ContractRecord.id).where(
+                ContractRecord.document_id == Document.id,
+                ContractRecord.deleted_at.is_(None),
+            )
+        )
+        dispatch_exists = exists(
+            select(DispatchRecord.id).where(
+                DispatchRecord.document_id == Document.id,
+                DispatchRecord.deleted_at.is_(None),
+            )
+        )
+        decision_exists = exists(
+            select(DecisionRecord.id).where(
+                DecisionRecord.document_id == Document.id,
+                DecisionRecord.deleted_at.is_(None),
+            )
+        )
+        procurement_exists = exists(
+            select(ProcurementRecord.id).where(
+                ProcurementRecord.document_id == Document.id,
+                ProcurementRecord.deleted_at.is_(None),
+            )
+        )
+        return and_(
+            Document.status == "searchable",
+            Document.business_type.in_(
+                ("contract", "incoming_dispatch", "outgoing_dispatch", "decision", "procurement")
+            ),
+            or_(
+                and_(Document.business_type == "contract", ~contract_exists),
+                and_(
+                    Document.business_type.in_(("incoming_dispatch", "outgoing_dispatch")),
+                    ~dispatch_exists,
+                ),
+                and_(Document.business_type == "decision", ~decision_exists),
+                and_(Document.business_type == "procurement", ~procurement_exists),
+            ),
+        )
+
     def _document_list_conditions(
         self,
         *,
@@ -48,6 +93,7 @@ class DocumentRepository:
         status: str | None = None,
         document_type: str | None = None,
         business_type: str | None = None,
+        missing_module_metadata: bool | None = None,
     ):
         conditions = [Document.deleted_at.is_(None)]
         if query:
@@ -70,6 +116,8 @@ class DocumentRepository:
             conditions.append(Document.document_type == document_type)
         if business_type:
             conditions.append(Document.business_type == business_type)
+        if missing_module_metadata:
+            conditions.append(self._missing_module_metadata_condition())
         return conditions
 
     def list_documents(
@@ -81,6 +129,7 @@ class DocumentRepository:
         status: str | None = None,
         document_type: str | None = None,
         business_type: str | None = None,
+        missing_module_metadata: bool | None = None,
         sort_by: str = "created_at",
         sort_dir: str = "desc",
     ) -> list[Document]:
@@ -90,6 +139,7 @@ class DocumentRepository:
                 status=status,
                 document_type=document_type,
                 business_type=business_type,
+                missing_module_metadata=missing_module_metadata,
             )
         )
 
@@ -118,6 +168,7 @@ class DocumentRepository:
         status: str | None = None,
         document_type: str | None = None,
         business_type: str | None = None,
+        missing_module_metadata: bool | None = None,
     ) -> int:
         stmt = select(func.count(Document.id)).where(
             *self._document_list_conditions(
@@ -125,6 +176,7 @@ class DocumentRepository:
                 status=status,
                 document_type=document_type,
                 business_type=business_type,
+                missing_module_metadata=missing_module_metadata,
             )
         )
         return int(self.db.scalar(stmt) or 0)
