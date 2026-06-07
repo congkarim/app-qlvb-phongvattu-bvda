@@ -10,7 +10,7 @@ Cập nhật lần cuối: 2026-06-07
 
 Hệ thống chạy on-prem bằng Docker Compose (`api`, `worker`, `web`, `postgres`, `redis`, `qdrant`). Workflow web end-to-end: upload → OCR/extract → searchable → semantic search → RAG Q&A (extractive) → review chunk → audit. Module nghiệp vụ MVP: hợp đồng, công văn, quyết định, mua sắm — liên kết document detail; gợi ý liên kết document rule-based (Phase 16).
 
-Con trỏ tiếp theo: Phase 17 / Mục tiêu 4 — `RagAnswerService` generative + fallback (`TASK_NEXT.md`).
+Con trỏ tiếp theo: Phase 17 / Mục tiêu 5 — API schema + ops LLM status (`TASK_NEXT.md`).
 
 ## Giới Hạn Còn Lại
 
@@ -2828,3 +2828,23 @@ git diff --check
 ```
 
 Kết quả: config pass; profile `llm` render service ollama + volume; `git diff --check` pass.
+
+### Mục tiêu 4 — RagAnswerService generative, context builder và fallback (2026-06-07)
+
+**Triển khai**
+
+- `RagContextBuilder`: format context numbered `[1]..[n]`, cap `RAG_LLM_MAX_CONTEXT_CHARS`, ưu tiên chunk không `requires_review`.
+- `CitationValidator`: parse marker `[n]`, whitelist chunk index, phát hiện câu insufficient.
+- `RagAnswerService`: nhánh generative qua `LocalLLMService`; fallback extractive với `llm_unavailable` / `validation_failed`; response thêm `generation_mode`, `model_name`, `latency_ms`.
+
+**Kiểm tra**
+
+```bash
+PYTHONPYCACHEPREFIX=/tmp/qlvb-pycache PYTHONPATH=apps/api python3 -m py_compile \
+  apps/api/app/services/rag_answer_service.py apps/api/app/services/rag_context_builder.py
+docker compose exec -T api python -m unittest app.services.tests.test_rag_answer_service -v
+docker compose exec -T api python -m app.scripts.smoke_rag_answer
+git diff --check
+```
+
+Kết quả: 7 unit tests pass; smoke `smoke_rag_answer` pass; `git diff --check` pass.

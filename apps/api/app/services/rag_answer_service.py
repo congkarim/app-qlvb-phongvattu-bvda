@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import re
 from dataclasses import dataclass
 from datetime import date
@@ -7,8 +8,24 @@ from typing import Protocol
 
 from sqlalchemy.orm import Session
 
+from app.core.config import Settings, get_settings
+from app.services.local_llm_service import GenerateResult, LocalLLMError, LocalLLMService
+from app.services.rag_citation_validator import CitationValidator
+from app.services.rag_context_builder import RagContextBuilder
 from app.services.search_rerank_service import normalize_search_text
 from app.services.search_service import SearchService
+
+
+logger = logging.getLogger(__name__)
+
+GENERATIVE_SYSTEM_PROMPT = (
+    "Bạn là trợ lý tra cứu văn bản hành chính tiếng Việt. Chỉ trả lời dựa trên các đoạn [1]..[n] được cung cấp.\n"
+    "- Không bịa số văn bản, điều khoản hoặc nội dung không có trong context.\n"
+    "- Mỗi ý quan trọng phải kèm tham chiếu [số] tương ứng đoạn nguồn.\n"
+    '- Nếu context không đủ trả lời, trả lời ngắn: "Không đủ căn cứ trong các đoạn đã cung cấp." '
+    "và không thêm thông tin ngoài context.\n"
+    "- Trả lời súc tích, tiếng Việt chuẩn hành chính."
+)
 
 
 class SearchBackend(Protocol):
@@ -43,6 +60,14 @@ class SearchBackend(Protocol):
         ...
 
 
+class LLMBackend(Protocol):
+    def is_generative_enabled(self) -> bool: ...
+
+    def is_available(self) -> bool: ...
+
+    def generate(self, *, system: str, user: str) -> GenerateResult: ...
+
+
 @dataclass(frozen=True)
 class RagAnswerConfig:
     fallback_answer: str = (
@@ -59,10 +84,14 @@ class RagAnswerService:
         db: Session | None = None,
         *,
         search_backend: SearchBackend | None = None,
+        llm_backend: LLMBackend | None = None,
         config: RagAnswerConfig | None = None,
+        settings: Settings | None = None,
     ) -> None:
         self.search = search_backend or SearchService(db)
+        self._llm_backend = llm_backend
         self.config = config or RagAnswerConfig()
+        self.settings = settings or get_settings()
 
     def answer(
         self,
@@ -127,25 +156,111 @@ class RagAnswerService:
             and self._has_query_overlap(query, str(result.get("text") or ""))
         ][:max_citations]
 
-        citations = [self._citation(query, result) for result in evidence]
         if not self._has_enough_evidence(query, evidence):
-            return {
-                "query": query,
-                "answer": self.config.fallback_answer,
-                "grounded": False,
-                "confidence": 0.0,
-                "fallback_reason": "insufficient_evidence",
-                "citations": citations,
-            }
+            return self._insufficient_evidence_response(query)
 
+        generative = self._try_generative_answer(query, evidence)
+        if generative is not None:
+            return generative
+
+        return self._extractive_response(query, evidence)
+
+    def _try_generative_answer(self, query: str, evidence: list[dict]) -> dict | None:
+        llm = self._llm()
+        if not llm.is_generative_enabled():
+            return None
+
+        if not llm.is_available():
+            return self._extractive_response(query, evidence, fallback_reason="llm_unavailable")
+
+        context_builder = RagContextBuilder(max_context_chars=self.settings.rag_llm_max_context_chars)
+        context_text, ordered_evidence = context_builder.build(
+            query,
+            evidence,
+            snippet_fn=self._quote,
+        )
+        user_prompt = (
+            f"Câu hỏi: {query}\n\n"
+            f"Các đoạn tham chiếu:\n{context_text}\n\n"
+            "Trả lời câu hỏi và trích [n] cho mỗi ý dựa trên đoạn tương ứng."
+        )
+
+        try:
+            generated = llm.generate(system=GENERATIVE_SYSTEM_PROMPT, user=user_prompt)
+        except LocalLLMError as exc:
+            logger.warning("Generative RAG failed, falling back to extractive: %s", exc)
+            return self._extractive_response(query, evidence, fallback_reason="llm_unavailable")
+
+        validator = CitationValidator()
+        if validator.is_insufficient_claim(generated.text):
+            return self._insufficient_evidence_response(query)
+
+        validation = validator.validate(generated.text, len(ordered_evidence))
+        if not validation.valid:
+            logger.warning("Generative RAG citation validation failed")
+            return self._extractive_response(query, evidence, fallback_reason="validation_failed")
+
+        citations = self._citations_for_markers(query, ordered_evidence, validation.marker_indices)
+        return {
+            "query": query,
+            "answer": generated.text,
+            "grounded": True,
+            "confidence": self._confidence(citations),
+            "fallback_reason": None,
+            "citations": citations,
+            "generation_mode": "generative",
+            "model_name": generated.model_name,
+            "latency_ms": generated.latency_ms,
+        }
+
+    def _extractive_response(
+        self,
+        query: str,
+        evidence: list[dict],
+        *,
+        fallback_reason: str | None = None,
+    ) -> dict:
+        citations = [self._citation(query, result) for result in evidence]
         return {
             "query": query,
             "answer": self._compose_answer(citations),
             "grounded": True,
             "confidence": self._confidence(citations),
-            "fallback_reason": None,
+            "fallback_reason": fallback_reason,
             "citations": citations,
+            "generation_mode": "extractive",
+            "model_name": None,
+            "latency_ms": None,
         }
+
+    def _insufficient_evidence_response(self, query: str) -> dict:
+        return {
+            "query": query,
+            "answer": self.config.fallback_answer,
+            "grounded": False,
+            "confidence": 0.0,
+            "fallback_reason": "insufficient_evidence",
+            "citations": [],
+            "generation_mode": "extractive",
+            "model_name": None,
+            "latency_ms": None,
+        }
+
+    def _citations_for_markers(
+        self,
+        query: str,
+        evidence: list[dict],
+        marker_indices: tuple[int, ...],
+    ) -> list[dict]:
+        citations: list[dict] = []
+        for index in marker_indices:
+            citations.append(self._citation(query, evidence[index - 1]))
+        return citations
+
+    def _llm(self) -> LLMBackend:
+        if self._llm_backend is None:
+            self._llm_backend = LocalLLMService(self.settings)
+        return self._llm_backend
 
     def _has_enough_evidence(self, query: str, evidence: list[dict]) -> bool:
         if not evidence:
