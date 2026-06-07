@@ -941,12 +941,11 @@ Nếu `documents.business_type` đã khớp một module (ví dụ `contract`) n
 
 Áp dụng khi `document_type` ∈ `{CV, CĐ}` và upload **chưa** chọn `business_type` (hoặc đang gợi ý đổi từ rỗng):
 
-1. **Outgoing** (`outgoing_dispatch`, `dispatch_type=outgoing`) nếu **một trong**:
-   - `excerpt` khớp `^V/v\s` (công văn đi “V/v …”).
-   - Có `recipient` và **không** có dòng `Kính gửi` ở 15 dòng đầu (cấu trúc gửi đi, nơi nhận ở cuối/thân).
+1. **Outgoing** (`outgoing_dispatch`, `dispatch_type=outgoing`) nếu `excerpt` khớp `^V/v\s` (công văn đi “V/v …”).
 2. **Incoming** (`incoming_dispatch`, `dispatch_type=incoming`) nếu **một trong**:
-   - 15 dòng đầu có `Kính gửi` (công văn đến từ đơn vị khác).
    - `document_type=CĐ` (công điện thường đến).
+   - `excerpt` có `Kính gửi` (khi còn lưu trên document).
+   - Có `recipient` (classifier đã trích từ khối Kính gửi) và excerpt **không** bắt đầu bằng `V/v`.
 3. **Mặc định khi mơ hồ:** `incoming_dispatch`, `dispatch_type=incoming`, cap `module_confidence` ≤ **0.75**, `reasons` += `dispatch_direction_ambiguous`.
 
 Khi user đã chọn `incoming_dispatch` / `outgoing_dispatch` lúc upload → dùng giá trị đó, map `dispatch_type` tương ứng, không chạy heuristic hướng.

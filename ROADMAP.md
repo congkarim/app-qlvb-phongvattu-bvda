@@ -366,7 +366,7 @@ Mục tiêu gợi ý cho `TASK_NEXT.md`:
 
 ### Phase 14 - Gợi Ý Metadata Module Và Onboarding Sau OCR
 
-Trạng thái: đang làm (bắt đầu 2026-06-07; mục tiêu 1 hoàn thành).
+Trạng thái: đang làm (bắt đầu 2026-06-07; mục tiêu 1–2 hoàn thành).
 
 Mục tiêu: rút ngắn khoảng cách giữa classifier OCR rule-based hiện có (`DocumentClassifierService`) và 4 module nghiệp vụ — gợi ý `business_type`, loại module (`dispatch_type`, `decision_kind`, `procurement_kind`) và pre-fill form tạo metadata; **không** tự tạo bản ghi module mà không có xác nhận người dùng.
 

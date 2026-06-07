@@ -21,6 +21,8 @@ from app.schemas.document import (
     SourceFileMutationResponse,
     UploadResponse,
 )
+from app.schemas.onboarding import OnboardingSuggestionResponse
+from app.services.module_onboarding_service import ModuleOnboardingService
 from app.services.document_service import (
     DocumentBusyError,
     DocumentChunkNotFoundError,
@@ -273,6 +275,17 @@ def list_review_queue_chunks(
         document_id=document_id,
         max_confidence=max_confidence,
     )
+
+
+@router.get("/{document_id}/onboarding-suggestions", response_model=OnboardingSuggestionResponse)
+def get_document_onboarding_suggestions(
+    document_id: str,
+    db: Session = Depends(get_db),
+) -> OnboardingSuggestionResponse:
+    suggestion = ModuleOnboardingService(db).get_suggestions(document_id)
+    if suggestion is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+    return OnboardingSuggestionResponse(**suggestion)
 
 
 @router.get("/{document_id}", response_model=DocumentDetailRead)

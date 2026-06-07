@@ -8,7 +8,7 @@ Cập nhật lần cuối: 2026-06-07
 
 Hệ thống chạy on-prem bằng Docker Compose (`api`, `worker`, `web`, `postgres`, `redis`, `qdrant`). Workflow web end-to-end: upload → OCR/extract → searchable → semantic search → RAG Q&A → review chunk → audit. Module nghiệp vụ MVP: hợp đồng (`/contracts`), công văn (`/dispatches`), quyết định/thông báo (`/decisions`), mua sắm (`/procurements`) — liên kết hai chiều với document detail; dashboard lọc search/RAG theo metadata hợp đồng, công văn, quyết định và mua sắm. RAG citation và search result deep-link tới `#chunk-{id}` trên document detail.
 
-Con trỏ tiếp theo: Phase 14 / Mục tiêu 2 — `ModuleOnboardingService` và API `onboarding-suggestions`.
+Con trỏ tiếp theo: Phase 14 / Mục tiêu 3 — worker/audit gợi ý `business_type` có kiểm soát.
 
 ## Giới Hạn Còn Lại
 
@@ -2381,7 +2381,7 @@ Kết quả: smoke procurement API, search module filters (gồm procurement), R
 
 ## Phase 14 — Gợi Ý Metadata Module Và Onboarding Sau OCR
 
-Trạng thái: đang làm (bắt đầu 2026-06-07; mục tiêu 1 hoàn thành).
+Trạng thái: đang làm (bắt đầu 2026-06-07; mục tiêu 1–2 hoàn thành).
 
 Mục tiêu phase: nối classifier OCR rule-based với 4 module nghiệp vụ — gợi ý `business_type`, loại module và pre-fill form tạo metadata; không auto-create module record im lặng.
 
@@ -2418,3 +2418,21 @@ Kết quả: `git diff --check` pass.
 Phạm vi đã chốt trong `ROADMAP.md`: mapping `document_type` → `business_type` + module target; API read-only gợi ý; UI document detail + list filter; smoke `smoke_module_onboarding`; không LLM, không `document_relations`, không inventory.
 
 Checklist thực thi: `TASK_NEXT.md`.
+
+### Mục tiêu 2 — ModuleOnboardingService và API onboarding-suggestions (2026-06-07)
+
+Kiểm tra bắt buộc:
+
+```bash
+docker compose exec -T api python -m app.scripts.check_document_classifier
+docker compose exec -T api python -m unittest app.services.tests.test_module_onboarding_service
+git diff --check
+```
+
+Kết quả: classifier check pass; 9 unit tests pass; `git diff --check` pass.
+
+**Đã triển khai**
+
+- `ModuleOnboardingService`: mapping `document_type` → module, heuristic CV incoming/outgoing, pre-fill fields, guard manual review / not searchable / module exists / low confidence.
+- Schema `OnboardingSuggestionResponse`; `GET /api/v1/documents/{document_id}/onboarding-suggestions`.
+- Unit tests `test_module_onboarding_service.py` (contract, decision, dispatch, guards).

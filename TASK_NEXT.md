@@ -25,7 +25,7 @@ Phase trước: Phase 13 hoàn thành ngày 2026-06-07.
 
 Phase hiện tại: Phase 14 - Gợi Ý Metadata Module Và Onboarding Sau OCR.
 
-Mục tiêu tiếp theo: Phase 14 / Mục Tiêu 2 - ModuleOnboardingService Và API onboarding-suggestions.
+Mục tiêu tiếp theo: Phase 14 / Mục Tiêu 3 - Worker/Audit Gợi Ý business_type Có Kiểm Soát.
 
 Điều kiện chuyển sang mục tiêu kế tiếp:
 - Mục tiêu hiện tại pass tiêu chí chấp nhận.
@@ -37,7 +37,7 @@ Mục tiêu tiếp theo: Phase 14 / Mục Tiêu 2 - ModuleOnboardingService Và 
 
 ## Phase 14 - Gợi Ý Metadata Module Và Onboarding Sau OCR
 
-Trạng thái: đang làm (bắt đầu 2026-06-07; mục tiêu 1 hoàn thành).
+Trạng thái: đang làm (bắt đầu 2026-06-07; mục tiêu 1–2 hoàn thành).
 
 Mục tiêu phase: nối classifier OCR rule-based (`DocumentClassifierService`) với 4 module nghiệp vụ — gợi ý `business_type`, loại module và pre-fill form; không tự tạo bản ghi module mà không có xác nhận người dùng.
 
@@ -78,7 +78,7 @@ git diff --check
 
 ### Mục Tiêu 2 - ModuleOnboardingService Và API onboarding-suggestions
 
-Trạng thái: chưa làm (tiếp theo).
+Trạng thái: hoàn thành (2026-06-07).
 
 Skill bắt buộc: `backend-fastapi`, `project-git-manager`.
 
@@ -103,7 +103,7 @@ git diff --check
 
 ### Mục Tiêu 3 - Worker/Audit Gợi Ý business_type Có Kiểm Soát
 
-Trạng thái: chưa làm.
+Trạng thái: chưa làm (tiếp theo).
 
 Skill bắt buộc: `ocr-pipeline`, `backend-fastapi`, `project-git-manager`.
 
