@@ -516,7 +516,9 @@ Mục tiêu 2 đã tạo bảng `decision_records` bằng migration `0014_decisi
 - `Document.decision_record` — `uselist=False`, tương tự `contract_record` / `dispatch_record`.
 - `DecisionRecord.document` — `relationship` back_populates.
 
-## API Dự Kiến (Mục Tiêu 3)
+## API Đã Triển Khai (Mục Tiêu 3)
+
+Mục tiêu 3 đã thêm backend module theo `router -> service -> repository`.
 
 | Method | Path | Mô tả |
 |--------|------|--------|
@@ -543,6 +545,6 @@ Smoke script đề xuất: `python -m app.scripts.smoke_decision_api`.
 - Nav item `Quyết định` (hoặc `Quyết định & TB`) trong app shell.
 - Card trên `/documents/[id]` liên kết hai chiều với module decision khi document có metadata module.
 
-## Hướng Dẫn Cho Mục Tiêu Tiếp Theo (API)
+## Hướng Dẫn Cho Mục Tiêu Tiếp Theo (Frontend)
 
-Mục tiêu 3 nên thêm backend module theo `router -> service -> repository`, endpoint `/api/v1/decisions`, audit log và smoke `smoke_decision_api`.
+Mục tiêu 4 nên thêm page `/decisions` theo `page -> composable -> service -> API`, liên kết hai chiều document detail và smoke `smoke_decision_api` sau khi hoàn tất UI.

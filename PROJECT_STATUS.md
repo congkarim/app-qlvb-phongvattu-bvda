@@ -8,7 +8,7 @@ Cập nhật lần cuối: 2026-06-07
 
 Hệ thống chạy on-prem bằng Docker Compose (`api`, `worker`, `web`, `postgres`, `redis`, `qdrant`). Workflow web end-to-end: upload → OCR/extract → searchable → semantic search → review chunk → audit. Module nghiệp vụ MVP: hợp đồng (`/contracts`) và công văn đến/đi (`/dispatches`), liên kết hai chiều với document detail; dashboard lọc search theo metadata hợp đồng.
 
-Con trỏ tiếp theo: `TASK_NEXT.md` → Phase 10 / Mục tiêu 3 (Backend API `/api/v1/decisions` và smoke).
+Con trỏ tiếp theo: `TASK_NEXT.md` → Phase 10 / Mục tiêu 4 (Frontend `/decisions` và liên kết document detail).
 
 ## Giới Hạn Còn Lại
 
@@ -1844,3 +1844,20 @@ Kiểm tra: Alembic upgrade `0013_dispatch_records` → `0014_decision_records` 
 - Migration `0014_decision_records`: `decision_kind`, số/ký hiệu, ngày ban hành, đơn vị ban hành, trích yếu, `effective_from`/`effective_to`, trạng thái, ghi chú; audit fields và soft delete.
 - Partial unique index `ux_decision_records_document_active` và index filter MVP theo thiết kế mục tiêu 1.
 - Alembic current là `0014_decision_records (head)`; bảng không lưu OCR text/chunk.
+
+Phase 10 / Mục tiêu 3 — Backend API `/api/v1/decisions` và smoke (2026-06-07):
+
+```bash
+PYTHONPYCACHEPREFIX=/tmp/qlvb-pycache PYTHONPATH=apps/api python3 -m py_compile apps/api/app/schemas/decision.py apps/api/app/repositories/decision_repository.py apps/api/app/services/decision_service.py apps/api/app/routers/decisions.py apps/api/app/scripts/smoke_decision_api.py apps/api/app/main.py
+docker compose exec -T api python -m app.scripts.smoke_decision_api
+git diff --check
+```
+
+Kiểm tra: `py_compile` pass; `smoke_decision_api` pass; `git diff --check` pass.
+
+Đã bổ sung:
+
+- Router `decisions`, `DecisionService`, `DecisionRepository`, schema Pydantic theo `router -> service -> repository`.
+- Endpoint: list/get/create/update/delete + `GET /decisions/by-document/{document_id}`; filter `decision_kind`, hiệu lực, số văn bản, trạng thái.
+- Audit `decision.created/updated/deleted`; user create/update; admin soft delete (`403` user).
+- Smoke `smoke_decision_api` tái chạy được với cleanup mặc định.

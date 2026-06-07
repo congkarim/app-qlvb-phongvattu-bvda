@@ -25,7 +25,7 @@ Phase trước: Phase 9 hoàn thành ngày 2026-06-06.
 
 Phase hiện tại: Phase 10 - Module Quyết Định Và Thông Báo.
 
-Mục tiêu tiếp theo: Phase 10 / Mục Tiêu 3 - Backend API Và Smoke.
+Mục tiêu tiếp theo: Phase 10 / Mục Tiêu 4 - Frontend UI Và Liên Kết Document.
 
 Điều kiện chuyển sang mục tiêu kế tiếp:
 - Mục tiêu hiện tại pass tiêu chí chấp nhận.
@@ -97,7 +97,7 @@ git diff --check
 
 ### Mục Tiêu 3 - Backend API Và Smoke
 
-Trạng thái: chưa làm.
+Trạng thái: hoàn thành (2026-06-07).
 
 Skill bắt buộc: `backend-fastapi`, `project-git-manager`.
 
