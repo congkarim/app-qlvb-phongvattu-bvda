@@ -98,7 +98,12 @@ class ModuleOnboardingService:
         }
 
 
-def build_onboarding_suggestion(document: Document, *, db: Session | None = None) -> dict[str, Any]:
+def build_onboarding_suggestion(
+    document: Document,
+    *,
+    db: Session | None = None,
+    require_searchable: bool = True,
+) -> dict[str, Any]:
     reasons: list[str] = []
     base = {
         "document_id": document.id,
@@ -114,7 +119,7 @@ def build_onboarding_suggestion(document: Document, *, db: Session | None = None
         "suggested_module_fields": {},
     }
 
-    if document.status != "searchable":
+    if require_searchable and document.status != "searchable":
         base["block_reason"] = "not_searchable"
         reasons.append("document_not_searchable")
         return base
@@ -354,6 +359,41 @@ def _module_exists(db: Session, target_module: str, document_id: str) -> bool:
 
 def _has_manual_metadata_guard(document: Document) -> bool:
     return document.metadata_reviewed_at is not None or document.metadata_source in {"manual", "mixed"}
+
+
+def is_upload_business_type_unset(document: Document) -> bool:
+    return _normalize_business_type(document.business_type) is None
+
+
+def build_worker_onboarding_audit_metadata(
+    document: Document,
+    *,
+    db: Session | None = None,
+    upload_business_type_unset: bool,
+) -> dict[str, Any] | None:
+    if not upload_business_type_unset:
+        return None
+
+    suggestion = build_onboarding_suggestion(
+        document,
+        db=db,
+        require_searchable=False,
+    )
+    if suggestion.get("block_reason") == "manual_metadata":
+        return None
+
+    return {
+        "applied": False,
+        "eligible": suggestion.get("eligible", False),
+        "block_reason": suggestion.get("block_reason"),
+        "needs_metadata_review": suggestion.get("needs_metadata_review", False),
+        "suggested_business_type": suggestion.get("suggested_business_type"),
+        "business_type_confidence": suggestion.get("business_type_confidence"),
+        "target_module": suggestion.get("target_module"),
+        "module_confidence": suggestion.get("module_confidence"),
+        "module_kind": suggestion.get("module_kind"),
+        "reasons": suggestion.get("reasons", []),
+    }
 
 
 def _normalize_business_type(value: str | None) -> str | None:

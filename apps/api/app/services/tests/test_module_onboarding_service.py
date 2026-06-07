@@ -2,7 +2,11 @@ import unittest
 from datetime import date
 from types import SimpleNamespace
 
-from app.services.module_onboarding_service import build_onboarding_suggestion
+from app.services.module_onboarding_service import (
+    build_onboarding_suggestion,
+    build_worker_onboarding_audit_metadata,
+    is_upload_business_type_unset,
+)
 
 
 def _document(**overrides):
@@ -117,6 +121,35 @@ class ModuleOnboardingServiceTests(unittest.TestCase):
         self.assertFalse(suggestion["eligible"])
         self.assertEqual(suggestion["block_reason"], "unmapped_document_type")
         self.assertTrue(suggestion["needs_metadata_review"])
+
+    def test_worker_audit_skips_when_upload_business_type_set(self) -> None:
+        document = _document(business_type="contract")
+        self.assertFalse(is_upload_business_type_unset(document))
+        self.assertIsNone(
+            build_worker_onboarding_audit_metadata(
+                document,
+                upload_business_type_unset=False,
+            )
+        )
+
+    def test_worker_audit_when_upload_business_type_unset(self) -> None:
+        document = _document(status="chunking", document_type="HĐ")
+        audit = build_worker_onboarding_audit_metadata(
+            document,
+            upload_business_type_unset=True,
+        )
+        self.assertIsNotNone(audit)
+        self.assertFalse(audit["applied"])
+        self.assertEqual(audit["target_module"], "contract")
+        self.assertEqual(audit["suggested_business_type"], "contract")
+
+    def test_worker_audit_ignores_searchable_requirement(self) -> None:
+        suggestion = build_onboarding_suggestion(
+            _document(status="chunking", document_type="QĐ"),
+            require_searchable=False,
+        )
+        self.assertIsNone(suggestion["block_reason"])
+        self.assertEqual(suggestion["target_module"], "decision")
 
 
 if __name__ == "__main__":

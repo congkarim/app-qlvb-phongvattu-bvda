@@ -12,6 +12,10 @@ from app.repositories.audit_log_repository import AuditLogRepository
 from app.repositories.document_repository import DocumentRepository, OCRJobRepository
 from app.services.chunking_service import ChunkingService
 from app.services.document_classifier_service import DocumentClassifierService
+from app.services.module_onboarding_service import (
+    build_worker_onboarding_audit_metadata,
+    is_upload_business_type_unset,
+)
 from app.services.document_content_service import (
     DocumentContentService,
     DocumentPageContent,
@@ -223,6 +227,7 @@ class OCRWorker:
     ) -> None:
         result = self.classifier.classify(page_contents)
         result_metadata = result.to_audit_metadata()
+        upload_business_type_unset = is_upload_business_type_unset(document)
         has_manual_review = document.metadata_reviewed_at is not None or document.metadata_source in {"manual", "mixed"}
 
         if has_manual_review:
@@ -271,6 +276,34 @@ class OCRWorker:
                 "applied": True,
                 "result": result_metadata,
             },
+        )
+        self._record_onboarding_suggestion_audit(
+            document,
+            job,
+            upload_business_type_unset=upload_business_type_unset,
+        )
+
+    def _record_onboarding_suggestion_audit(
+        self,
+        document: Document,
+        job: OCRJob,
+        *,
+        upload_business_type_unset: bool,
+    ) -> None:
+        audit_metadata = build_worker_onboarding_audit_metadata(
+            document,
+            db=self.db,
+            upload_business_type_unset=upload_business_type_unset,
+        )
+        if audit_metadata is None:
+            return
+        audit_metadata["ocr_job_id"] = job.id
+        self.audit_logs.create(
+            action="document.onboarding_suggested",
+            entity_type="document",
+            entity_id=document.id,
+            actor_user_id=None,
+            metadata=audit_metadata,
         )
 
     def _extract_document_pages(self, document: Document) -> list[DocumentPageContent]:
