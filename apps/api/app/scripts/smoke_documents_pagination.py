@@ -7,6 +7,7 @@ from sqlalchemy import select
 
 from app.db.session import SessionLocal
 from app.models.document import Document
+from app.repositories.document_relation_repository import DocumentRelationRepository
 from app.repositories.document_repository import DocumentRepository
 from app.services.document_service import DocumentService
 
@@ -85,6 +86,35 @@ def run_smoke() -> dict[str, int]:
             all(item.missing_module_metadata for item in missing_module["items"]),
             "All filtered items should have missing_module_metadata=true",
         )
+
+        relations = DocumentRelationRepository(db)
+        relations.create(
+            source_document_id=created_document_ids[0],
+            target_document_id=created_document_ids[1],
+            relation_type="references",
+        )
+        db.commit()
+
+        with_relations = service.list_documents(
+            limit=10,
+            offset=0,
+            query=SMOKE_TITLE_PREFIX,
+            has_relations=True,
+        )
+        _assert(
+            with_relations["total"] == 2,
+            f"Expected has_relations total=2, got {with_relations['total']}",
+        )
+        _assert(
+            all(item.relation_count > 0 for item in with_relations["items"]),
+            "All filtered items should have relation_count > 0",
+        )
+
+        all_listed = service.list_documents(limit=10, offset=0, query=SMOKE_TITLE_PREFIX)
+        counts = {item.id: item.relation_count for item in all_listed["items"]}
+        _assert(counts[created_document_ids[0]] == 1, "Expected source document relation_count=1")
+        _assert(counts[created_document_ids[1]] == 1, "Expected target document relation_count=1")
+        _assert(counts[created_document_ids[2]] == 0, "Expected unrelated document relation_count=0")
 
         _soft_delete_documents(db, created_document_ids)
         db.commit()

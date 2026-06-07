@@ -20,6 +20,12 @@ defineProps<{
             severity="warn"
             value="Chưa có metadata module"
           />
+          <Tag
+            v-if="data.relation_count && data.relation_count > 0"
+            class="mt-1"
+            severity="info"
+            :value="`${data.relation_count} liên kết`"
+          />
           <p v-if="data.issuing_agency" class="mt-1 text-xs text-slate-500">{{ data.issuing_agency }}</p>
         </div>
       </template>

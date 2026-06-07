@@ -79,6 +79,32 @@ class DocumentRelationRepository:
         )
         return int(self.db.scalar(stmt) or 0)
 
+    def batch_count_active_for_documents(self, document_ids: list[str]) -> dict[str, int]:
+        if not document_ids:
+            return {}
+        counts = {document_id: 0 for document_id in document_ids}
+        source_stmt = (
+            select(DocumentRelation.source_document_id, func.count(DocumentRelation.id))
+            .where(
+                DocumentRelation.deleted_at.is_(None),
+                DocumentRelation.source_document_id.in_(document_ids),
+            )
+            .group_by(DocumentRelation.source_document_id)
+        )
+        for document_id, count in self.db.execute(source_stmt):
+            counts[document_id] = counts.get(document_id, 0) + int(count)
+        target_stmt = (
+            select(DocumentRelation.target_document_id, func.count(DocumentRelation.id))
+            .where(
+                DocumentRelation.deleted_at.is_(None),
+                DocumentRelation.target_document_id.in_(document_ids),
+            )
+            .group_by(DocumentRelation.target_document_id)
+        )
+        for document_id, count in self.db.execute(target_stmt):
+            counts[document_id] = counts.get(document_id, 0) + int(count)
+        return counts
+
     def create(
         self,
         *,

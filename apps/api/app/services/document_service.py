@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.core.config import get_settings
 from app.models.user import User
 from app.repositories.audit_log_repository import AuditLogRepository
+from app.repositories.document_relation_repository import DocumentRelationRepository
 from app.repositories.document_repository import DocumentRepository, OCRJobRepository
 from app.schemas.document import DocumentListItemRead
 from app.services.module_onboarding_service import batch_missing_module_metadata_flags
@@ -301,6 +302,7 @@ class DocumentService:
         document_type: str | None = None,
         business_type: str | None = None,
         missing_module_metadata: bool | None = None,
+        has_relations: bool | None = None,
         sort_by: str = "created_at",
         sort_dir: str = "desc",
     ):
@@ -316,6 +318,7 @@ class DocumentService:
             document_type=normalized_document_type,
             business_type=normalized_business_type,
             missing_module_metadata=missing_module_metadata,
+            has_relations=has_relations,
             sort_by=sort_by,
             sort_dir=sort_dir,
         )
@@ -325,11 +328,18 @@ class DocumentService:
             document_type=normalized_document_type,
             business_type=normalized_business_type,
             missing_module_metadata=missing_module_metadata,
+            has_relations=has_relations,
         )
         missing_flags = batch_missing_module_metadata_flags(self.db, items)
+        relation_counts = DocumentRelationRepository(self.db).batch_count_active_for_documents(
+            [item.id for item in items]
+        )
         serialized_items = [
             DocumentListItemRead.model_validate(item).model_copy(
-                update={"missing_module_metadata": missing_flags.get(item.id, False)}
+                update={
+                    "missing_module_metadata": missing_flags.get(item.id, False),
+                    "relation_count": relation_counts.get(item.id, 0),
+                }
             )
             for item in items
         ]

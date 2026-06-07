@@ -60,6 +60,7 @@ export interface DocumentItem {
   metadata_reviewed_at?: string | null
   business_type?: string | null
   missing_module_metadata?: boolean
+  relation_count?: number
   status: string
   created_at: string
   updated_at: string
@@ -163,6 +164,7 @@ export interface DocumentListFilters {
   document_type?: string
   business_type?: string
   missing_module_metadata?: boolean
+  has_relations?: boolean
   sort_by?: 'created_at' | 'updated_at' | 'issued_date' | 'title' | 'status' | 'document_type' | 'business_type'
   sort_dir?: 'asc' | 'desc'
   limit?: number

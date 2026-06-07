@@ -30,6 +30,10 @@ export function createDocumentService() {
           if (value === true) params.set(key, 'true')
           continue
         }
+        if (key === 'has_relations') {
+          if (value === true) params.set(key, 'true')
+          continue
+        }
         if (String(value).trim() !== '') {
           params.set(key, String(value))
         }

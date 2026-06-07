@@ -9,6 +9,7 @@ from app.models.contract import ContractRecord
 from app.models.decision import DecisionRecord
 from app.models.dispatch import DispatchRecord
 from app.models.document import Document, DocumentChunk, DocumentFile, DocumentPage, OCRJob
+from app.models.document_relation import DocumentRelation
 from app.models.procurement import ProcurementRecord
 from app.repositories.audit_log_repository import AuditLogRepository
 
@@ -86,6 +87,17 @@ class DocumentRepository:
             ),
         )
 
+    def _has_relations_condition(self):
+        return exists(
+            select(DocumentRelation.id).where(
+                DocumentRelation.deleted_at.is_(None),
+                or_(
+                    DocumentRelation.source_document_id == Document.id,
+                    DocumentRelation.target_document_id == Document.id,
+                ),
+            )
+        )
+
     def _document_list_conditions(
         self,
         *,
@@ -94,6 +106,7 @@ class DocumentRepository:
         document_type: str | None = None,
         business_type: str | None = None,
         missing_module_metadata: bool | None = None,
+        has_relations: bool | None = None,
     ):
         conditions = [Document.deleted_at.is_(None)]
         if query:
@@ -118,6 +131,8 @@ class DocumentRepository:
             conditions.append(Document.business_type == business_type)
         if missing_module_metadata:
             conditions.append(self._missing_module_metadata_condition())
+        if has_relations:
+            conditions.append(self._has_relations_condition())
         return conditions
 
     def list_documents(
@@ -130,6 +145,7 @@ class DocumentRepository:
         document_type: str | None = None,
         business_type: str | None = None,
         missing_module_metadata: bool | None = None,
+        has_relations: bool | None = None,
         sort_by: str = "created_at",
         sort_dir: str = "desc",
     ) -> list[Document]:
@@ -140,6 +156,7 @@ class DocumentRepository:
                 document_type=document_type,
                 business_type=business_type,
                 missing_module_metadata=missing_module_metadata,
+                has_relations=has_relations,
             )
         )
 
@@ -169,6 +186,7 @@ class DocumentRepository:
         document_type: str | None = None,
         business_type: str | None = None,
         missing_module_metadata: bool | None = None,
+        has_relations: bool | None = None,
     ) -> int:
         stmt = select(func.count(Document.id)).where(
             *self._document_list_conditions(
@@ -177,6 +195,7 @@ class DocumentRepository:
                 document_type=document_type,
                 business_type=business_type,
                 missing_module_metadata=missing_module_metadata,
+                has_relations=has_relations,
             )
         )
         return int(self.db.scalar(stmt) or 0)

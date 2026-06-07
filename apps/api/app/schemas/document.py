@@ -55,6 +55,7 @@ class DocumentRead(BaseModel):
 
 class DocumentListItemRead(DocumentRead):
     missing_module_metadata: bool = False
+    relation_count: int = 0
 
 
 class DocumentPageRead(BaseModel):
