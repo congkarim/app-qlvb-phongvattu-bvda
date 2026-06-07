@@ -25,7 +25,7 @@ Phase trước: Phase 11 hoàn thành ngày 2026-06-07.
 
 Phase hiện tại: Phase 12 - RAG Citation UX Và Search Enrichment.
 
-Mục tiêu tiếp theo: Phase 12 / Mục Tiêu 1 - Thiết Kế Anchor/Scroll Chunk Trên Document Detail.
+Mục tiêu tiếp theo: Phase 12 / Mục Tiêu 2 - Implement `#chunk-{id}` Document Detail + Highlight.
 
 Điều kiện chuyển sang mục tiêu kế tiếp:
 - Mục tiêu hiện tại pass tiêu chí chấp nhận.
@@ -37,7 +37,7 @@ Mục tiêu tiếp theo: Phase 12 / Mục Tiêu 1 - Thiết Kế Anchor/Scroll C
 
 ## Phase 12 - RAG Citation UX Và Search Enrichment
 
-Trạng thái: chưa bắt đầu (mở checklist 2026-06-07).
+Trạng thái: đang làm (bắt đầu 2026-06-07).
 
 Mục tiêu phase: cải thiện truy vết nguồn từ search/RAG tới đúng đoạn văn bản trên document detail; làm giàu UX kết quả tìm kiếm với metadata module.
 
@@ -53,7 +53,7 @@ Không làm trong phase này:
 
 ### Mục Tiêu 1 - Thiết Kế Anchor/Scroll Chunk Trên Document Detail
 
-Trạng thái: chưa làm.
+Trạng thái: hoàn thành (2026-06-07).
 
 Skill bắt buộc: `frontend-nuxt`, `solution-architect`.
 
@@ -76,7 +76,7 @@ git diff --check
 
 ### Mục Tiêu 2 - Implement `#chunk-{id}` Document Detail + Highlight
 
-Trạng thái: chưa làm.
+Trạng thái: chưa làm (tiếp theo).
 
 Skill bắt buộc: `frontend-nuxt`, `project-git-manager`.
 

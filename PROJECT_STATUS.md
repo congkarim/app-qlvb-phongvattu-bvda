@@ -4,11 +4,11 @@ Cập nhật lần cuối: 2026-06-07
 
 ## Giai Đoạn Hiện Tại
 
-**Phase 0–11 đã hoàn thành.** **Phase 12 chưa bắt đầu** (checklist trong `TASK_NEXT.md`): RAG citation UX và search enrichment (deep link chunk).
+**Phase 0–11 đã hoàn thành.** **Phase 12 đang làm** (bắt đầu 2026-06-07): RAG citation UX và deep link chunk trên document detail.
 
 Hệ thống chạy on-prem bằng Docker Compose (`api`, `worker`, `web`, `postgres`, `redis`, `qdrant`). Workflow web end-to-end: upload → OCR/extract → searchable → semantic search → RAG Q&A → review chunk → audit. Module nghiệp vụ MVP: hợp đồng (`/contracts`), công văn (`/dispatches`), quyết định/thông báo (`/decisions`) — liên kết hai chiều với document detail; dashboard lọc search/RAG theo metadata hợp đồng, công văn và quyết định.
 
-Con trỏ tiếp theo: Phase 12 / Mục tiêu 1 — thiết kế anchor/scroll chunk trên document detail.
+Con trỏ tiếp theo: Phase 12 / Mục tiêu 2 — implement `#chunk-{id}` trên document detail + highlight.
 
 ## Giới Hạn Còn Lại
 
@@ -2064,3 +2064,110 @@ Kết quả:
 - `ROADMAP.md` Phase 11 hoàn thành; `TASK_NEXT.md` thay bằng checklist Phase 12.
 
 **Phase 11 hoàn thành ngày 2026-06-07.**
+
+---
+
+## Phase 12 — RAG Citation UX Và Search Enrichment
+
+### Mục tiêu 1 — Thiết kế anchor/scroll chunk trên document detail (2026-06-07)
+
+Kiểm tra bắt buộc:
+
+```bash
+git diff --check
+```
+
+Kết quả: pass.
+
+#### Khảo sát hiện trạng
+
+| Thành phần | Hành vi hiện tại |
+|------------|------------------|
+| Route | `pages/documents/[...id].vue`; `documentId` từ `route.params.id` (join nếu array). Hash client-side qua `route.hash` (Nuxt 3 SPA). |
+| Load lifecycle | `onMounted` + `watch(documentId)` gọi `fetchDocument()`; chunks có sau API trả về. Có polling khi status OCR (`shouldPoll`). |
+| Chunk list DOM | Card **Chunks** ở cuối trang (sau metadata module, source files, OCR jobs, audit, OCR text). `<article v-for="chunk in filteredChunks">` — **chưa có** `id` DOM. |
+| Chunk filter | `chunkFilter` ∈ `{all, review, appendix, appendix_review}` — chunk target có thể **bị ẩn** nếu filter không khớp. |
+| Chunk identity | `DocumentChunk.id` (UUID string) — trùng `SearchResult.chunk_id`, `RagCitation.chunk_id` từ API search/RAG. |
+| Link hiện tại | `RagAnswerPanel`, `dashboard.vue` search results: `/documents/{document_id}` **không** có hash chunk. |
+| Layout scroll | Nav không sticky; `scrollIntoView` đủ, thêm `scroll-margin-top: 1rem` trên anchor để tránh sát mép viewport. |
+
+#### Quyết định thiết kế (draft triển khai mục tiêu 2–4)
+
+**Hash contract**
+
+```text
+/documents/{document_id}#chunk-{chunk_id}
+```
+
+- Prefix cố định: `#chunk-`.
+- `{chunk_id}`: full UUID từ API (`chunk.id` / `chunk_id`); parser: `route.hash.startsWith('#chunk-')` → slice(7) hoặc regex `^#chunk-(.+)$`.
+- Hash không hợp lệ / rỗng → bỏ qua, không throw.
+
+**DOM anchor**
+
+```html
+<article :id="`chunk-${chunk.id}`" ...>
+```
+
+- Selector runtime: `document.getElementById('chunk-' + chunkId)`.
+- Chỉ gắn trên chunk card trong list (không đổi backend).
+
+**Luồng focus chunk (`focusChunkFromHash`)**
+
+1. Parse `chunkId` từ `route.hash`.
+2. Nếu `chunkId` không nằm trong `allChunks` → **fallback**: không scroll; set flag `chunkAnchorMiss=true` (hiển thị Message nhẹ trong card Chunks: "Không tìm thấy đoạn đã liên kết").
+3. Nếu chunk có trong `allChunks` nhưng không trong `filteredChunks` → **reset** `chunkFilter = 'all'`, `await nextTick()`, rồi scroll.
+4. `element.scrollIntoView({ block: 'start', behavior: 'auto' })` — không animation phức tạp.
+5. Set `highlightedChunkId = chunkId`; clear sau **2500ms** (`setTimeout`, cleanup `onBeforeUnmount`).
+
+**Highlight class (Tailwind trên `<article>`)**
+
+```text
+ring-2 ring-sky-400 ring-offset-2 bg-sky-50/50 rounded-md scroll-mt-4
+```
+
+- Bind khi `highlightedChunkId === chunk.id`.
+- Không transition/animation dài.
+
+**Điểm kích hoạt**
+
+| Sự kiện | Hành động |
+|---------|-----------|
+| Sau `fetchDocument` xong (onMounted / đổi `documentId`) | Gọi `focusChunkFromHash()` nếu có hash |
+| `watch(() => route.hash)` | Hash đổi trong cùng page → focus lại |
+| `watch(allChunks)` khi có hash và lần trước miss | Retry focus (polling/reprocess làm chunks xuất hiện sau) |
+
+**Tổ chức code (mục tiêu 2)**
+
+- Composable `useDocumentChunkAnchor()` tại `apps/web/composables/useDocumentChunkAnchor.ts`:
+  - Input: `allChunks`, `chunkFilter` (writable ref), `route`.
+  - Output: `highlightedChunkId`, `chunkAnchorMiss`, `focusChunkFromHash()`.
+- Page `documents/[...id].vue` gọi composable; **không** gọi API trong composable (giữ `page -> composable`).
+
+**Link helper (mục tiêu 3–4)**
+
+```typescript
+// apps/web/utils/documentLinks.ts
+buildDocumentChunkUrl(documentId: string, chunkId?: string | null): string
+```
+
+- Có `chunkId` → `/documents/{id}#chunk-{chunkId}`.
+- Không có → `/documents/{id}` (fallback an toàn citation khi thiếu id).
+
+**RAG citation & search result (mục tiêu 3–4)**
+
+- `RagAnswerPanel`: `NuxtLink` title + "Mở văn bản" dùng `buildDocumentChunkUrl(citation.document_id, citation.chunk_id)`.
+- `dashboard.vue`: nút "Mở đoạn" (mục tiêu 4) cùng helper; title link giữ document root hoặc cùng deep link — ưu tiên deep link khi có `chunk_id`.
+
+**Không làm**
+
+- Không scroll PDF viewer theo page.
+- Không đổi chunking/OCR/backend.
+- Không hash query param thay `#` (giữ browser-native anchor).
+
+**Manual/smoke checklist (mục tiêu 2+)**
+
+1. Lấy `document_id` + `chunk_id` từ `smoke_rag_answer` citation.
+2. Mở `/documents/{id}#chunk-{chunk_id}` → scroll tới đúng article, highlight ~2.5s.
+3. Đổi filter Chunks sang "Cần review" rồi mở lại URL chunk không thuộc filter → auto reset "Tất cả" và scroll đúng.
+4. Hash chunk UUID không tồn tại → message miss, không crash.

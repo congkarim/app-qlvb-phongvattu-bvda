@@ -244,7 +244,7 @@ Mục tiêu gợi ý cho `TASK_NEXT.md` (khi mở phase):
 
 ### Phase 12 - RAG Citation UX Và Search Enrichment
 
-Trạng thái: chưa bắt đầu (checklist trong `TASK_NEXT.md` khi mở phase).
+Trạng thái: đang làm (bắt đầu 2026-06-07; mục tiêu 1 hoàn thành).
 
 Mục tiêu: cải thiện truy vết nguồn từ search/RAG tới đúng đoạn văn bản trên document detail; làm giàu kết quả tìm kiếm với metadata module đầy đủ hơn.
 
