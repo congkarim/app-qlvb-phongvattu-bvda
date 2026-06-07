@@ -8,12 +8,12 @@ Cập nhật lần cuối: 2026-06-07
 
 Hệ thống chạy on-prem bằng Docker Compose (`api`, `worker`, `web`, `postgres`, `redis`, `qdrant`). Workflow web end-to-end: upload → OCR/extract → searchable → semantic search → RAG Q&A → review chunk → audit. Module nghiệp vụ MVP: hợp đồng (`/contracts`), công văn (`/dispatches`), quyết định/thông báo (`/decisions`) — liên kết hai chiều với document detail; dashboard lọc search/RAG theo metadata hợp đồng, công văn và quyết định.
 
-Con trỏ tiếp theo: Phase 12 / Mục tiêu 2 — implement `#chunk-{id}` trên document detail + highlight.
+Con trỏ tiếp theo: Phase 12 / Mục tiêu 3 — cập nhật RAG citation URL và panel.
 
 ## Giới Hạn Còn Lại
 
 Giới hạn còn lại (đồng bộ `ROADMAP.md`):
-- RAG citation chưa deep-link chunk trên document detail (`#chunk-{id}`) — Phase 12.
+- Document detail đã hỗ trợ `#chunk-{id}`; RAG citation và search result chưa dùng deep link — Phase 12 mục tiêu 3–4.
 - Chưa có module sổ đề xuất/kế hoạch mua sắm (Phase 13).
 - Chưa có LLM/generator nội bộ nâng cao; RAG hiện extractive từ chunk truy xuất.
 
@@ -2171,3 +2171,26 @@ buildDocumentChunkUrl(documentId: string, chunkId?: string | null): string
 2. Mở `/documents/{id}#chunk-{chunk_id}` → scroll tới đúng article, highlight ~2.5s.
 3. Đổi filter Chunks sang "Cần review" rồi mở lại URL chunk không thuộc filter → auto reset "Tất cả" và scroll đúng.
 4. Hash chunk UUID không tồn tại → message miss, không crash.
+
+### Mục tiêu 2 — Implement `#chunk-{id}` document detail + highlight (2026-06-07)
+
+Kiểm tra bắt buộc:
+
+```bash
+docker compose build web && docker run --rm --memory=4g -e NODE_OPTIONS=--max-old-space-size=3072 app-qlvb-phongvattu-web:latest npm run build
+git diff --check
+```
+
+Kết quả: frontend build pass; `git diff --check` pass.
+
+**Đã triển khai**
+
+- `apps/web/composables/useDocumentChunkAnchor.ts`: `parseChunkIdFromHash`, `chunkDomId`, `useDocumentChunkAnchor` — parse `#chunk-{uuid}`, reset filter `all` khi chunk bị ẩn, `scrollIntoView`, highlight 2500ms, watch `route.hash` và `allChunks` retry khi miss/polling.
+- `apps/web/utils/documentLinks.ts`: `buildDocumentChunkUrl` (dùng ở mục tiêu 3–4).
+- `apps/web/pages/documents/[...id].vue`: gắn `id="chunk-{id}"`, class highlight `ring-2 ring-sky-400 ring-offset-2 bg-sky-50/50 scroll-mt-4`, `Message` khi `chunkAnchorMiss`, gọi `focusChunkFromHash()` sau fetch và khi đổi `documentId`.
+
+**Manual checklist (chưa smoke tự động)**
+
+- Mở `/documents/{id}#chunk-{chunk_id}` với fixture smoke → scroll + highlight theo spec mục tiêu 1.
+- Filter Chunks khác `all` + hash chunk ngoài filter → auto reset và scroll.
+- Hash chunk không tồn tại → warning, không crash.

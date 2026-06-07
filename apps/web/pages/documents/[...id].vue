@@ -154,6 +154,12 @@ const filteredChunks = computed(() => {
   return allChunks.value
 })
 
+const {
+  highlightedChunkId,
+  chunkAnchorMiss,
+  focusChunkFromHash
+} = useDocumentChunkAnchor({ allChunks, chunkFilter })
+
 const lastDetailRefreshText = computed(() => {
   return lastDetailRefreshedAt.value ? formatDateTime(lastDetailRefreshedAt.value.toISOString()) : ''
 })
@@ -449,6 +455,7 @@ onMounted(async () => {
   syncMetadataForm()
   markDetailRefreshed()
   if (shouldPoll.value) startPolling()
+  await focusChunkFromHash()
 })
 
 watch(documentId, async (value) => {
@@ -462,6 +469,7 @@ watch(documentId, async (value) => {
   markDetailRefreshed()
   if (shouldPoll.value) startPolling()
   else stopPolling()
+  await focusChunkFromHash()
 })
 
 watch(shouldPoll, (value) => {
@@ -1219,8 +1227,19 @@ onBeforeUnmount(() => {
           </div>
         </template>
         <template #content>
+          <Message v-if="chunkAnchorMiss" class="mb-4" severity="warn" :closable="false">
+            Không tìm thấy đoạn đã liên kết trong danh sách chunks.
+          </Message>
           <div v-if="allChunks.length && filteredChunks.length" class="space-y-3">
-            <article v-for="chunk in filteredChunks" :key="chunk.id" class="border-b border-slate-200 pb-3">
+            <article
+              v-for="chunk in filteredChunks"
+              :id="`chunk-${chunk.id}`"
+              :key="chunk.id"
+              class="scroll-mt-4 border-b border-slate-200 pb-3"
+              :class="{
+                'rounded-md bg-sky-50/50 ring-2 ring-sky-400 ring-offset-2': highlightedChunkId === chunk.id
+              }"
+            >
               <div class="flex flex-wrap items-center gap-2 text-xs">
                 <span class="text-slate-500">#{{ chunk.chunk_index }}</span>
                 <Tag v-if="chunk.doc_group" :value="`Nhóm ${chunk.doc_group}`" severity="info" />
