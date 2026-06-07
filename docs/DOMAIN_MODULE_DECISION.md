@@ -1126,3 +1126,143 @@ Không thêm bảng DB Phase 14. Không đổi Qdrant/chunk.
 **Mục tiêu 4–5** frontend document detail banner + list filter `missing_module_metadata`.
 
 **Mục tiêu 6** smoke `smoke_module_onboarding` + regression; đóng Phase 14.
+
+---
+
+## Document Relations — Liên Kết Chéo Văn Bản (Phase 15)
+
+Trạng thái: thiết kế (mục tiêu 1 Phase 15).
+
+### Vấn Đề
+
+Hệ thống hiện có:
+
+- **Nhiều tệp một document** (`document_files`) — cùng một văn bản nguồn, OCR gộp page/chunk.
+- **Phụ lục trong cùng document** — chunk `section_role=appendix`, filter review queue/dashboard.
+
+Chưa có:
+
+- Liên kết **hai document độc lập** (upload riêng): công văn căn cứ quyết định, phụ lục hợp đồng scan riêng, công văn đính kèm hồ sơ mua sắm khác document gốc.
+
+### Quyết Định MVP
+
+| Hạng mục | Quyết định |
+|----------|------------|
+| Tên bảng | `document_relations` |
+| Hướng quan hệ | Có hướng: `source_document_id` → `target_document_id` |
+| Loại quan hệ | `references`, `appendix_of`, `implements`, `related` |
+| Tạo quan hệ | Thủ công qua UI/API; không auto từ worker OCR Phase 15 |
+| Xóa | Soft delete (`deleted_at`); không hard delete |
+| Quyền | User đã login: tạo/xem; xóa: creator hoặc admin (ghi rõ khi implement mục tiêu 3) |
+
+### `relation_type` (catalog cố định MVP)
+
+| Code | Nhãn UI (gợi ý) | Ví dụ nghiệp vụ |
+|------|------------------|-----------------|
+| `references` | Tham chiếu / căn cứ | CV đề cập số QĐ … |
+| `appendix_of` | Phụ lục của | PL hợp đồng scan riêng → HĐ gốc |
+| `implements` | Triển khai / thực hiện | CV triển khai QĐ |
+| `related` | Liên quan | Hồ sơ cùng gói, liên kết lỏng |
+
+Hiển thị incoming đảo nhãn theo ngữ cảnh (ví dụ incoming `references` → “Được tham chiếu bởi”).
+
+### Schema Đề Xuất
+
+```text
+document_relations
+  id                  UUID PK
+  source_document_id  FK documents.id NOT NULL
+  target_document_id  FK documents.id NOT NULL
+  relation_type       VARCHAR(32) NOT NULL
+  notes               TEXT NULL
+  created_by_user_id  FK users.id NULL
+  created_at, updated_at, deleted_at
+```
+
+Ràng buộc:
+
+- `source_document_id != target_document_id` (check service + DB constraint nếu khả thi).
+- Partial unique index active: `(source_document_id, target_document_id, relation_type)` WHERE `deleted_at IS NULL`.
+- Index: `(source_document_id)`, `(target_document_id)`, `(relation_type)`.
+
+Không thêm cột `bidirectional` — nếu cần quan hệ hai chiều, user tạo hai bản ghi hoặc dùng `related` (MVP giữ đơn giản).
+
+### API Shape
+
+**GET** `/api/v1/documents/{document_id}/relations`
+
+```json
+{
+  "document_id": "...",
+  "outgoing": [
+    {
+      "id": "...",
+      "relation_type": "references",
+      "notes": null,
+      "target_document": { "id", "title", "document_number", "document_type", "status" },
+      "created_at": "..."
+    }
+  ],
+  "incoming": [
+    {
+      "id": "...",
+      "relation_type": "appendix_of",
+      "source_document": { "id", "title", "document_number", "document_type", "status" },
+      "created_at": "..."
+    }
+  ]
+}
+```
+
+**POST** `/api/v1/documents/{document_id}/relations` (source = path `document_id`)
+
+```json
+{ "target_document_id": "...", "relation_type": "references", "notes": "optional" }
+```
+
+**DELETE** `/api/v1/document-relations/{relation_id}` — soft delete.
+
+Audit metadata gọn: `source_document_id`, `target_document_id`, `relation_type`.
+
+### Frontend UX (Mục Tiêu 4–5)
+
+**Document detail** (`/documents/[id]`):
+
+- Card **Văn bản liên quan** dưới banner onboarding / trên card module.
+- Tab hoặc hai subsection: **Liên kết đi** (outgoing), **Liên kết đến** (incoming).
+- Form thêm: autocomplete/chọn `document_id` đích (search list hiện có hoặc input UUID + validate), `relation_type`, `notes`.
+- Mỗi dòng: nhãn quan hệ, link title → `/documents/{id}`, nút xóa (confirm).
+
+**Document list** (mục tiêu 5 — tùy chọn):
+
+- Response `relation_count` hoặc filter `has_relations=true` (document có ≥1 outgoing/incoming active).
+- Badge nhỏ “N liên kết” trên `BaseDataTable` nếu `relation_count > 0`.
+
+### Phân Biệt Với Chunk Appendix
+
+| | `section_role=appendix` (chunk) | `document_relations` |
+|--|--------------------------------|----------------------|
+| Phạm vi | Trong một document | Giữa hai document |
+| OCR | Tự động chunking | Không đổi pipeline |
+| UI | Chunk filter review | Card liên kết document detail |
+
+### Smoke (Mục Tiêu 6)
+
+`smoke_document_relations.py`:
+
+1. Seed document A (QĐ), B (CV).
+2. POST B → A `references`.
+3. GET relations B: outgoing 1; GET A: incoming 1.
+4. POST trùng → 409.
+5. DELETE → 404/empty.
+6. Regression smokes Phase 14.
+
+### Hướng Dẫn Cho Mục Tiêu Tiếp Theo (Phase 15)
+
+**Mục tiêu 2** migration `0016_document_relations`, model SQLAlchemy.
+
+**Mục tiêu 3** `DocumentRelationService`, router, audit, `smoke_document_relations`.
+
+**Mục tiêu 4–5** frontend card + optional list badge/filter.
+
+**Mục tiêu 6** regression + đóng phase.

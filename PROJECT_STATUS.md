@@ -8,12 +8,12 @@ Cập nhật lần cuối: 2026-06-07
 
 Hệ thống chạy on-prem bằng Docker Compose (`api`, `worker`, `web`, `postgres`, `redis`, `qdrant`). Workflow web end-to-end: upload → OCR/extract → searchable → semantic search → RAG Q&A → review chunk → audit. Module nghiệp vụ MVP: hợp đồng (`/contracts`), công văn (`/dispatches`), quyết định/thông báo (`/decisions`), mua sắm (`/procurements`) — liên kết hai chiều với document detail; dashboard lọc search/RAG theo metadata hợp đồng, công văn, quyết định và mua sắm. RAG citation và search result deep-link tới `#chunk-{id}` trên document detail. Onboarding metadata module: gợi ý sau OCR, banner document detail, filter list thiếu metadata module.
 
-Con trỏ tiếp theo: **chưa lập Phase 15** — xem `ROADMAP.md` (ưu tiên gợi ý: `document_relations`).
+Con trỏ tiếp theo: Phase 15 / Mục tiêu 2 — migration `document_relations` (mục tiêu 1 thiết kế đã ghi).
 
 ## Giới Hạn Còn Lại
 
 Giới hạn còn lại (đồng bộ `ROADMAP.md`):
-- Chưa có liên kết chéo giữa các document (`document_relations`) — phase sau.
+- Liên kết chéo document (`document_relations`) — **Phase 15 đang lập kế hoạch / sắp thực thi** (mục tiêu 1 thiết kế xong).
 - Chưa có LLM/generator nội bộ nâng cao; RAG hiện extractive từ chunk truy xuất.
 - Inventory/tồn kho, workflow phê duyệt nhiều bước, line items procurement: ngoài scope Phase 14.
 
@@ -2512,3 +2512,39 @@ Kết quả: tất cả smoke/regression pass; web build pass qua `docker compos
 
 - `smoke_module_onboarding.py`: 5 fixture (`HĐ`, `CV` incoming/outgoing, `QĐ`, `KH`) → onboarding-suggestions → PATCH `business_type` → filter `missing_module_metadata` → POST module pre-fill → verify by-document + filter sau tạo.
 - Phase 14 đóng; `ROADMAP.md` và `TASK_NEXT.md` cập nhật (chưa lập Phase 15).
+
+## Phase 15 — Liên Kết Chéo Document (`document_relations`)
+
+Trạng thái: đã lập kế hoạch (2026-06-07); mục tiêu 1 (thiết kế) hoàn thành; chưa code.
+
+Mục tiêu phase: quan hệ có hướng giữa hai document độc lập; tra cứu incoming/outgoing từ document detail; tạo/xóa thủ công.
+
+### Khảo sát / bối cảnh (trước mục tiêu 2)
+
+| Hạng mục | Hiện trạng |
+|----------|------------|
+| Nhiều tệp một document | `document_files` + reorder — cùng văn bản nguồn |
+| Phụ lục trong document | Chunk `section_role=appendix`, review queue filter |
+| Liên kết chéo document | **Chưa có** bảng/API `document_relations` |
+| Document detail | Card module 4 loại + onboarding banner; **chưa** card văn bản liên quan |
+| OCR/worker | Không trích quan hệ chéo document |
+
+Phạm vi đã chốt trong `ROADMAP.md` và `docs/DOMAIN_MODULE_DECISION.md` (mục Document Relations): bảng `document_relations`, 4 `relation_type`, API GET/POST/DELETE, UI card detail, smoke `smoke_document_relations`; không LLM auto-link, không Qdrant re-index.
+
+Checklist thực thi: `TASK_NEXT.md` (mục tiêu 2 tiếp theo).
+
+### Mục tiêu 1 — Thiết kế `document_relations` (2026-06-07)
+
+Kiểm tra bắt buộc:
+
+```bash
+git diff --check
+```
+
+Kết quả: `git diff --check` pass (khi lập phase).
+
+**Đã ghi trong `docs/DOMAIN_MODULE_DECISION.md`**
+
+- Schema `document_relations`, catalog `relation_type`, ràng buộc unique/self-link.
+- API shape incoming/outgoing; UX card document detail; phân biệt chunk appendix.
+- Smoke plan `smoke_document_relations`; hướng dẫn mục tiêu 2–6.

@@ -41,9 +41,11 @@ Cập nhật lần cuối: 2026-06-07
 - Worker lease timeout, stale-job recovery, ops endpoint job kẹt, runbook upgrade Alembic production, smoke worker stale recovery.
 - Onboarding metadata module sau OCR: `ModuleOnboardingService`, `GET /documents/{id}/onboarding-suggestions`, audit worker `document.onboarding_suggested`, banner/CTA document detail, filter/badge list `missing_module_metadata`.
 
-Giới hạn còn lại (phase sau hoặc ngoài scope MVP):
-- Chưa có liên kết chéo giữa các document (ví dụ công văn tham chiếu quyết định, phụ lục thuộc hợp đồng) — **phase sau** (`document_relations`).
-- LLM/generator nội bộ nâng cao, inventory/tồn kho, workflow phê duyệt nhiều bước: **ngoài scope** hiện tại; RAG vẫn extractive local-only.
+**Phase 15 đã được lập kế hoạch** (chi tiết bên dưới). Bắt đầu thực thi khi cập nhật `TASK_NEXT.md` checklist Phase 15.
+
+Giới hạn còn lại (Phase 15 hoặc ngoài scope MVP):
+- Chưa có liên kết chéo giữa các document (ví dụ công văn tham chiếu quyết định, phụ lục thuộc hợp đồng) — **Phase 15** (`document_relations`).
+- LLM/generator nội bộ nâng cao, inventory/tồn kho, workflow phê duyệt nhiều bước: **ngoài scope** Phase 15; RAG vẫn extractive local-only.
 
 ## Lộ Trình Ưu Tiên
 
@@ -438,9 +440,79 @@ Mục tiêu gợi ý cho `TASK_NEXT.md`:
 5. Document list: badge/filter thiếu metadata module.
 6. Smoke `smoke_module_onboarding` + regression; hoàn tất `PROJECT_STATUS.md`.
 
+---
+
+### Phase 15 - Liên Kết Chéo Document (`document_relations`)
+
+Trạng thái: đã lập kế hoạch (chưa bắt đầu thực thi).
+
+Mục tiêu: cho phép gắn quan hệ có hướng giữa hai văn bản độc lập (khác `document_files` nhiều tệp cùng một document) — ví dụ công văn **tham chiếu** quyết định, phụ lục upload riêng **thuộc** hợp đồng — để tra cứu hai chiều từ document detail mà không đổi pipeline OCR/chunk hiện có.
+
+Phụ thuộc: Phase 0–14 (document core, 4 module metadata, audit, RBAC user/admin).
+
+Bối cảnh hiện tại:
+- Một `documents` có thể có nhiều `document_files` (cùng văn bản gốc); chunk `section_role=appendix` mô tả phụ lục **trong** cùng document.
+- Chưa có bảng/API liên kết **document A → document B** khi upload tách file hoặc văn bản tham chiếu văn bản khác.
+- Document detail có card module (hợp đồng/công văn/QĐ/mua sắm) nhưng không có danh sách văn bản liên quan chéo.
+
+Phạm vi đề xuất:
+
+**Thiết kế (`docs/DOMAIN_MODULE_DECISION.md` — mục tiêu 1)**
+
+- Bảng `document_relations`: quan hệ **có hướng** `source_document_id` → `target_document_id`.
+- `relation_type` MVP (≤4): `references` (tham chiếu/căn cứ), `appendix_of` (phụ lục của), `implements` (triển khai/thực hiện), `related` (liên quan chung).
+- Trường: `notes` (tùy chọn), `created_by_user_id` (audit), UUID PK, `created_at`/`updated_at`/`deleted_at`.
+- Ràng buộc: không self-link; unique partial active `(source_document_id, target_document_id, relation_type)`; index tra cứu incoming/outgoing.
+- API đọc/ghi thủ công — **không** auto-tạo relation từ OCR trong MVP.
+
+**Backend (mục tiêu 2–3)**
+
+- Migration Alembic `0016_document_relations`.
+- `DocumentRelationRepository`, `DocumentRelationService`, router:
+  - `GET /api/v1/documents/{document_id}/relations` — `{ outgoing[], incoming[] }` kèm metadata tóm tắt target/source.
+  - `POST /api/v1/documents/{document_id}/relations` — body `{ target_document_id, relation_type, notes? }`.
+  - `DELETE /api/v1/document-relations/{relation_id}` — soft delete (admin hoặc creator tùy quyết định mục tiêu 1).
+- Audit: `document_relation.created`, `document_relation.deleted`.
+- Smoke `python -m app.scripts.smoke_document_relations`.
+
+**Frontend (mục tiêu 4–5)**
+
+- Document detail `/documents/[id]`: card **Văn bản liên quan** — hai nhóm outgoing/incoming, form thêm liên kết (chọn document đích + loại quan hệ), nút xóa.
+- Composable `useDocumentRelations` + service typed; không gọi API trong component.
+- (Mục tiêu 5) Badge/số lượng liên kết trên document list hoặc filter `has_relations=true` — chỉ khi API list mở rộng nhẹ, không regression pagination.
+
+**Kiểm tra (mục tiêu 6)**
+
+- Smoke `smoke_document_relations`: tạo 2–3 document → POST relation → GET hai chiều → DELETE → regression `smoke_api_workflows`, `smoke_module_onboarding`, search/RAG smokes.
+- Frontend build pass.
+
+Không làm trong phase này:
+
+- Không LLM/rule engine tự trích quan hệ từ nội dung chunk (có thể phase sau).
+- Không đồ thị visualization, không workflow phê duyệt chuỗi văn bản.
+- Không đổi Qdrant payload, không re-index hàng loạt.
+- Không inventory, line items, module nghiệp vụ mới.
+- Không merge/split document.
+
+Tiêu chí hoàn thành:
+
+- Quyết định scope trong `docs/DOMAIN_MODULE_DECISION.md`.
+- User tạo/xem/xóa liên kết giữa hai document searchable từ document detail trong ≤3 thao tác UI.
+- Tra cứu incoming/outgoing chính xác; soft delete không làm hỏng pagination list documents.
+- Smoke relations + regression hiện có pass trên Docker Compose.
+
+Mục tiêu gợi ý cho `TASK_NEXT.md`:
+
+1. Thiết kế `document_relations` trong `DOMAIN_MODULE_DECISION.md` (`solution-architect`, `database-designer`).
+2. Migration + model + repository.
+3. Service + API + audit + smoke backend.
+4. Frontend card liên kết trên document detail (`frontend-nuxt`).
+5. Badge/filter list (tùy chọn nhẹ) hoặc enrich list item `relation_count`.
+6. Smoke end-to-end + regression; đóng Phase 15 trong `PROJECT_STATUS.md`.
+
 ## Ghi Chú Lập Kế Hoạch
 
-- `TASK_NEXT.md` chỉ chứa checklist phase đang làm; khi bắt đầu Phase 14, thay nội dung file bằng checklist mục tiêu Phase 14 ở trên.
+- `TASK_NEXT.md` chỉ chứa checklist phase đang làm; khi bắt đầu Phase 15, thay nội dung file bằng checklist mục tiêu Phase 15 ở trên.
 - Con trỏ thực thi: `TASK_NEXT.md` → `PROJECT_STATUS.md` → commit sau mỗi mục tiêu (skill `project-git-manager`).
 - Ưu tiên MVP và maintainability; mỗi module nghiệp vụ mới phải có quyết định scope trong `docs/DOMAIN_MODULE_DECISION.md`.
 - Mỗi mục tiêu phase khi hoàn thành phải auto commit theo quy tắc trong `TASK_NEXT.md`.
