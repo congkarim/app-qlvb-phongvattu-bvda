@@ -8,12 +8,12 @@ Cập nhật lần cuối: 2026-06-07
 
 Hệ thống chạy on-prem bằng Docker Compose (`api`, `worker`, `web`, `postgres`, `redis`, `qdrant`). Workflow web end-to-end: upload → OCR/extract → searchable → semantic search → RAG Q&A → review chunk → audit. Module nghiệp vụ MVP: hợp đồng (`/contracts`), công văn (`/dispatches`), quyết định/thông báo (`/decisions`) — liên kết hai chiều với document detail; dashboard lọc search/RAG theo metadata hợp đồng, công văn và quyết định.
 
-Con trỏ tiếp theo: Phase 12 / Mục tiêu 3 — cập nhật RAG citation URL và panel.
+Con trỏ tiếp theo: Phase 12 / Mục tiêu 4 — search result badges và nút "Mở đoạn".
 
 ## Giới Hạn Còn Lại
 
 Giới hạn còn lại (đồng bộ `ROADMAP.md`):
-- Document detail đã hỗ trợ `#chunk-{id}`; RAG citation và search result chưa dùng deep link — Phase 12 mục tiêu 3–4.
+- RAG citation đã deep-link chunk; search result dashboard chưa có nút "Mở đoạn" — Phase 12 mục tiêu 4.
 - Chưa có module sổ đề xuất/kế hoạch mua sắm (Phase 13).
 - Chưa có LLM/generator nội bộ nâng cao; RAG hiện extractive từ chunk truy xuất.
 
@@ -2194,3 +2194,20 @@ Kết quả: frontend build pass; `git diff --check` pass.
 - Mở `/documents/{id}#chunk-{chunk_id}` với fixture smoke → scroll + highlight theo spec mục tiêu 1.
 - Filter Chunks khác `all` + hash chunk ngoài filter → auto reset và scroll.
 - Hash chunk không tồn tại → warning, không crash.
+
+### Mục tiêu 3 — Cập nhật RAG citation URL và panel (2026-06-07)
+
+Kiểm tra bắt buộc:
+
+```bash
+docker compose exec -T api python -m app.scripts.smoke_rag_answer
+docker compose build web && docker run --rm --memory=4g -e NODE_OPTIONS=--max-old-space-size=3072 app-qlvb-phongvattu-web:latest npm run build
+git diff --check
+```
+
+Kết quả: smoke RAG pass (3 citations, `citation_deep_links` chứa `#chunk-`); frontend build pass; `git diff --check` pass.
+
+**Đã triển khai**
+
+- `RagAnswerPanel.vue`: title link và "Mở văn bản" dùng `buildDocumentChunkUrl(document_id, chunk_id)` → `/documents/{id}#chunk-{chunk_id}`; fallback về `/documents/{id}` khi thiếu `chunk_id`.
+- `smoke_rag_answer.py`: assert deep link format, trả `citation_deep_links` trong output để manual UI checklist.

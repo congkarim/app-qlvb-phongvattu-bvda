@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { RagCitation } from '~/types/document'
+import { buildDocumentChunkUrl } from '~/utils/documentLinks'
 
 const props = defineProps<{
   question: string
@@ -54,6 +55,10 @@ function formatCitationMeta(citation: RagCitation) {
 
 function formatConfidence(value: number) {
   return `${Math.round(value * 100)}%`
+}
+
+function citationUrl(citation: RagCitation) {
+  return buildDocumentChunkUrl(citation.document_id, citation.chunk_id)
 }
 </script>
 
@@ -130,7 +135,7 @@ function formatConfidence(value: number) {
         >
           <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <NuxtLink class="font-medium text-sky-700" :to="`/documents/${citation.document_id}`">
+              <NuxtLink class="font-medium text-sky-700" :to="citationUrl(citation)">
                 {{ citation.title || citation.document_id }}
               </NuxtLink>
               <p class="mt-1 text-xs text-slate-500">
@@ -139,7 +144,7 @@ function formatConfidence(value: number) {
               </p>
             </div>
             <NuxtLink
-              :to="`/documents/${citation.document_id}`"
+              :to="citationUrl(citation)"
               class="inline-flex shrink-0 items-center gap-1 text-sm text-sky-700 hover:underline"
             >
               <i class="pi pi-external-link text-xs" />

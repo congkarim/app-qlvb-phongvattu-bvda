@@ -48,6 +48,14 @@ def run_smoke(*, api_base: str, keep_data: bool) -> dict[str, Any]:
             all(citation.get("document_id") and citation.get("chunk_id") and citation.get("quote") for citation in citations),
             "RAG citations are missing source fields",
         )
+        citation_deep_links = [
+            _build_document_chunk_url(citation["document_id"], citation["chunk_id"])
+            for citation in citations
+        ]
+        _assert(
+            all("#chunk-" in link for link in citation_deep_links),
+            "RAG citation deep links must include chunk hash",
+        )
 
         fallback = _request_json(
             "POST",
@@ -69,6 +77,7 @@ def run_smoke(*, api_base: str, keep_data: bool) -> dict[str, Any]:
         return {
             "grounded_citations": len(citations),
             "expected_chunk_id": expected_chunk_id,
+            "citation_deep_links": citation_deep_links,
             "fallback_reason": fallback.get("fallback_reason"),
             "cleanup": "kept" if keep_data else "removed",
         }
@@ -125,6 +134,10 @@ def _request_json(
 def _assert(condition: bool, message: str) -> None:
     if not condition:
         raise AssertionError(message)
+
+
+def _build_document_chunk_url(document_id: str, chunk_id: str) -> str:
+    return f"/documents/{document_id}#chunk-{chunk_id}"
 
 
 def main() -> None:
