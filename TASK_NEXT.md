@@ -25,7 +25,7 @@ Phase trước: Phase 9 hoàn thành ngày 2026-06-06.
 
 Phase hiện tại: Phase 10 - Module Quyết Định Và Thông Báo.
 
-Mục tiêu tiếp theo: Phase 10 / Mục Tiêu 2 - Schema Và Migration.
+Mục tiêu tiếp theo: Phase 10 / Mục Tiêu 3 - Backend API Và Smoke.
 
 Điều kiện chuyển sang mục tiêu kế tiếp:
 - Mục tiêu hiện tại pass tiêu chí chấp nhận.
@@ -73,7 +73,7 @@ git diff --check
 
 ### Mục Tiêu 2 - Schema Và Migration
 
-Trạng thái: chưa làm.
+Trạng thái: hoàn thành (2026-06-07).
 
 Skill bắt buộc: `database-designer`, `backend-fastapi`.
 

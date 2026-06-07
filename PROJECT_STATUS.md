@@ -8,7 +8,7 @@ Cập nhật lần cuối: 2026-06-07
 
 Hệ thống chạy on-prem bằng Docker Compose (`api`, `worker`, `web`, `postgres`, `redis`, `qdrant`). Workflow web end-to-end: upload → OCR/extract → searchable → semantic search → review chunk → audit. Module nghiệp vụ MVP: hợp đồng (`/contracts`) và công văn đến/đi (`/dispatches`), liên kết hai chiều với document detail; dashboard lọc search theo metadata hợp đồng.
 
-Con trỏ tiếp theo: `TASK_NEXT.md` → Phase 10 / Mục tiêu 2 (Schema và migration `decision_records`).
+Con trỏ tiếp theo: `TASK_NEXT.md` → Phase 10 / Mục tiêu 3 (Backend API `/api/v1/decisions` và smoke).
 
 ## Giới Hạn Còn Lại
 
@@ -1827,3 +1827,20 @@ Kết quả khảo sát:
   - Status: `draft`, `registered`, `effective`, `expired`, `revoked`, `archived`.
   - Quyền/audit giống contracts/dispatches; search filter metadata decision để sau MVP.
 - Không thay đổi runtime (không schema/API/UI); không cloud/LLM.
+
+Phase 10 / Mục tiêu 2 — Schema và migration `decision_records` (2026-06-07):
+
+```bash
+docker compose exec -T api alembic upgrade head
+PYTHONPYCACHEPREFIX=/tmp/qlvb-pycache PYTHONPATH=apps/api python3 -m py_compile apps/api/app/models/decision.py apps/api/app/models/document.py apps/api/alembic/versions/0014_decision_records.py
+git diff --check
+```
+
+Kiểm tra: Alembic upgrade `0013_dispatch_records` → `0014_decision_records` pass; `py_compile` pass; `git diff --check` pass.
+
+Đã bổ sung:
+
+- Model `DecisionRecord` (`apps/api/app/models/decision.py`) và relationship `Document.decision_record`.
+- Migration `0014_decision_records`: `decision_kind`, số/ký hiệu, ngày ban hành, đơn vị ban hành, trích yếu, `effective_from`/`effective_to`, trạng thái, ghi chú; audit fields và soft delete.
+- Partial unique index `ux_decision_records_document_active` và index filter MVP theo thiết kế mục tiêu 1.
+- Alembic current là `0014_decision_records (head)`; bảng không lưu OCR text/chunk.

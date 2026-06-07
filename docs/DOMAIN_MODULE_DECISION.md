@@ -480,9 +480,9 @@ Giữ nhất quán với module hợp đồng và công văn: user quản lý me
 
 `entity_type=decision`, `entity_id=<decision_record.id>`, metadata JSON gọn (ví dụ `decision_kind`, `document_number`, `status`).
 
-## Schema Dự Kiến (Mục Tiêu 2)
+## Schema Đã Triển Khai (Mục Tiêu 2)
 
-Migration đề xuất: `0014_decision_records` (hoặc số tiếp theo trên head hiện tại).
+Mục tiêu 2 đã tạo bảng `decision_records` bằng migration `0014_decision_records`.
 
 ### Các Cột Chính
 
@@ -500,7 +500,7 @@ Migration đề xuất: `0014_decision_records` (hoặc số tiếp theo trên h
 - `notes`: `Text`, nullable.
 - `created_at`, `updated_at`, `deleted_at`.
 
-### Indexes Dự Kiến
+### Indexes
 
 - `ux_decision_records_document_active`: unique partial trên `document_id` WHERE `deleted_at IS NULL`.
 - `ix_decision_records_decision_kind_active`: (`decision_kind`, `deleted_at`).
@@ -543,6 +543,6 @@ Smoke script đề xuất: `python -m app.scripts.smoke_decision_api`.
 - Nav item `Quyết định` (hoặc `Quyết định & TB`) trong app shell.
 - Card trên `/documents/[id]` liên kết hai chiều với module decision khi document có metadata module.
 
-## Hướng Dẫn Cho Mục Tiêu Tiếp Theo (Schema)
+## Hướng Dẫn Cho Mục Tiêu Tiếp Theo (API)
 
-Mục tiêu 2 nên tạo migration `decision_records`, model `DecisionRecord`, relationship trên `Document`, và indexes theo bảng trên; không thêm API/UI trong mục tiêu thiết kế này.
+Mục tiêu 3 nên thêm backend module theo `router -> service -> repository`, endpoint `/api/v1/decisions`, audit log và smoke `smoke_decision_api`.
