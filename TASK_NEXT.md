@@ -25,7 +25,7 @@ Phase trước: Phase 14 hoàn thành ngày 2026-06-07.
 
 Phase hiện tại: Phase 15 - Liên Kết Chéo Document (`document_relations`).
 
-Mục tiêu tiếp theo: Phase 15 / Mục Tiêu 1 - Thiết Kế `document_relations` Trong DOMAIN_MODULE_DECISION.
+Mục tiêu tiếp theo: Phase 15 / Mục Tiêu 3 - DocumentRelationService, API Và Smoke Backend.
 
 Điều kiện chuyển sang mục tiêu kế tiếp:
 - Mục tiêu hiện tại pass tiêu chí chấp nhận.
@@ -37,7 +37,7 @@ Mục tiêu tiếp theo: Phase 15 / Mục Tiêu 1 - Thiết Kế `document_relat
 
 ## Phase 15 - Liên Kết Chéo Document (`document_relations`)
 
-Trạng thái: đã lập kế hoạch (mục tiêu 1 thiết kế đã ghi trong `docs/DOMAIN_MODULE_DECISION.md`; chưa bắt đầu code).
+Trạng thái: đang thực thi (mục tiêu 1–2 xong; tiếp mục tiêu 3).
 
 Mục tiêu phase: quan hệ có hướng giữa hai document độc lập (tham chiếu, phụ lục của, triển khai, liên quan); tra cứu incoming/outgoing từ document detail; tạo/xóa thủ công, không auto từ OCR.
 
@@ -77,7 +77,7 @@ git diff --check
 
 ### Mục Tiêu 2 - Migration, Model Và Repository
 
-Trạng thái: chưa làm (tiếp theo).
+Trạng thái: hoàn thành (2026-06-07).
 
 Skill bắt buộc: `database-designer`, `backend-fastapi`, `project-git-manager`.
 
@@ -99,7 +99,7 @@ git diff --check
 
 ### Mục Tiêu 3 - DocumentRelationService, API Và Smoke Backend
 
-Trạng thái: chưa làm.
+Trạng thái: chưa làm (tiếp theo).
 
 Skill bắt buộc: `backend-fastapi`, `project-git-manager`.
 

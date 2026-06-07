@@ -6,6 +6,7 @@ from app.models.dispatch import DispatchRecord
 from app.models.procurement import ProcurementRecord
 from app.models.department import Department
 from app.models.document import Document, DocumentChunk, DocumentFile, DocumentPage, OCRJob
+from app.models.document_relation import DocumentRelation
 from app.models.user import User
 
 __all__ = [
@@ -18,6 +19,7 @@ __all__ = [
     "Department",
     "Document",
     "DocumentChunk",
+    "DocumentRelation",
     "DocumentFile",
     "DocumentPage",
     "OCRJob",

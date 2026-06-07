@@ -42,6 +42,14 @@ class Document(UUIDTimestampMixin, Base):
     dispatch_record: Mapped["DispatchRecord | None"] = relationship(back_populates="document", uselist=False)
     decision_record: Mapped["DecisionRecord | None"] = relationship(back_populates="document", uselist=False)
     procurement_record: Mapped["ProcurementRecord | None"] = relationship(back_populates="document", uselist=False)
+    outgoing_relations: Mapped[list["DocumentRelation"]] = relationship(
+        back_populates="source_document",
+        foreign_keys="DocumentRelation.source_document_id",
+    )
+    incoming_relations: Mapped[list["DocumentRelation"]] = relationship(
+        back_populates="target_document",
+        foreign_keys="DocumentRelation.target_document_id",
+    )
 
 
 class DocumentFile(UUIDTimestampMixin, Base):
