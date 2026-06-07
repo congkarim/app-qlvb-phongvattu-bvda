@@ -2791,3 +2791,21 @@ git diff --check
 ```
 
 Kết quả: pass.
+
+### Mục tiêu 2 — LocalLLMService và settings (2026-06-07)
+
+**Triển khai**
+
+- Settings `config.py`: `rag_generation_backend`, `ollama_base_url`, `rag_llm_model`, timeout, max context/output tokens, temperature; validator backend `extractive|ollama`.
+- `LocalLLMService`: `is_generative_enabled()`, `is_available()` (GET `/api/tags`), `generate(system, user)` (POST `/api/chat`); exception có cấu trúc; backend `extractive` không gọi HTTP.
+
+**Kiểm tra**
+
+```bash
+PYTHONPYCACHEPREFIX=/tmp/qlvb-pycache PYTHONPATH=apps/api python3 -m py_compile \
+  apps/api/app/services/local_llm_service.py apps/api/app/core/config.py
+docker compose exec -T api python -m unittest app.services.tests.test_local_llm_service -v
+git diff --check
+```
+
+Kết quả: py_compile pass; 6 unit tests pass; `git diff --check` pass.
