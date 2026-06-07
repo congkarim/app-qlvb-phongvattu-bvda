@@ -25,7 +25,7 @@ Phase trước: Phase 14 hoàn thành ngày 2026-06-07.
 
 Phase hiện tại: Phase 15 - Liên Kết Chéo Document (`document_relations`).
 
-Mục tiêu tiếp theo: Phase 15 / Mục Tiêu 4 - Frontend Card Liên Kết Trên Document Detail.
+Mục tiêu tiếp theo: Phase 15 / Mục Tiêu 5 - Document List Badge/Filter Liên Kết (Tùy Chọn Nhẹ).
 
 Điều kiện chuyển sang mục tiêu kế tiếp:
 - Mục tiêu hiện tại pass tiêu chí chấp nhận.
@@ -37,7 +37,7 @@ Mục tiêu tiếp theo: Phase 15 / Mục Tiêu 4 - Frontend Card Liên Kết Tr
 
 ## Phase 15 - Liên Kết Chéo Document (`document_relations`)
 
-Trạng thái: đang thực thi (mục tiêu 1–3 xong; tiếp mục tiêu 4).
+Trạng thái: đang thực thi (mục tiêu 1–4 xong; tiếp mục tiêu 5).
 
 Mục tiêu phase: quan hệ có hướng giữa hai document độc lập (tham chiếu, phụ lục của, triển khai, liên quan); tra cứu incoming/outgoing từ document detail; tạo/xóa thủ công, không auto từ OCR.
 
@@ -122,7 +122,7 @@ git diff --check
 
 ### Mục Tiêu 4 - Frontend Card Liên Kết Trên Document Detail
 
-Trạng thái: chưa làm (tiếp theo).
+Trạng thái: hoàn thành (2026-06-07).
 
 Skill bắt buộc: `frontend-nuxt`, `project-git-manager`.
 
@@ -144,7 +144,7 @@ git diff --check
 
 ### Mục Tiêu 5 - Document List Badge/Filter Liên Kết (Tùy Chọn Nhẹ)
 
-Trạng thái: chưa làm.
+Trạng thái: chưa làm (tiếp theo).
 
 Skill bắt buộc: `frontend-nuxt`, `backend-fastapi`, `project-git-manager`.
 

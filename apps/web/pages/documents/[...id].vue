@@ -5,6 +5,7 @@ import type { DispatchStatus, DispatchType } from '~/types/dispatch'
 import type { ProcurementKind, ProcurementStatus } from '~/types/procurement'
 import type { DocumentChunk, DocumentMetadataUpdateInput } from '~/types/document'
 import type { TargetModule } from '~/types/onboarding'
+import type { RelationType } from '~/types/document-relation'
 import { formatDate, formatDateTime, formatFileSize } from '~/utils/format'
 import { buildModuleCreateLink } from '~/utils/moduleOnboarding'
 
@@ -67,6 +68,20 @@ const {
   fetchOnboardingSuggestions,
   clearOnboardingSuggestions
 } = useDocumentOnboarding()
+const {
+  relations: documentRelations,
+  targetSearchResults,
+  targetSearchLoading,
+  loading: relationsLoading,
+  saving: relationsSaving,
+  deleting: relationsDeleting,
+  error: relationsError,
+  fetchRelations,
+  searchTargetDocuments,
+  createRelation,
+  deleteRelation,
+  clearRelations
+} = useDocumentRelations()
 let pollTimer: ReturnType<typeof setInterval> | undefined
 const applyingBusinessType = ref(false)
 const reprocessReason = ref('')
@@ -227,6 +242,8 @@ function formatAuditAction(action: string): string {
   if (action === 'document.metadata_auto_extracted') return 'Tự trích xuất metadata'
   if (action === 'document.metadata_updated') return 'Cập nhật metadata'
   if (action === 'document_chunk.reviewed') return 'Đã review chunk'
+  if (action === 'document_relation.created') return 'Tạo liên kết văn bản'
+  if (action === 'document_relation.deleted') return 'Xóa liên kết văn bản'
   return action
 }
 
@@ -312,6 +329,30 @@ async function refreshOnboardingSuggestions() {
     return
   }
   await fetchOnboardingSuggestions(documentId.value)
+}
+
+async function refreshDocumentRelations() {
+  if (!documentId.value) {
+    clearRelations()
+    return
+  }
+  await fetchRelations(documentId.value)
+}
+
+async function submitCreateDocumentRelation(payload: {
+  target_document_id: string
+  relation_type: RelationType
+  notes?: string
+}) {
+  await createRelation(documentId.value, payload)
+}
+
+async function submitDeleteDocumentRelation(relationId: string) {
+  await deleteRelation(documentId.value, relationId)
+}
+
+async function submitSearchRelationTargets(query: string) {
+  await searchTargetDocuments(query, documentId.value)
 }
 
 async function submitApplyBusinessType() {
@@ -585,7 +626,7 @@ onMounted(async () => {
   ])
   syncMetadataForm()
   markDetailRefreshed()
-  await refreshOnboardingSuggestions()
+  await Promise.all([refreshOnboardingSuggestions(), refreshDocumentRelations()])
   if (shouldPoll.value) startPolling()
   await focusChunkFromHash()
 })
@@ -600,7 +641,7 @@ watch(documentId, async (value) => {
   ])
   syncMetadataForm()
   markDetailRefreshed()
-  await refreshOnboardingSuggestions()
+  await Promise.all([refreshOnboardingSuggestions(), refreshDocumentRelations()])
   if (shouldPoll.value) startPolling()
   else stopPolling()
   await focusChunkFromHash()
@@ -626,6 +667,7 @@ watch(shouldPoll, (value) => {
 onBeforeUnmount(() => {
   stopPolling()
   clearSourceFilePreview()
+  clearRelations()
 })
 </script>
 
@@ -655,6 +697,20 @@ onBeforeUnmount(() => {
         :show-apply-business-type="showApplyBusinessType"
         :create-module-link="createModuleLinkFromSuggestion"
         @apply-business-type="submitApplyBusinessType"
+      />
+
+      <DocumentRelationsCard
+        :document-id="documentId"
+        :relations="documentRelations"
+        :loading="relationsLoading"
+        :saving="relationsSaving"
+        :deleting="relationsDeleting"
+        :error="relationsError"
+        :target-search-results="targetSearchResults"
+        :target-search-loading="targetSearchLoading"
+        @create="submitCreateDocumentRelation"
+        @delete="submitDeleteDocumentRelation"
+        @search-targets="submitSearchRelationTargets"
       />
 
       <Card>

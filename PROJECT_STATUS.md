@@ -8,12 +8,12 @@ Cập nhật lần cuối: 2026-06-07
 
 Hệ thống chạy on-prem bằng Docker Compose (`api`, `worker`, `web`, `postgres`, `redis`, `qdrant`). Workflow web end-to-end: upload → OCR/extract → searchable → semantic search → RAG Q&A → review chunk → audit. Module nghiệp vụ MVP: hợp đồng (`/contracts`), công văn (`/dispatches`), quyết định/thông báo (`/decisions`), mua sắm (`/procurements`) — liên kết hai chiều với document detail; dashboard lọc search/RAG theo metadata hợp đồng, công văn, quyết định và mua sắm. RAG citation và search result deep-link tới `#chunk-{id}` trên document detail. Onboarding metadata module: gợi ý sau OCR, banner document detail, filter list thiếu metadata module.
 
-Con trỏ tiếp theo: Phase 15 / Mục tiêu 4 — frontend card liên kết trên document detail.
+Con trỏ tiếp theo: Phase 15 / Mục tiêu 5 — badge/filter liên kết trên document list (tùy chọn nhẹ).
 
 ## Giới Hạn Còn Lại
 
 Giới hạn còn lại (đồng bộ `ROADMAP.md`):
-- Liên kết chéo document (`document_relations`) — **Phase 15 đang thực thi** (mục tiêu 2–3 backend xong; UI chưa).
+- Liên kết chéo document (`document_relations`) — **Phase 15 đang thực thi** (backend + UI card detail xong; list badge/filter chưa).
 - Chưa có LLM/generator nội bộ nâng cao; RAG hiện extractive từ chunk truy xuất.
 - Inventory/tồn kho, workflow phê duyệt nhiều bước, line items procurement: ngoài scope Phase 15.
 
@@ -2515,7 +2515,7 @@ Kết quả: tất cả smoke/regression pass; web build pass qua `docker compos
 
 ## Phase 15 — Liên Kết Chéo Document (`document_relations`)
 
-Trạng thái: đang thực thi (2026-06-07); mục tiêu 1–3 hoàn thành.
+Trạng thái: đang thực thi (2026-06-07); mục tiêu 1–4 hoàn thành.
 
 Mục tiêu phase: quan hệ có hướng giữa hai document độc lập; tra cứu incoming/outgoing từ document detail; tạo/xóa thủ công.
 
@@ -2531,7 +2531,7 @@ Mục tiêu phase: quan hệ có hướng giữa hai document độc lập; tra 
 
 Phạm vi đã chốt trong `ROADMAP.md` và `docs/DOMAIN_MODULE_DECISION.md` (mục Document Relations): bảng `document_relations`, 4 `relation_type`, API GET/POST/DELETE, UI card detail, smoke `smoke_document_relations`; không LLM auto-link, không Qdrant re-index.
 
-Checklist thực thi: `TASK_NEXT.md` (mục tiêu 4 tiếp theo).
+Checklist thực thi: `TASK_NEXT.md` (mục tiêu 5 tiếp theo).
 
 ### Mục tiêu 1 — Thiết kế `document_relations` (2026-06-07)
 
@@ -2586,3 +2586,20 @@ Kết quả: `smoke_document_relations` pass; `smoke_api_workflows` regression p
 - API `GET/POST /documents/{id}/relations`, `DELETE /document-relations/{id}`.
 - Schemas `document_relation.py`; router `document_relations.py`.
 - Smoke `smoke_document_relations.py`: tạo B→A `references`, outgoing/incoming, 409 trùng, 403 non-creator, xóa + audit.
+
+### Mục tiêu 4 — Frontend card liên kết document detail (2026-06-07)
+
+Kiểm tra bắt buộc:
+
+```bash
+WEB_MEMORY_LIMIT=4g docker compose run --rm --no-deps -e NODE_OPTIONS=--max-old-space-size=3072 web npm run build
+git diff --check
+```
+
+Kết quả: client + SSR compile pass; Nitro bước cuối `EBUSY rmdir .output` do bind mount Docker (không lỗi TypeScript); `git diff --check` pass.
+
+**Đã triển khai**
+
+- `types/document-relation.ts`, `services/document-relation.service.ts`, `composables/useDocumentRelations.ts`.
+- `components/documents/DocumentRelationsCard.vue`: card **Văn bản liên quan**, liên kết đi/đến, form thêm (tìm + chọn document, loại, ghi chú), xóa có confirm.
+- Tích hợp `/documents/[id]`: card dưới onboarding banner, trên card module; link mở document đích ≤3 thao tác (tìm/chọn → thêm → click link).

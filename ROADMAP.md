@@ -444,7 +444,7 @@ Mục tiêu gợi ý cho `TASK_NEXT.md`:
 
 ### Phase 15 - Liên Kết Chéo Document (`document_relations`)
 
-Trạng thái: đang thực thi (mục tiêu 1 thiết kế xong; mục tiêu 2–3 backend xong).
+Trạng thái: đang thực thi (mục tiêu 1–4 xong; còn list badge + đóng phase).
 
 Mục tiêu: cho phép gắn quan hệ có hướng giữa hai văn bản độc lập (khác `document_files` nhiều tệp cùng một document) — ví dụ công văn **tham chiếu** quyết định, phụ lục upload riêng **thuộc** hợp đồng — để tra cứu hai chiều từ document detail mà không đổi pipeline OCR/chunk hiện có.
 
