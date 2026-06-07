@@ -4,18 +4,17 @@ Cập nhật lần cuối: 2026-06-07
 
 ## Giai Đoạn Hiện Tại
 
-**Phase 0–14 đã hoàn thành.** Phase 14 đóng ngày 2026-06-07.
+**Phase 0–15 đã hoàn thành.** Phase 15 đóng ngày 2026-06-07.
 
-Hệ thống chạy on-prem bằng Docker Compose (`api`, `worker`, `web`, `postgres`, `redis`, `qdrant`). Workflow web end-to-end: upload → OCR/extract → searchable → semantic search → RAG Q&A → review chunk → audit. Module nghiệp vụ MVP: hợp đồng (`/contracts`), công văn (`/dispatches`), quyết định/thông báo (`/decisions`), mua sắm (`/procurements`) — liên kết hai chiều với document detail; dashboard lọc search/RAG theo metadata hợp đồng, công văn, quyết định và mua sắm. RAG citation và search result deep-link tới `#chunk-{id}` trên document detail. Onboarding metadata module: gợi ý sau OCR, banner document detail, filter list thiếu metadata module.
+Hệ thống chạy on-prem bằng Docker Compose (`api`, `worker`, `web`, `postgres`, `redis`, `qdrant`). Workflow web end-to-end: upload → OCR/extract → searchable → semantic search → RAG Q&A → review chunk → audit. Module nghiệp vụ MVP: hợp đồng (`/contracts`), công văn (`/dispatches`), quyết định/thông báo (`/decisions`), mua sắm (`/procurements`) — liên kết hai chiều với document detail; dashboard lọc search/RAG theo metadata hợp đồng, công văn, quyết định và mua sắm. RAG citation và search result deep-link tới `#chunk-{id}` trên document detail. Onboarding metadata module: gợi ý sau OCR, banner document detail, filter list thiếu metadata module. Liên kết chéo document: card **Văn bản liên quan** trên document detail, filter/badge trên list documents.
 
-Con trỏ tiếp theo: Phase 15 / Mục tiêu 6 — smoke end-to-end và đóng phase.
+Con trỏ tiếp theo: chưa lập Phase 16 — xem `ROADMAP.md` (giới hạn còn lại) khi ưu tiên phase mới.
 
 ## Giới Hạn Còn Lại
 
 Giới hạn còn lại (đồng bộ `ROADMAP.md`):
-- Liên kết chéo document (`document_relations`) — **Phase 15 gần hoàn thành** (backend + UI detail/list xong; còn đóng phase).
 - Chưa có LLM/generator nội bộ nâng cao; RAG hiện extractive từ chunk truy xuất.
-- Inventory/tồn kho, workflow phê duyệt nhiều bước, line items procurement: ngoài scope Phase 15.
+- Inventory/tồn kho, workflow phê duyệt nhiều bước, line items procurement, auto-trích quan hệ document từ OCR: ngoài scope MVP hiện tại.
 
 ## Đã Xây Dựng
 
@@ -2515,7 +2514,7 @@ Kết quả: tất cả smoke/regression pass; web build pass qua `docker compos
 
 ## Phase 15 — Liên Kết Chéo Document (`document_relations`)
 
-Trạng thái: đang thực thi (2026-06-07); mục tiêu 1–5 hoàn thành.
+Trạng thái: **hoàn thành** (2026-06-07).
 
 Mục tiêu phase: quan hệ có hướng giữa hai document độc lập; tra cứu incoming/outgoing từ document detail; tạo/xóa thủ công.
 
@@ -2621,3 +2620,24 @@ Kết quả: `smoke_documents_pagination` pass (has_relations + relation_count);
 - List API: `relation_count` trên `DocumentListItemRead`, filter `has_relations=true`.
 - Repository/service: batch count relations, exists filter; không regression pagination.
 - Frontend `/documents`: filter **Có liên kết văn bản**, badge **N liên kết** trên `BaseDataTable`.
+
+### Mục tiêu 6 — Smoke end-to-end và đóng Phase 15 (2026-06-07)
+
+Kiểm tra bắt buộc:
+
+```bash
+docker compose exec -T api python -m app.scripts.smoke_document_relations
+docker compose exec -T api python -m app.scripts.smoke_module_onboarding
+docker compose exec -T api python -m app.scripts.smoke_api_workflows
+docker compose exec -T api python -m app.scripts.smoke_search_module_filters
+docker compose exec -T api python -m app.scripts.smoke_rag_answer
+WEB_MEMORY_LIMIT=4g docker compose run --rm --no-deps -e NODE_OPTIONS=--max-old-space-size=3072 web npm run build
+git diff --check
+```
+
+Kết quả: tất cả smoke API pass; web client + SSR compile pass (Nitro `EBUSY rmdir .output` do bind mount Docker); `git diff --check` pass.
+
+**Đóng phase**
+
+- Tiêu chí hoàn thành Phase 15 trong `ROADMAP.md` đạt.
+- Phase 15 đóng; `ROADMAP.md` và `TASK_NEXT.md` cập nhật (chưa lập Phase 16).

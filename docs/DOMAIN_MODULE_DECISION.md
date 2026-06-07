@@ -1131,7 +1131,7 @@ Không thêm bảng DB Phase 14. Không đổi Qdrant/chunk.
 
 ## Document Relations — Liên Kết Chéo Văn Bản (Phase 15)
 
-Trạng thái: thiết kế (mục tiêu 1 Phase 15).
+Trạng thái: triển khai (Phase 15 hoàn thành 2026-06-07).
 
 ### Vấn Đề
 
