@@ -8,12 +8,12 @@ Cập nhật lần cuối: 2026-06-07
 
 Hệ thống chạy on-prem bằng Docker Compose (`api`, `worker`, `web`, `postgres`, `redis`, `qdrant`). Workflow web end-to-end: upload → OCR/extract → searchable → semantic search → RAG Q&A → review chunk → audit. Module nghiệp vụ MVP: hợp đồng (`/contracts`), công văn (`/dispatches`), quyết định/thông báo (`/decisions`), mua sắm (`/procurements`) — liên kết hai chiều với document detail; dashboard lọc search/RAG theo metadata hợp đồng, công văn, quyết định và mua sắm. RAG citation và search result deep-link tới `#chunk-{id}` trên document detail. Onboarding metadata module: gợi ý sau OCR, banner document detail, filter list thiếu metadata module.
 
-Con trỏ tiếp theo: Phase 15 / Mục tiêu 3 — `DocumentRelationService`, API và smoke backend.
+Con trỏ tiếp theo: Phase 15 / Mục tiêu 4 — frontend card liên kết trên document detail.
 
 ## Giới Hạn Còn Lại
 
 Giới hạn còn lại (đồng bộ `ROADMAP.md`):
-- Liên kết chéo document (`document_relations`) — **Phase 15 đang thực thi** (mục tiêu 2 migration/model/repository xong; API/UI chưa).
+- Liên kết chéo document (`document_relations`) — **Phase 15 đang thực thi** (mục tiêu 2–3 backend xong; UI chưa).
 - Chưa có LLM/generator nội bộ nâng cao; RAG hiện extractive từ chunk truy xuất.
 - Inventory/tồn kho, workflow phê duyệt nhiều bước, line items procurement: ngoài scope Phase 15.
 
@@ -2515,7 +2515,7 @@ Kết quả: tất cả smoke/regression pass; web build pass qua `docker compos
 
 ## Phase 15 — Liên Kết Chéo Document (`document_relations`)
 
-Trạng thái: đang thực thi (2026-06-07); mục tiêu 1–2 hoàn thành.
+Trạng thái: đang thực thi (2026-06-07); mục tiêu 1–3 hoàn thành.
 
 Mục tiêu phase: quan hệ có hướng giữa hai document độc lập; tra cứu incoming/outgoing từ document detail; tạo/xóa thủ công.
 
@@ -2531,7 +2531,7 @@ Mục tiêu phase: quan hệ có hướng giữa hai document độc lập; tra 
 
 Phạm vi đã chốt trong `ROADMAP.md` và `docs/DOMAIN_MODULE_DECISION.md` (mục Document Relations): bảng `document_relations`, 4 `relation_type`, API GET/POST/DELETE, UI card detail, smoke `smoke_document_relations`; không LLM auto-link, không Qdrant re-index.
 
-Checklist thực thi: `TASK_NEXT.md` (mục tiêu 3 tiếp theo).
+Checklist thực thi: `TASK_NEXT.md` (mục tiêu 4 tiếp theo).
 
 ### Mục tiêu 1 — Thiết kế `document_relations` (2026-06-07)
 
@@ -2567,3 +2567,22 @@ Kết quả: migration `0016_document_relations` pass; `smoke_document_relations
 - Model `DocumentRelation` + `RELATION_TYPES`; relationship trên `Document` (outgoing/incoming).
 - `DocumentRelationRepository`: list outgoing/incoming, find_active, create (guard self-link + relation_type), soft_delete, count_active_for_document.
 - Smoke repo `smoke_document_relations_repo.py`: tạo/đọc/xóa + guard self-link.
+
+### Mục tiêu 3 — DocumentRelationService, API và smoke backend (2026-06-07)
+
+Kiểm tra bắt buộc:
+
+```bash
+docker compose exec -T api python -m app.scripts.smoke_document_relations
+docker compose exec -T api python -m app.scripts.smoke_api_workflows
+git diff --check
+```
+
+Kết quả: `smoke_document_relations` pass; `smoke_api_workflows` regression pass; `git diff --check` pass.
+
+**Đã triển khai**
+
+- `DocumentRelationService`: list/create/delete, audit `document_relation.created/deleted`, RBAC xóa creator hoặc admin.
+- API `GET/POST /documents/{id}/relations`, `DELETE /document-relations/{id}`.
+- Schemas `document_relation.py`; router `document_relations.py`.
+- Smoke `smoke_document_relations.py`: tạo B→A `references`, outgoing/incoming, 409 trùng, 403 non-creator, xóa + audit.

@@ -22,7 +22,18 @@ from app.schemas.document import (
     UploadResponse,
 )
 from app.schemas.onboarding import OnboardingSuggestionResponse
+from app.schemas.document_relation import (
+    DocumentRelationCreateRequest,
+    DocumentRelationOutgoingRead,
+    DocumentRelationsResponse,
+)
 from app.services.module_onboarding_service import ModuleOnboardingService
+from app.services.document_relation_service import (
+    DocumentRelationAlreadyExistsError,
+    DocumentRelationNotFoundError,
+    DocumentRelationOperationError,
+    DocumentRelationService,
+)
 from app.services.document_service import (
     DocumentBusyError,
     DocumentChunkNotFoundError,
@@ -288,6 +299,44 @@ def get_document_onboarding_suggestions(
     if suggestion is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
     return OnboardingSuggestionResponse(**suggestion)
+
+
+@router.get("/{document_id}/relations", response_model=DocumentRelationsResponse)
+def list_document_relations(
+    document_id: str,
+    db: Session = Depends(get_db),
+) -> DocumentRelationsResponse:
+    try:
+        return DocumentRelationsResponse(**DocumentRelationService(db).list_relations(document_id))
+    except DocumentRelationNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+
+
+@router.post(
+    "/{document_id}/relations",
+    response_model=DocumentRelationOutgoingRead,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_document_relation(
+    document_id: str,
+    payload: DocumentRelationCreateRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> DocumentRelationOutgoingRead:
+    try:
+        return DocumentRelationOutgoingRead(
+            **DocumentRelationService(db).create_relation(
+                document_id=document_id,
+                values=payload.model_dump(),
+                actor=current_user,
+            )
+        )
+    except DocumentRelationAlreadyExistsError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    except DocumentRelationOperationError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+    except DocumentRelationNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
 
 
 @router.get("/{document_id}", response_model=DocumentDetailRead)
