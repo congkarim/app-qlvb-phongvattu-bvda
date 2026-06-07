@@ -10,12 +10,12 @@ Cập nhật lần cuối: 2026-06-07
 
 Hệ thống chạy on-prem bằng Docker Compose (`api`, `worker`, `web`, `postgres`, `redis`, `qdrant`). Workflow web end-to-end: upload → OCR/extract → searchable → semantic search → RAG Q&A (extractive) → review chunk → audit. Module nghiệp vụ MVP: hợp đồng, công văn, quyết định, mua sắm — liên kết document detail; gợi ý liên kết document rule-based (Phase 16).
 
-Con trỏ tiếp theo: Phase 17 / Mục tiêu 7 — runbook dev/deploy (`TASK_NEXT.md`).
+Con trỏ tiếp theo: Phase 17 / Mục tiêu 8 — smoke generative + đóng phase (`TASK_NEXT.md`).
 
 ## Giới Hạn Còn Lại
 
 Giới hạn còn lại (đồng bộ `ROADMAP.md`):
-- RAG generative local LLM (Ollama) đang triển khai Phase 17 — backend + frontend dashboard/status đã có; runbook và smoke generative còn lại.
+- RAG generative local LLM (Ollama) đang triển khai Phase 17 — backend, frontend và runbook đã có; smoke generative + đóng phase còn lại.
 - Inventory/tồn kho, workflow phê duyệt nhiều bước, line items procurement: ngoài scope MVP hiện tại.
 
 ## Đã Xây Dựng
@@ -2888,3 +2888,21 @@ git diff --check
 ```
 
 Kết quả: web build pass; `git diff --check` pass.
+
+### Mục tiêu 7 — Runbook dev/deploy và env documentation (2026-06-07)
+
+**Triển khai**
+
+- `docs/RAG_LLM_RUNBOOK.md`: profile dev/prod, pull model, GPU override, sizing RAM/GPU, prod checklist (firewall 11434 nội bộ, backup volume), fallback behavior, smoke commands, troubleshoot OOM/timeout.
+- Cập nhật `docs/RAG_ANSWER_RUNBOOK.md`: phân nhánh extractive/generative, checklist UI badge và `/status`.
+- Cập nhật `docs/COMPOSE_RESOURCE_UPLOAD_RUNBOOK.md`: bảng sizing Ollama, pointer backup `ollama_data`, troubleshoot LLM.
+- Cập nhật `docs/STORAGE_BACKUP_RESTORE_RUNBOOK.md`: volume `ollama_data` optional + backup/restore.
+- `README.md`, `.env.example`: link runbook LLM.
+
+**Kiểm tra**
+
+```bash
+git diff --check
+```
+
+Kết quả: pass.

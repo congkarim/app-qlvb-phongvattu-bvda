@@ -87,6 +87,12 @@ RAG answer smoke và checklist UI dashboard:
 docs/RAG_ANSWER_RUNBOOK.md
 ```
 
+RAG generative local LLM (Ollama) — bật profile `llm`, sizing prod, troubleshoot:
+
+```text
+docs/RAG_LLM_RUNBOOK.md
+```
+
 Login admin local:
 
 ```bash

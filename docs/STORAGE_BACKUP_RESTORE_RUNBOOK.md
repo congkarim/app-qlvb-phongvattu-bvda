@@ -4,13 +4,14 @@ Runbook này dành cho vận hành local/on-prem bằng Docker Compose. Không d
 
 ## Storage Volumes
 
-Docker Compose đang dùng 3 named volumes nghiệp vụ:
+Docker Compose đang dùng các named volumes nghiệp vụ:
 
 | Volume | Mount trong container | Dữ liệu |
 | --- | --- | --- |
 | `postgres_data` | `/var/lib/postgresql/data` | PostgreSQL database, users, documents metadata, OCR jobs, audit logs |
 | `qdrant_data` | `/qdrant/storage` | Qdrant collections và vector payload cho semantic search |
 | `uploads_data` | `/data/uploads` | File nguồn đã upload và tài liệu cần preview/reprocess |
+| `ollama_data` | `/root/.ollama` (profile `llm`) | Model weights Ollama — optional, chỉ khi bật RAG generative |
 
 Tên volume thực tế trên máy thường có prefix theo project directory, ví dụ:
 
@@ -26,6 +27,7 @@ docker compose ps
 docker volume inspect app-qlvb-phongvattu_postgres_data
 docker volume inspect app-qlvb-phongvattu_qdrant_data
 docker volume inspect app-qlvb-phongvattu_uploads_data
+docker volume inspect app-qlvb-phongvattu_ollama_data   # chỉ khi dùng --profile llm
 ```
 
 Nếu đặt tên project khác bằng `COMPOSE_PROJECT_NAME`, thay prefix volume tương ứng trong các command backup/restore bên dưới.
@@ -97,6 +99,32 @@ docker compose up -d qdrant
 ```
 
 Qdrant volume backup nên chạy khi `qdrant` đã dừng để tránh snapshot dang dở.
+
+## Backup Ollama Models (Optional)
+
+Chỉ cần khi production dùng `RAG_GENERATION_BACKEND=ollama` và muốn restore nhanh không cần `ollama pull` lại. Model có thể tải lại từ registry khi site có internet.
+
+```bash
+docker compose stop ollama
+docker run --rm \
+  -v app-qlvb-phongvattu_ollama_data:/data:ro \
+  -v "$PWD/backups:/backups" \
+  alpine tar czf /backups/ollama_$(date +%Y%m%d_%H%M%S).tgz -C /data .
+docker compose --profile llm up -d ollama
+```
+
+Restore:
+
+```bash
+docker compose stop ollama
+docker run --rm \
+  -v app-qlvb-phongvattu_ollama_data:/data \
+  -v "$PWD/backups:/backups" \
+  alpine sh -c 'rm -rf /data/* && tar xzf /backups/ollama_YYYYMMDD_HHMMSS.tgz -C /data'
+docker compose --profile llm up -d ollama
+```
+
+Vận hành LLM: `docs/RAG_LLM_RUNBOOK.md`.
 
 ## Restore Order
 

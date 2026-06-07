@@ -60,6 +60,16 @@ docker compose ps
 
 Khi máy chủ yếu hơn hoặc có GPU/OCR nặng, tăng `WORKER_CPU_LIMIT` và `WORKER_MEMORY_LIMIT` trước. Không bỏ limit hoàn toàn trên production nội bộ trừ khi đã có giám sát tài nguyên khác.
 
+### Ollama (profile `llm`)
+
+| Profile | Model gợi ý | `OLLAMA_MEMORY_LIMIT` | RAM host khuyến nghị |
+| --- | --- | --- | --- |
+| Dev / smoke | `qwen2.5:3b-instruct` | 6G | 16 GB (core + LLM) |
+| Prod CPU | `qwen2.5:7b-instruct` | 10G | 32 GB |
+| Prod GPU | `qwen2.5:7b-instruct` | 4G | 16 GB host + ≥8 GB VRAM |
+
+Chi tiết pull model, prod checklist, fallback: `docs/RAG_LLM_RUNBOOK.md`.
+
 ## Storage Volumes
 
 Named volumes nghiệp vụ:
@@ -67,9 +77,11 @@ Named volumes nghiệp vụ:
 - `postgres_data`
 - `qdrant_data`
 - `uploads_data`
-- `ollama_data` (profile `llm` — model local LLM)
+- `ollama_data` (profile `llm` — model local LLM, ~2–5 GB tùy model)
 
-Chi tiết backup/restore và kiểm tra volume thực tế:
+Backup `ollama_data` (optional, khi dùng generative): xem mục **Backup Ollama Models** trong `docs/STORAGE_BACKUP_RESTORE_RUNBOOK.md`. Không backup cùng lúc với postgres/uploads nếu không cần — model có thể `ollama pull` lại khi có internet.
+
+Chi tiết backup/restore volumes nghiệp vụ chính:
 
 ```text
 docs/STORAGE_BACKUP_RESTORE_RUNBOOK.md
@@ -134,10 +146,16 @@ docker compose exec -T api python -m app.scripts.smoke_upload_limits
 3. Ổ đĩa uploads đầy:
    - Kiểm tra dung lượng volume `uploads_data`.
    - Backup và dọn file không còn dùng theo quy trình nghiệp vụ trước khi tăng limit.
+4. Ollama OOM hoặc container restart loop:
+   - Tăng `OLLAMA_MEMORY_LIMIT` hoặc dùng model nhỏ hơn (`3b` thay `7b`).
+   - Tránh OCR peak + LLM generative trên máy 16 GB — xem `docs/RAG_LLM_RUNBOOK.md`.
+5. RAG generative timeout:
+   - Tăng `RAG_LLM_TIMEOUT_SECONDS`; cân nhắc GPU override `docker-compose.llm-gpu.yml`.
 
 Runbook liên quan:
 
 ```text
+docs/RAG_LLM_RUNBOOK.md
 docs/LOG_POLICY_RUNBOOK.md
 docs/WORKER_OPS_RUNBOOK.md
 docs/ON_PREM_ENV_RUNBOOK.md

@@ -1,18 +1,30 @@
 # RAG Answer Runbook
 
-Cập nhật lần cuối: 2026-06-06
+Cập nhật lần cuối: 2026-06-07
 
 Hướng dẫn tái chạy smoke API và kiểm tra thủ công panel **Hỏi đáp (RAG)** trên dashboard sau thay đổi search/RAG/frontend.
+
+Hệ thống hỗ trợ hai chế độ generation:
+
+| Chế độ | Cấu hình | Smoke |
+| --- | --- | --- |
+| **Extractive** (mặc định) | `RAG_GENERATION_BACKEND=extractive` | `smoke_rag_answer` |
+| **Generative (local Ollama)** | `RAG_GENERATION_BACKEND=ollama` + `--profile llm` + pull model | `smoke_rag_generative` |
+
+Bật/tắt LLM, sizing prod, GPU, troubleshoot: **`docs/RAG_LLM_RUNBOOK.md`**.
 
 ## Điều Kiện
 
 - Stack Docker Compose đang chạy: `api`, `postgres`, `redis`, `qdrant` (và `web` nếu kiểm tra UI).
+- Generative: thêm `ollama` qua `docker compose --profile llm up -d` và pull model (xem runbook LLM).
 - API healthy: `curl http://localhost:8000/health/ready`.
 - Embedding backend cấu hình nhất quán giữa API và worker (mặc định dev: fake deterministic hoặc `sentence-transformers` local).
 
-## Smoke API (Bắt Buộc)
+## Smoke API Extractive (Bắt Buộc Regression)
 
 Script seed benchmark fixture, gọi `POST /api/v1/search/answer` qua HTTP thật, kiểm tra grounded answer + citation + fallback `insufficient_evidence`, cleanup mặc định.
+
+**Không cần Ollama** — chạy với stack mặc định (`RAG_GENERATION_BACKEND=extractive`).
 
 ```bash
 docker compose exec -T api python -m app.scripts.smoke_rag_answer
@@ -46,6 +58,18 @@ curl -s -X POST http://localhost:8000/api/v1/search/answer \
   -d '{"query":"dieu 3 nghiem thu vat tu","limit":5,"max_citations":3}' | jq .
 ```
 
+Extractive response: `generation_mode=extractive` (hoặc field absent, tương đương extractive).
+
+## Smoke API Generative (Khi Bật Profile `llm`)
+
+Sau khi cấu hình Ollama và pull model (`docs/RAG_LLM_RUNBOOK.md`):
+
+```bash
+docker compose --profile llm exec -T api python -m app.scripts.smoke_rag_generative
+```
+
+Kỳ vọng: `generation_mode=generative`, citations hợp lệ.
+
 ## Kiểm Tra UI Dashboard (Thủ Công)
 
 Mở `http://localhost:3000` (hoặc URL `web` nội bộ). Đăng nhập admin hoặc user thường.
@@ -59,12 +83,22 @@ Mở `http://localhost:3000` (hoặc URL `web` nội bộ). Đăng nhập admin 
 
 | # | Bước | Kỳ vọng |
 | --- | --- | --- |
-| 1 | Nhập câu hỏi `dieu 3 nghiem thu vat tu` (với fixture smoke) → **Hỏi** | Loading, sau đó khối **Câu trả lời** (nền xanh nhạt), `Độ tin cậy` hiển thị |
+| 0 | (Generative) Badge trên panel sau **Hỏi** | **Extractive** hoặc **Generative (local)**; có thể thấy `model_name`, `latency_ms` |
+| 1 | Nhập câu hỏi `dieu 3 nghiem thu vat tu` (với fixture smoke) → **Hỏi** | Loading “Đang tổng hợp câu trả lời…”, nút **Hỏi** disabled khi pending; sau đó khối **Câu trả lời** (nền xanh nhạt), `Độ tin cậy` hiển thị |
 | 2 | Xem danh sách **Nguồn trích dẫn** | Có ít nhất một citation: `quote`, metadata (số VB/trang/section), link **Mở văn bản** → `/documents/{id}` |
 | 3 | Nhập câu hỏi không liên quan dữ liệu (ví dụ `noi dung khong ton tai trong he thong`) → **Hỏi** | `Message` cảnh báo vàng; khối **Giải thích** (không gắn nhãn “Câu trả lời” chắc chắn); không có answer grounded giả |
 | 4 | Đổi một filter metadata (ví dụ `doc_group`) | Hint “Bộ lọc đã thay đổi…”; kết quả RAG cũ bị xóa |
 | 5 | Bấm **Hỏi** lại sau khi đổi filter | Request mới, không lỗi console/API |
 | 6 | Bấm **Xóa** | Input và kết quả RAG được reset |
+| 7 | (Tùy chọn) Tắt Ollama, `RAG_GENERATION_BACKEND=ollama` → **Hỏi** lại | Message info “Mô hình local không sẵn sàng…”; answer extractive nếu có căn cứ; badge **Extractive** |
+
+### Checklist trang `/status`
+
+| # | Bước | Kỳ vọng |
+| --- | --- | --- |
+| 1 | Mở `/status` (admin) | Card **LLM (RAG)**: backend, model, reachable |
+| 2 | Extractive-only stack | `generation_backend=extractive`, `reachable=false` — không lỗi trang |
+| 3 | Profile `llm` + model loaded | `status=ok`, `model_loaded=true` |
 
 ### Checklist regression Semantic Search
 
@@ -84,6 +118,7 @@ Container `web` mặc định giới hạn 512M — build SSR có thể OOM nế
 
 ## Liên Quan
 
+- Generative / Ollama ops: `docs/RAG_LLM_RUNBOOK.md`
 - Benchmark fixture: `apps/api/app/scripts/benchmark_search_fixtures.py`
 - Service RAG: `apps/api/app/services/rag_answer_service.py`
 - UI: `apps/web/pages/dashboard.vue`, `apps/web/components/RagAnswerPanel.vue`

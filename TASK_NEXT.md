@@ -234,7 +234,7 @@ git diff --check
 
 ### Mục Tiêu 7 - Runbook Dev/Deploy Và Env Documentation
 
-Trạng thái: chưa làm (tiếp theo).
+Trạng thái: hoàn thành (2026-06-07).
 
 Skill bắt buộc: `solution-architect`, `project-git-manager`.
 
@@ -259,7 +259,7 @@ git diff --check
 
 ### Mục Tiêu 8 - Smoke Generative, Regression Và Hoàn Tất Phase
 
-Trạng thái: chưa làm.
+Trạng thái: chưa làm (tiếp theo).
 
 Skill bắt buộc: `backend-fastapi`, `frontend-nuxt`, `project-git-manager`.
 
