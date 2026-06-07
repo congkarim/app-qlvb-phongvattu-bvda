@@ -15,7 +15,7 @@ Con trỏ tiếp theo: Phase 15 / Mục tiêu 2 — migration `document_relation
 Giới hạn còn lại (đồng bộ `ROADMAP.md`):
 - Liên kết chéo document (`document_relations`) — **Phase 15 đang lập kế hoạch / sắp thực thi** (mục tiêu 1 thiết kế xong).
 - Chưa có LLM/generator nội bộ nâng cao; RAG hiện extractive từ chunk truy xuất.
-- Inventory/tồn kho, workflow phê duyệt nhiều bước, line items procurement: ngoài scope Phase 14.
+- Inventory/tồn kho, workflow phê duyệt nhiều bước, line items procurement: ngoài scope Phase 15.
 
 ## Đã Xây Dựng
 
