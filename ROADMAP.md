@@ -1,6 +1,6 @@
 # Roadmap Phát Triển
 
-Cập nhật lần cuối: 2026-06-06
+Cập nhật lần cuối: 2026-06-07
 
 ## Nguyên Tắc
 
@@ -13,9 +13,9 @@ Cập nhật lần cuối: 2026-06-06
 
 ## Trạng Thái Hiện Tại
 
-**Lộ trình Phase 0–7 đã hoàn thành.** Hệ thống có thể chạy on-prem bằng Docker Compose với các service `api`, `worker`, `web`, `postgres`, `redis`, `qdrant`.
+**Lộ trình Phase 0–10 đã hoàn thành.** Hệ thống có thể chạy on-prem bằng Docker Compose với các service `api`, `worker`, `web`, `postgres`, `redis`, `qdrant`.
 
-**Phase hiện tại: Phase 10 - Module Quyết Định Và Thông Báo** (checklist chi tiết trong `TASK_NEXT.md`).
+**Chưa có phase mới được mở** — cập nhật `ROADMAP.md` và `TASK_NEXT.md` trước khi bắt đầu phase kế tiếp.
 
 Đã hoàn thành:
 - Auth local, seed admin, cookie token frontend và RBAC nhẹ cho admin/user.
@@ -29,14 +29,17 @@ Cập nhật lần cuối: 2026-06-06
 - Dashboard có semantic search, RAG Q&A extractive kèm citation, admin review queue có pagination/filter.
 - Module hợp đồng MVP: backend `contract_records`, API CRUD, frontend `/contracts`; liên kết hai chiều với document detail.
 - Module công văn đến/đi MVP: backend `dispatch_records`, API CRUD, frontend `/dispatches`; liên kết hai chiều với document detail.
+- Module quyết định/thông báo MVP: backend `decision_records`, API CRUD, frontend `/decisions`; liên kết hai chiều với document detail.
+- RAG UX dashboard: panel Hỏi đáp (RAG) trên `/dashboard`, runbook và smoke `smoke_rag_answer`.
 - Admin catalog MVP: departments, business_type, document_type qua Catalog API; trang `/status` cho OCR/model/Qdrant/worker queue.
 - Worker claim atomic, retry policy, queue status endpoint và smoke worker operations.
 - On-prem hardening: env/secret/CORS guard, backup/restore runbook, health/readiness, log policy, compose resource limits.
 - Worker lease timeout, stale-job recovery, ops endpoint job kẹt, runbook upgrade Alembic production, smoke worker stale recovery.
 
-Giới hạn còn lại (ưu tiên Phase 10):
-- Chưa có module nghiệp vụ thứ ba (quyết định/thông báo).
+Giới hạn còn lại (gợi ý phase sau):
+- Chưa có search filter theo metadata decision trên dashboard (theo pattern contract/dispatch).
 - Chưa có LLM/generator nội bộ nâng cao; RAG hiện extractive từ chunk truy xuất.
+- Chưa có inventory/procurement workflow nhiều bước.
 
 ## Lộ Trình Ưu Tiên
 
@@ -169,26 +172,20 @@ Tiêu chí hoàn thành:
 
 ### Phase 10 - Module Quyết Định Và Thông Báo
 
-Trạng thái: đang làm (bắt đầu 2026-06-06).
+Trạng thái: hoàn thành ngày 2026-06-07.
 
 Mục tiêu: mở module nghiệp vụ thứ ba cho quyết định/thông báo nội bộ theo pattern hợp đồng và công văn.
 
-Phạm vi đề xuất:
-- Thiết kế scope trong `docs/DOMAIN_MODULE_DECISION.md` trước khi code.
-- Schema `decision_records` (hoặc tên tương đương), API CRUD, UI `/decisions`, smoke script.
-- Liên kết hai chiều với document core; search/RAG tiếp tục dựa trên chunk/document.
+Đã thực hiện:
+- Thiết kế scope trong `docs/DOMAIN_MODULE_DECISION.md`.
+- Schema `decision_records`, API CRUD `/api/v1/decisions`, UI `/decisions`, smoke `smoke_decision_api`.
+- Liên kết hai chiều document detail ↔ module decision; search/RAG dashboard không regression.
 
-Không làm trong phase này:
-- Inventory/procurement workflow nhiều bước.
-- LLM local nặng hoặc cloud API.
-
-Tiêu chí hoàn thành:
-- Module có metadata riêng, filter list và không phá document/search core.
-- UI theo `page -> composable -> service -> API`; smoke tái chạy được.
+Tiêu chí hoàn thành: đạt (xem `PROJECT_STATUS.md`).
 
 ## Ghi Chú Lập Kế Hoạch
 
-- `TASK_NEXT.md` chỉ chứa checklist phase đang làm (hiện Phase 10); lịch sử phase đã xong nằm trong `PROJECT_STATUS.md`.
+- `TASK_NEXT.md` chỉ chứa checklist phase đang làm; hiện chưa có phase mới — lịch sử phase đã xong nằm trong `PROJECT_STATUS.md`.
 - Con trỏ thực thi: `TASK_NEXT.md` → `PROJECT_STATUS.md` → commit sau mỗi mục tiêu (skill `project-git-manager`).
 - Ưu tiên MVP và maintainability; mỗi module nghiệp vụ mới phải có quyết định scope trong `docs/DOMAIN_MODULE_DECISION.md`.
 - Mỗi mục tiêu Phase 9 khi hoàn thành phải auto commit theo quy tắc trong `TASK_NEXT.md`.

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { ContractStatus } from '~/types/contract'
+import type { DecisionKind, DecisionStatus } from '~/types/decision'
 import type { DispatchStatus, DispatchType } from '~/types/dispatch'
 import type { DocumentChunk, DocumentMetadataUpdateInput } from '~/types/document'
 import { formatDate, formatDateTime, formatFileSize } from '~/utils/format'
@@ -24,6 +25,11 @@ const {
   dispatchByDocumentLoading,
   fetchDispatchByDocumentId
 } = useDispatches()
+const {
+  decisionByDocument,
+  decisionByDocumentLoading,
+  fetchDecisionByDocumentId
+} = useDecisions()
 const {
   document,
   loading,
@@ -235,6 +241,30 @@ const contractsPageLink = computed(() => `/contracts?document_id=${encodeURIComp
 const createContractLink = computed(() => `${contractsPageLink.value}&create=1`)
 const dispatchesPageLink = computed(() => `/dispatches?document_id=${encodeURIComponent(documentId.value)}`)
 const createDispatchLink = computed(() => `${dispatchesPageLink.value}&create=1`)
+const decisionsPageLink = computed(() => `/decisions?document_id=${encodeURIComponent(documentId.value)}`)
+const createDecisionLink = computed(() => `${decisionsPageLink.value}&create=1`)
+
+const decisionKindLabels: Record<DecisionKind, string> = {
+  decision: 'Quyết định',
+  notification: 'Thông báo'
+}
+
+const decisionStatusLabels: Record<DecisionStatus, string> = {
+  draft: 'Nháp',
+  registered: 'Đã vào sổ',
+  effective: 'Đang hiệu lực',
+  expired: 'Hết hiệu lực',
+  revoked: 'Đã thu hồi',
+  archived: 'Lưu trữ'
+}
+
+function formatDecisionKind(kind?: DecisionKind | null) {
+  return kind ? decisionKindLabels[kind] || kind : '-'
+}
+
+function formatDecisionStatus(status?: DecisionStatus | null) {
+  return status ? decisionStatusLabels[status] || status : '-'
+}
 
 const dispatchTypeLabels: Record<DispatchType, string> = {
   incoming: 'Công văn đến',
@@ -413,7 +443,8 @@ onMounted(async () => {
     fetchCatalogOptions(),
     fetchDocument(documentId.value),
     fetchContractByDocumentId(documentId.value),
-    fetchDispatchByDocumentId(documentId.value)
+    fetchDispatchByDocumentId(documentId.value),
+    fetchDecisionByDocumentId(documentId.value)
   ])
   syncMetadataForm()
   markDetailRefreshed()
@@ -421,7 +452,12 @@ onMounted(async () => {
 })
 
 watch(documentId, async (value) => {
-  await Promise.all([fetchDocument(value), fetchContractByDocumentId(value), fetchDispatchByDocumentId(value)])
+  await Promise.all([
+    fetchDocument(value),
+    fetchContractByDocumentId(value),
+    fetchDispatchByDocumentId(value),
+    fetchDecisionByDocumentId(value)
+  ])
   syncMetadataForm()
   markDetailRefreshed()
   if (shouldPoll.value) startPolling()
@@ -549,6 +585,58 @@ onBeforeUnmount(() => {
             <p class="text-sm text-slate-600">Văn bản này chưa có metadata công văn liên kết.</p>
             <NuxtLink :to="createDispatchLink">
               <Button label="Tạo metadata công văn" icon="pi pi-plus" size="small" />
+            </NuxtLink>
+          </div>
+        </template>
+      </Card>
+
+      <Card>
+        <template #title>Quyết định & thông báo</template>
+        <template #content>
+          <p v-if="decisionByDocumentLoading" class="text-sm text-slate-600">Đang kiểm tra metadata quyết định/thông báo...</p>
+          <div v-else-if="decisionByDocument" class="space-y-3">
+            <div class="grid gap-3 sm:grid-cols-2">
+              <div>
+                <p class="text-xs text-slate-500">Loại</p>
+                <p class="font-medium">{{ formatDecisionKind(decisionByDocument.decision_kind) }}</p>
+              </div>
+              <div>
+                <p class="text-xs text-slate-500">Số văn bản</p>
+                <p class="font-medium">{{ decisionByDocument.document_number || '-' }}</p>
+              </div>
+              <div>
+                <p class="text-xs text-slate-500">Đơn vị ban hành</p>
+                <p class="font-medium">{{ decisionByDocument.issuing_agency || '-' }}</p>
+              </div>
+              <div>
+                <p class="text-xs text-slate-500">Trạng thái</p>
+                <p class="font-medium">{{ formatDecisionStatus(decisionByDocument.status) }}</p>
+              </div>
+              <div>
+                <p class="text-xs text-slate-500">Ngày ban hành</p>
+                <p class="font-medium">{{ formatDate(decisionByDocument.issued_date) }}</p>
+              </div>
+              <div>
+                <p class="text-xs text-slate-500">Hiệu lực</p>
+                <p class="font-medium">
+                  {{ formatDate(decisionByDocument.effective_from) }} - {{ formatDate(decisionByDocument.effective_to) }}
+                </p>
+              </div>
+              <div class="sm:col-span-2">
+                <p class="text-xs text-slate-500">Trích yếu</p>
+                <p class="font-medium">{{ decisionByDocument.excerpt || '-' }}</p>
+              </div>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <NuxtLink :to="decisionsPageLink">
+                <Button label="Mở Quyết định" icon="pi pi-file-edit" severity="secondary" size="small" />
+              </NuxtLink>
+            </div>
+          </div>
+          <div v-else class="space-y-3">
+            <p class="text-sm text-slate-600">Văn bản này chưa có metadata quyết định/thông báo liên kết.</p>
+            <NuxtLink :to="createDecisionLink">
+              <Button label="Tạo metadata quyết định/thông báo" icon="pi pi-plus" size="small" />
             </NuxtLink>
           </div>
         </template>

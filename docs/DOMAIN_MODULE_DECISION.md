@@ -1,6 +1,6 @@
 # Domain Module Decision
 
-Cập nhật lần cuối: 2026-06-07
+Cập nhật lần cuối: 2026-06-07 (Phase 10 hoàn thành)
 
 ## Module Đầu Tiên
 
@@ -537,7 +537,9 @@ Lỗi nghiệp vụ: `404` không tìm thấy; `409` trùng decision active cho 
 
 Smoke script đề xuất: `python -m app.scripts.smoke_decision_api`.
 
-## Frontend Dự Kiến (Mục Tiêu 4)
+## Frontend Đã Triển Khai (Mục Tiêu 4)
+
+Mục tiêu 4 đã thêm page `/decisions` theo `page -> composable -> service -> API`.
 
 - Route `/decisions`: bảng list, filter, pagination, form tạo/sửa.
 - Query `document_id` / `create=1` để drill-down từ document detail.
@@ -545,6 +547,6 @@ Smoke script đề xuất: `python -m app.scripts.smoke_decision_api`.
 - Nav item `Quyết định` (hoặc `Quyết định & TB`) trong app shell.
 - Card trên `/documents/[id]` liên kết hai chiều với module decision khi document có metadata module.
 
-## Hướng Dẫn Cho Mục Tiêu Tiếp Theo (Frontend)
+## Hướng Dẫn Cho Phase Sau
 
-Mục tiêu 4 nên thêm page `/decisions` theo `page -> composable -> service -> API`, liên kết hai chiều document detail và smoke `smoke_decision_api` sau khi hoàn tất UI.
+Search filter dashboard theo metadata decision (`decision_kind`, hiệu lực, trạng thái) có thể làm theo pattern contract filter Phase 7 — không bắt buộc trong Phase 10.

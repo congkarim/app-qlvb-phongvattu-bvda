@@ -4,17 +4,18 @@ Cập nhật lần cuối: 2026-06-07
 
 ## Giai Đoạn Hiện Tại
 
-**Phase 0–9 đã hoàn thành.** **Phase 10 - Module Quyết Định Và Thông Báo** đang là phase hiện tại; checklist thực thi trong `TASK_NEXT.md` (chỉ phase đang làm), ưu tiên trong `ROADMAP.md`.
+**Phase 0–10 đã hoàn thành.** Chưa có phase mới trong `ROADMAP.md` / `TASK_NEXT.md`.
 
-Hệ thống chạy on-prem bằng Docker Compose (`api`, `worker`, `web`, `postgres`, `redis`, `qdrant`). Workflow web end-to-end: upload → OCR/extract → searchable → semantic search → review chunk → audit. Module nghiệp vụ MVP: hợp đồng (`/contracts`) và công văn đến/đi (`/dispatches`), liên kết hai chiều với document detail; dashboard lọc search theo metadata hợp đồng.
+Hệ thống chạy on-prem bằng Docker Compose (`api`, `worker`, `web`, `postgres`, `redis`, `qdrant`). Workflow web end-to-end: upload → OCR/extract → searchable → semantic search → RAG Q&A → review chunk → audit. Module nghiệp vụ MVP: hợp đồng (`/contracts`), công văn (`/dispatches`), quyết định/thông báo (`/decisions`) — liên kết hai chiều với document detail; dashboard lọc search theo metadata hợp đồng.
 
-Con trỏ tiếp theo: `TASK_NEXT.md` → Phase 10 / Mục tiêu 4 (Frontend `/decisions` và liên kết document detail).
+Con trỏ tiếp theo: cập nhật `ROADMAP.md` với phase mới trước khi mở checklist trong `TASK_NEXT.md`.
 
 ## Giới Hạn Còn Lại
 
-Ưu tiên Phase 10 (đồng bộ với `ROADMAP.md`):
-- Chưa có module nghiệp vụ thứ ba (quyết định, phiếu vật tư).
+Giới hạn còn lại (gợi ý phase sau, đồng bộ `ROADMAP.md`):
+- Chưa có search filter metadata decision trên dashboard.
 - Chưa có LLM/generator nội bộ nâng cao; RAG hiện extractive từ chunk truy xuất.
+- Chưa có inventory/procurement workflow nhiều bước.
 
 ## Đã Xây Dựng
 
@@ -97,6 +98,7 @@ Frontend skeleton:
   - `/documents/[id]`
   - `/contracts`
   - `/dispatches`
+  - `/decisions`
   - `/users` (admin)
   - `/status` (admin)
 - Cấu trúc service/composable:
@@ -1861,3 +1863,25 @@ Kiểm tra: `py_compile` pass; `smoke_decision_api` pass; `git diff --check` pas
 - Endpoint: list/get/create/update/delete + `GET /decisions/by-document/{document_id}`; filter `decision_kind`, hiệu lực, số văn bản, trạng thái.
 - Audit `decision.created/updated/deleted`; user create/update; admin soft delete (`403` user).
 - Smoke `smoke_decision_api` tái chạy được với cleanup mặc định.
+
+Phase 10 / Mục tiêu 4 — Frontend `/decisions` và liên kết document detail (2026-06-07):
+
+```bash
+WEB_MEMORY_LIMIT=4g docker compose run --rm --no-deps -e NODE_OPTIONS=--max-old-space-size=3072 web npm run build
+docker compose build web && docker run --rm --memory=4g -e NODE_OPTIONS=--max-old-space-size=3072 app-qlvb-phongvattu-web:latest npm run build
+docker compose exec -T api python -m app.scripts.smoke_decision_api
+git diff --check
+```
+
+Kiểm tra:
+- `docker compose run ... npm run build`: client + server compile OK; Nitro báo `EBUSY` khi `rmdir /app/.output` do anonymous volume trong `docker-compose.yml` — build production pass qua `docker compose build web` + `docker run ... npm run build`.
+- `smoke_decision_api` pass; `git diff --check` pass.
+
+Đã bổ sung:
+
+- Types `apps/web/types/decision.ts`, service `decision.service.ts`, composable `useDecisions.ts`, page `/decisions` (list/filter/form CRUD).
+- Nav item **Quyết định** trong `app.vue`.
+- Document detail: card Quyết định & thông báo, liên kết hai chiều (`document_id`/`create=1`, nút Mở Quyết định).
+- Dashboard search preset từ decisions (`business_type=decision`).
+
+**Phase 10 hoàn thành ngày 2026-06-07.** Chưa có phase tiếp theo trong `ROADMAP.md`.
