@@ -863,13 +863,10 @@ Smoke script đề xuất: `python -m app.scripts.smoke_procurement_api`.
 - Nav item `Mua sắm` trong app shell.
 - Nút "Search trong văn bản" preset dashboard (`business_type=procurement`).
 
-## Frontend Dự Kiến (Mục Tiêu 5)
+## Frontend Đã Triển Khai (Mục Tiêu 5)
 
-- Route `/procurements`: bảng list, filter, pagination, form tạo/sửa.
-- Query `document_id` / `create=1` để drill-down từ document detail.
-- Link document nguồn, nút "Search trong văn bản" preset dashboard (`business_type=procurement`, `q`, `reference_number`).
-- Nav item `Mua sắm` (hoặc `Đề xuất & KH`) trong app shell.
-- Card trên `/documents/[id]` liên kết hai chiều với module procurement khi document có metadata module.
+- Card **Mua sắm** trên `/documents/[id]`: metadata, "Mở Mua sắm", "Search trong văn bản", "Tạo metadata mua sắm".
+- Liên kết ngược `/procurements` → document detail + preset dashboard (mục tiêu 4).
 
 ## Thiết Kế Search Filter Procurement (Draft — Mục Tiêu 6 Tùy Chọn)
 
