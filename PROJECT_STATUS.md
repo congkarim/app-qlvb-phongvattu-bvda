@@ -4,17 +4,16 @@ Cập nhật lần cuối: 2026-06-07
 
 ## Giai Đoạn Hiện Tại
 
-**Phase 0–13 đã hoàn thành.** **Phase 14 đang làm** (bắt đầu 2026-06-07; mục tiêu 1–5 hoàn thành).
+**Phase 0–14 đã hoàn thành.** Phase 14 đóng ngày 2026-06-07.
 
-Hệ thống chạy on-prem bằng Docker Compose (`api`, `worker`, `web`, `postgres`, `redis`, `qdrant`). Workflow web end-to-end: upload → OCR/extract → searchable → semantic search → RAG Q&A → review chunk → audit. Module nghiệp vụ MVP: hợp đồng (`/contracts`), công văn (`/dispatches`), quyết định/thông báo (`/decisions`), mua sắm (`/procurements`) — liên kết hai chiều với document detail; dashboard lọc search/RAG theo metadata hợp đồng, công văn, quyết định và mua sắm. RAG citation và search result deep-link tới `#chunk-{id}` trên document detail.
+Hệ thống chạy on-prem bằng Docker Compose (`api`, `worker`, `web`, `postgres`, `redis`, `qdrant`). Workflow web end-to-end: upload → OCR/extract → searchable → semantic search → RAG Q&A → review chunk → audit. Module nghiệp vụ MVP: hợp đồng (`/contracts`), công văn (`/dispatches`), quyết định/thông báo (`/decisions`), mua sắm (`/procurements`) — liên kết hai chiều với document detail; dashboard lọc search/RAG theo metadata hợp đồng, công văn, quyết định và mua sắm. RAG citation và search result deep-link tới `#chunk-{id}` trên document detail. Onboarding metadata module: gợi ý sau OCR, banner document detail, filter list thiếu metadata module.
 
-Con trỏ tiếp theo: Phase 14 / Mục tiêu 6 — smoke onboarding và đóng phase.
+Con trỏ tiếp theo: **chưa lập Phase 15** — xem `ROADMAP.md` (ưu tiên gợi ý: `document_relations`).
 
 ## Giới Hạn Còn Lại
 
 Giới hạn còn lại (đồng bộ `ROADMAP.md`):
-- Document detail đã có banner gợi ý onboarding + CTA pre-fill module; còn thiếu badge/filter list `missing_module_metadata` và smoke end-to-end Phase 14.
-- Chưa có liên kết chéo giữa các document (`document_relations`) — phase sau, không Phase 14.
+- Chưa có liên kết chéo giữa các document (`document_relations`) — phase sau.
 - Chưa có LLM/generator nội bộ nâng cao; RAG hiện extractive từ chunk truy xuất.
 - Inventory/tồn kho, workflow phê duyệt nhiều bước, line items procurement: ngoài scope Phase 14.
 
@@ -2381,7 +2380,7 @@ Kết quả: smoke procurement API, search module filters (gồm procurement), R
 
 ## Phase 14 — Gợi Ý Metadata Module Và Onboarding Sau OCR
 
-Trạng thái: đang làm (bắt đầu 2026-06-07; mục tiêu 1–4 hoàn thành).
+Trạng thái: hoàn thành (2026-06-07).
 
 Mục tiêu phase: nối classifier OCR rule-based với 4 module nghiệp vụ — gợi ý `business_type`, loại module và pre-fill form tạo metadata; không auto-create module record im lặng.
 
@@ -2472,3 +2471,44 @@ Kết quả: client + server compile OK; Nitro `EBUSY` khi `rmdir .output` (anon
 - `DocumentOnboardingBanner.vue` trên `/documents/[id]`: hiện khi searchable, có `target_module`, chưa có module active; low-confidence hiển thị cảnh báo, không chặn workflow.
 - Nút **Áp dụng loại nghiệp vụ** (PATCH metadata `business_type`); nút **Tạo metadata {module}** deep link `?document_id=&create=1` + query pre-fill.
 - `utils/moduleOnboarding.ts`: `buildModuleCreateLink`, `applyRoutePrefill`; 4 trang module hydrate form từ query khi `create=1`.
+
+### Mục tiêu 5 — Document list badge/filter thiếu metadata module (2026-06-07)
+
+Kiểm tra bắt buộc:
+
+```bash
+docker compose exec -T api python -m app.scripts.smoke_api_workflows
+WEB_MEMORY_LIMIT=4g docker compose run --rm --no-deps -e NODE_OPTIONS=--max-old-space-size=3072 web npm run build
+git diff --check
+```
+
+Kết quả: smoke API workflows pass; `smoke_documents_pagination` assert filter `missing_module_metadata`; 13 unit tests pass; web build pass qua `docker compose build web` + `docker run` (EBUSY `.output`); `git diff --check` pass.
+
+**Đã triển khai**
+
+- API list documents: query `missing_module_metadata=true`; response `DocumentListItemRead.missing_module_metadata`.
+- Repository SQL filter: `searchable` + `business_type` module catalog + không có bản ghi active tương ứng.
+- `batch_missing_module_metadata_flags()` enrich flag trên mọi trang list.
+- Frontend `/documents`: filter “Chưa có metadata module”; `BaseDataTable` badge warn.
+
+### Mục tiêu 6 — Smoke onboarding và đóng phase (2026-06-07)
+
+Kiểm tra bắt buộc:
+
+```bash
+docker compose exec -T api python -m app.scripts.smoke_module_onboarding
+docker compose exec -T api python -m app.scripts.smoke_api_workflows
+docker compose exec -T api python -m app.scripts.smoke_procurement_api
+docker compose exec -T api python -m app.scripts.smoke_search_module_filters
+docker compose exec -T api python -m app.scripts.smoke_rag_answer
+docker compose exec -T api python -m app.scripts.check_document_classifier
+WEB_MEMORY_LIMIT=4g docker compose run --rm --no-deps -e NODE_OPTIONS=--max-old-space-size=3072 web npm run build
+git diff --check
+```
+
+Kết quả: tất cả smoke/regression pass; web build pass qua `docker compose build web` + `docker run`; `git diff --check` pass.
+
+**Đã triển khai**
+
+- `smoke_module_onboarding.py`: 5 fixture (`HĐ`, `CV` incoming/outgoing, `QĐ`, `KH`) → onboarding-suggestions → PATCH `business_type` → filter `missing_module_metadata` → POST module pre-fill → verify by-document + filter sau tạo.
+- Phase 14 đóng; `ROADMAP.md` và `TASK_NEXT.md` cập nhật (chưa lập Phase 15).

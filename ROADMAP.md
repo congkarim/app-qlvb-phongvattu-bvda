@@ -13,11 +13,11 @@ Cập nhật lần cuối: 2026-06-07
 
 ## Trạng Thái Hiện Tại
 
-**Lộ trình Phase 0–12 đã hoàn thành.** Hệ thống có thể chạy on-prem bằng Docker Compose với các service `api`, `worker`, `web`, `postgres`, `redis`, `qdrant`.
+**Lộ trình Phase 0–14 đã hoàn thành.** Hệ thống có thể chạy on-prem bằng Docker Compose với các service `api`, `worker`, `web`, `postgres`, `redis`, `qdrant`.
 
 **Phase 13 đã hoàn thành** (2026-06-07): module đề xuất/kế hoạch mua sắm vật tư MVP.
 
-**Phase 14 đã được lập kế hoạch** (chi tiết bên dưới). Bắt đầu thực thi khi cập nhật `TASK_NEXT.md` checklist Phase 14.
+**Phase 14 đã hoàn thành** (2026-06-07): gợi ý metadata module và onboarding sau OCR (API `onboarding-suggestions`, banner document detail, filter list `missing_module_metadata`, smoke `smoke_module_onboarding`).
 
 Đã hoàn thành:
 - Auth local, seed admin, cookie token frontend và RBAC nhẹ cho admin/user.
@@ -39,11 +39,11 @@ Cập nhật lần cuối: 2026-06-07
 - Worker claim atomic, retry policy, queue status endpoint và smoke worker operations.
 - On-prem hardening: env/secret/CORS guard, backup/restore runbook, health/readiness, log policy, compose resource limits.
 - Worker lease timeout, stale-job recovery, ops endpoint job kẹt, runbook upgrade Alembic production, smoke worker stale recovery.
+- Onboarding metadata module sau OCR: `ModuleOnboardingService`, `GET /documents/{id}/onboarding-suggestions`, audit worker `document.onboarding_suggested`, banner/CTA document detail, filter/badge list `missing_module_metadata`.
 
-Giới hạn còn lại (đã gán vào Phase 14 hoặc ngoài scope):
-- Classifier OCR đã trích metadata document nhưng **chưa gợi ý `business_type`** và **chưa onboarding** tạo metadata module (hợp đồng/công văn/quyết định/mua sắm) sau khi searchable → **Phase 14**.
-- Chưa có liên kết chéo giữa các document (ví dụ công văn tham chiếu quyết định, phụ lục thuộc hợp đồng) — **phase sau**, không Phase 14.
-- LLM/generator nội bộ nâng cao, inventory/tồn kho, workflow phê duyệt nhiều bước: **ngoài scope** Phase 14; RAG vẫn extractive local-only.
+Giới hạn còn lại (phase sau hoặc ngoài scope MVP):
+- Chưa có liên kết chéo giữa các document (ví dụ công văn tham chiếu quyết định, phụ lục thuộc hợp đồng) — **phase sau** (`document_relations`).
+- LLM/generator nội bộ nâng cao, inventory/tồn kho, workflow phê duyệt nhiều bước: **ngoài scope** hiện tại; RAG vẫn extractive local-only.
 
 ## Lộ Trình Ưu Tiên
 
@@ -366,7 +366,7 @@ Mục tiêu gợi ý cho `TASK_NEXT.md`:
 
 ### Phase 14 - Gợi Ý Metadata Module Và Onboarding Sau OCR
 
-Trạng thái: đang làm (bắt đầu 2026-06-07; mục tiêu 1–3 hoàn thành).
+Trạng thái: hoàn thành (2026-06-07).
 
 Mục tiêu: rút ngắn khoảng cách giữa classifier OCR rule-based hiện có (`DocumentClassifierService`) và 4 module nghiệp vụ — gợi ý `business_type`, loại module (`dispatch_type`, `decision_kind`, `procurement_kind`) và pre-fill form tạo metadata; **không** tự tạo bản ghi module mà không có xác nhận người dùng.
 
