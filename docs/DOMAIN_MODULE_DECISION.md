@@ -856,7 +856,14 @@ Lỗi nghiệp vụ: `404` không tìm thấy; `409` trùng procurement active c
 
 Smoke script đề xuất: `python -m app.scripts.smoke_procurement_api`.
 
-## Frontend Dự Kiến (Mục Tiêu 4–5)
+## Frontend Đã Triển Khai (Mục Tiêu 4)
+
+- Route `/procurements`: bảng list, filter, pagination, form tạo/sửa — hoàn thành mục tiêu 4.
+- Query `document_id` / `create=1` hỗ trợ drill-down từ document detail (mục tiêu 5).
+- Nav item `Mua sắm` trong app shell.
+- Nút "Search trong văn bản" preset dashboard (`business_type=procurement`).
+
+## Frontend Dự Kiến (Mục Tiêu 5)
 
 - Route `/procurements`: bảng list, filter, pagination, form tạo/sửa.
 - Query `document_id` / `create=1` để drill-down từ document detail.

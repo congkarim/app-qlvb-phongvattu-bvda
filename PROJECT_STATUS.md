@@ -8,12 +8,12 @@ Cập nhật lần cuối: 2026-06-07
 
 Hệ thống chạy on-prem bằng Docker Compose (`api`, `worker`, `web`, `postgres`, `redis`, `qdrant`). Workflow web end-to-end: upload → OCR/extract → searchable → semantic search → RAG Q&A → review chunk → audit. Module nghiệp vụ MVP: hợp đồng (`/contracts`), công văn (`/dispatches`), quyết định/thông báo (`/decisions`) — liên kết hai chiều với document detail; dashboard lọc search/RAG theo metadata hợp đồng, công văn và quyết định. RAG citation và search result deep-link tới `#chunk-{id}` trên document detail.
 
-Con trỏ tiếp theo: Phase 13 / Mục tiêu 4 — frontend `/procurements`.
+Con trỏ tiếp theo: Phase 13 / Mục tiêu 5 — liên kết document detail hai chiều.
 
 ## Giới Hạn Còn Lại
 
 Giới hạn còn lại (đồng bộ `ROADMAP.md`):
-- API `/procurements` đã có; chưa có UI `/procurements` — Phase 13 mục tiêu 4–5.
+- UI `/procurements` đã có; chưa liên kết hai chiều document detail — Phase 13 mục tiêu 5.
 - Chưa có LLM/generator nội bộ nâng cao; RAG hiện extractive từ chunk truy xuất.
 
 ## Đã Xây Dựng
@@ -2317,3 +2317,20 @@ Kết quả: smoke procurement API pass (create/list/filter/update/soft-delete, 
 - Schemas `procurement.py`; audit `procurement.created|updated|deleted`; RBAC giống module trước.
 - `list_document_ids_by_metadata` sẵn sàng cho search filter mục tiêu 6.
 - Smoke: `python -m app.scripts.smoke_procurement_api`.
+
+### Mục tiêu 4 — Frontend `/procurements` (2026-06-07)
+
+Kiểm tra bắt buộc:
+
+```bash
+docker compose build web && docker run --rm --memory=4g -e NODE_OPTIONS=--max-old-space-size=3072 app-qlvb-phongvattu-web:latest npm run build
+git diff --check
+```
+
+Kết quả: frontend build pass; `git diff --check` pass.
+
+**Đã triển khai**
+
+- `types/procurement.ts`, `procurement.service.ts`, `useProcurements.ts`, page `/procurements` (list/filter/form CRUD, pagination).
+- Nav `Mua sắm` trong app shell; preset search dashboard `business_type=procurement`.
+- Query `document_id` / `create=1` sẵn sàng cho liên kết document detail mục tiêu 5.
