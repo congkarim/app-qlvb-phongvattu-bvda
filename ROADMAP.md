@@ -23,7 +23,7 @@ Cập nhật lần cuối: 2026-06-07
 
 **Phase 16 đã hoàn thành** (2026-06-07): gợi ý liên kết document rule-based từ OCR/chunk — `DocumentRelationSuggestionService`, API `relation-suggestions`, subsection **Gợi ý liên kết** trên document detail, apply/dismiss UX, smoke `smoke_relation_suggestions`.
 
-**Phase 17 chưa mở** (dự kiến RAG local LLM). Chi tiết trong `ROADMAP.md`; chưa có checklist `TASK_NEXT.md`.
+**Phase 17 đang làm** (2026-06-07): RAG generative Ollama — checklist `TASK_NEXT.md`. Kế hoạch sizing dev/deploy trong mục Phase 17.
 
 Đã hoàn thành:
 - Auth local, seed admin, cookie token frontend và RBAC nhẹ cho admin/user.
@@ -50,7 +50,7 @@ Cập nhật lần cuối: 2026-06-07
 - Gợi ý liên kết document rule-based: `DocumentRelationSuggestionService`, API `GET /documents/{id}/relation-suggestions`, subsection **Gợi ý liên kết** trên document detail (apply/dismiss), smoke `smoke_relation_suggestions`.
 
 Giới hạn còn lại (đã gán / ngoài scope):
-- LLM/generator nội bộ nâng cao; RAG vẫn extractive local-only → **Phase 17** (dự kiến, chưa mở).
+- RAG generative local LLM (Ollama on-prem, citation bắt buộc, fallback extractive) → **Phase 17** (đã lập kế hoạch, chưa mở).
 - Inventory/tồn kho, workflow phê duyệt nhiều bước, line items procurement → **ngoài scope** Phase 16–17 MVP.
 
 ## Lộ Trình Ưu Tiên
@@ -594,17 +594,255 @@ Mục tiêu gợi ý cho `TASK_NEXT.md`:
 
 ---
 
-### Phase 17 - RAG Local LLM (Dự Kiến, Chưa Mở)
+### Phase 17 - RAG Generative Local LLM (Ollama On-Prem)
 
-Trạng thái: chưa lập chi tiết.
+Trạng thái: **đã lập kế hoạch** (2026-06-07), chưa mở thực thi.
 
-Mục tiêu dự kiến: nâng RAG từ extractive sang **generative local-only** (ví dụ Ollama/vLLM on-prem) với citation bắt buộc, fallback extractive khi model không sẵn sàng.
+Mục tiêu: nâng `POST /api/v1/search/answer` từ **extractive** (ghép câu từ chunk) sang **generative local-only** qua **Ollama**, vẫn **bắt buộc citation** truy vết chunk/document; tự **fallback extractive** khi LLM không sẵn sàng, timeout hoặc không đủ căn cứ.
 
-Ghi chú lập kế hoạch: chỉ mở sau Phase 16; cần đánh giá GPU/RAM on-prem, Docker service mới và runbook vận hành — **không** cloud API.
+Phụ thuộc: Phase 3/9/12 (RAG extractive, dashboard Q&A, citation deep-link `#chunk-{id}`); Phase 6 (on-prem hardening, resource limits); embedding/Qdrant hiện có **không đổi**.
+
+Bối cảnh hiện tại:
+- `RagAnswerService` chỉ `_compose_answer()` bằng cách nối quote từ top citation — đủ MVP, không tổng hợp đa chunk.
+- Retrieval, filter metadata module, rerank và schema `RagCitation` đã ổn — Phase 17 chỉ thêm **lớp generation** sau retrieval.
+- Stack on-prem hiện ~**10 GB RAM limit** tổng (compose defaults); worker OCR là consumer nặng nhất (4 GB). LLM phải **tách service** và **profile Compose** để dev không bắt buộc chạy model.
+
+#### Quyết Định Kiến Trúc (Đề Xuất Chốt Ở Mục Tiêu 1)
+
+| Hạng mục | Quyết định MVP | Lý do |
+|----------|----------------|-------|
+| LLM runtime | **Ollama** (HTTP OpenAI-compatible `/api/chat`) | Cài model offline, một container, dev/prod giống nhau; không thêm Python binding nặng vào `api` |
+| vLLM / llama.cpp server | **Không** trong MVP | vLLM cần GPU + ops phức tạp; llama.cpp tự host kém nhất quán với Docker Compose first |
+| Generation backend | `RAG_GENERATION_BACKEND=extractive \| ollama` | Mặc định `extractive` — CI/smoke/dev máy yếu không cần LLM |
+| Retrieval | Giữ nguyên `SearchService` + Qdrant | Không re-index, không đổi payload |
+| Citation | Bắt buộc; post-validate quote ⊆ chunk retrieved | Tránh hallucination; không citation hợp lệ → fallback |
+| Worker | **Không** gọi LLM | Generation chỉ sync trên request RAG (tránh queue OCR + LLM tranh RAM) |
+
+Luồng đề xuất:
+
+```text
+query + filters
+  -> SearchService.semantic_search (top-k)
+  -> RagContextBuilder (format chunk + metadata cho prompt)
+  -> LocalLLMService.generate (Ollama)  [nếu backend=ollama và healthy]
+  -> CitationValidator (quote khớp chunk, chunk_id ∈ retrieval set)
+  -> response { answer, grounded, generation_mode, citations, fallback_reason? }
+  -> nếu fail bất kỳ bước LLM: RagAnswerService extractive hiện tại
+```
+
+Model đề xuất (tiếng Việt + instruction-following, có trên Ollama library):
+
+| Profile | Model Ollama | Quant | RAM/VRAM ước tính | Ghi chú |
+|---------|--------------|-------|-------------------|---------|
+| Dev / smoke | `qwen2.5:3b-instruct` | Q4_K_M | ~3–4 GB | Đủ cho smoke generative trên CPU; chậm chấp nhận được |
+| Prod CPU | `qwen2.5:7b-instruct` | Q4_K_M | ~6–8 GB | Chất lượng tốt hơn; cần máy ≥32 GB RAM tổng |
+| Prod GPU | `qwen2.5:7b-instruct` | Q4_K_M | ~6 GB VRAM | Latency mục tiêu 3–15 s/câu; khuyến nghị cho phòng ban dùng thật |
+
+Fine-tune / LoRA / model riêng: **ngoài scope** Phase 17 MVP.
+
+#### Tính Toán Tài Nguyên — Baseline Hiện Tại
+
+Giới hạn Compose mặc định (`docs/COMPOSE_RESOURCE_UPLOAD_RUNBOOK.md`):
+
+| Service | CPU limit | RAM limit | Ghi chú |
+|---------|-----------|-----------|---------|
+| postgres | 1 | 1 G | Metadata |
+| redis | 0.5 | 512 M | Queue/cache |
+| qdrant | 1 | 2 G | Vector |
+| api | 1 | 2 G | FastAPI + upload |
+| worker | 2 | 4 G | OCR peak |
+| web | 0.5 | 512 M | Nuxt |
+| **Tổng limit** | **6 CPU** | **~10 G** | Limit ≠ usage thực; worker thường peak 2.5–3.5 G khi OCR |
+
+Embedding (BKAI 384-d, CPU): ~200–400 MB thêm trong worker/api khi load model thật (dev thường `EMBEDDING_BACKEND=fake`).
+
+#### Tính Toán Tài Nguyên — Thêm Ollama
+
+| Profile Compose | Service thêm | RAM thêm (limit) | CPU thêm | GPU | Tổng RAM host khuyến nghị |
+|-----------------|--------------|------------------|----------|-----|---------------------------|
+| **core** (mặc định) | — | 0 | — | — | **8 GB** tối thiểu dev extractive-only |
+| **llm-dev** | `ollama` + model 3B Q4 | **+6 G** | +2 | Không | **16 GB** (core ~8G working + 6G ollama headroom) |
+| **llm-prod-cpu** | `ollama` + model 7B Q4 | **+10 G** | +4 | Không | **32 GB** (core peak + LLM không swap) |
+| **llm-prod-gpu** | `ollama` + model 7B Q4 | **+4 G** | +2 | **≥8 GB VRAM** | **16 GB RAM** host + GPU; OCR worker vẫn CPU |
+
+**Lưu ý vận hành:**
+- Không chạy OCR job lớn và RAG generative **đồng thời** trên máy 16 GB — queue worker hoặc giới hạn `OLLAMA_NUM_PARALLEL=1`.
+- Model file lưu volume `ollama_data` (~2 GB cho 3B, ~5 GB cho 7B Q4) — backup riêng, không vào git.
+- Latency CPU (3B, câu hỏi + 6 chunk context): **15–45 s**; GPU 7B: **3–15 s**. UI phải có loading rõ và timeout backend (`RAG_LLM_TIMEOUT_SECONDS`, đề xuất 120 dev / 90 prod GPU).
+
+#### Cấu Hình Dev
+
+**Mục tiêu:** developer clone repo chạy được ngay **không cần LLM**; bật LLM tùy chọn khi máy đủ RAM.
+
+1. **Mặc định (không profile `llm`):**
+
+```env
+RAG_GENERATION_BACKEND=extractive
+# Ollama service không start
+```
+
+- `docker compose up` như hiện tại — smoke `smoke_rag_answer` pass (extractive).
+- Máy **8 GB RAM** vẫn dev được OCR + search + RAG extractive.
+
+2. **Dev có LLM (`--profile llm`):**
+
+```env
+RAG_GENERATION_BACKEND=ollama
+OLLAMA_BASE_URL=http://ollama:11434
+RAG_LLM_MODEL=qwen2.5:3b-instruct
+RAG_LLM_TIMEOUT_SECONDS=120
+RAG_LLM_MAX_CONTEXT_CHARS=8000
+RAG_LLM_MAX_OUTPUT_TOKENS=512
+RAG_LLM_TEMPERATURE=0.1
+OLLAMA_CPU_LIMIT=2
+OLLAMA_MEMORY_LIMIT=6G
+```
+
+```bash
+# Pull model một lần (trong container ollama)
+docker compose --profile llm up -d
+docker compose exec ollama ollama pull qwen2.5:3b-instruct
+```
+
+- File đề xuất: `docker-compose.yml` thêm service `ollama` với `profiles: [llm]`; `docker-compose.override.example.yml` hoặc `.env.example` ghi biến trên.
+- Readiness: `api` `/health/ready` **không fail** khi Ollama down — chỉ RAG generative fallback; `/ops/system-status` báo `llm: degraded`.
+
+3. **Dev GPU (tùy chọn):** `docker-compose.llm-gpu.yml` override:
+
+```yaml
+services:
+  ollama:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+```
+
+Chỉ dùng khi host có NVIDIA Container Toolkit; không bắt buộc cho MVP.
+
+#### Cấu Hình Deploy Production On-Prem
+
+**Khuyến nghị topology:**
+
+| Quy mô | Topology | Ghi chú |
+|--------|----------|---------|
+| Phòng ban nhỏ (≤10 user) | **All-in-one** — core + ollama trên 1 server 32 GB RAM, GPU nếu có | Đơn giản vận hành |
+| Phòng lớn / OCR nhiều | **Tách LLM** — `OLLAMA_BASE_URL=http://llm-host:11434` trên server GPU riêng | Worker OCR không tranh RAM với 7B |
+| HA | **Không** trong MVP | Một instance Ollama; scale horizontal Phase 18+ nếu cần |
+
+**Production env (ví dụ CPU-only 32 GB):**
+
+```env
+APP_ENV=production
+RAG_GENERATION_BACKEND=ollama
+OLLAMA_BASE_URL=http://ollama:11434
+RAG_LLM_MODEL=qwen2.5:7b-instruct
+RAG_LLM_TIMEOUT_SECONDS=90
+RAG_LLM_MAX_CONTEXT_CHARS=12000
+RAG_LLM_MAX_OUTPUT_TOKENS=768
+RAG_LLM_TEMPERATURE=0.1
+OLLAMA_CPU_LIMIT=4
+OLLAMA_MEMORY_LIMIT=10G
+OLLAMA_MAX_LOADED_MODELS=1
+OLLAMA_NUM_PARALLEL=1
+# Production guard hiện có vẫn áp dụng: JWT, ADMIN_PASSWORD, CORS, DATABASE_URL
+```
+
+**Production env (GPU 8 GB VRAM):**
+
+```env
+RAG_LLM_MODEL=qwen2.5:7b-instruct
+OLLAMA_MEMORY_LIMIT=4G
+OLLAMA_CPU_LIMIT=2
+# compose -f docker-compose.yml -f docker-compose.llm-gpu.yml --profile llm up -d
+```
+
+**Checklist deploy mới (mục tiêu 7 — runbook):**
+- Pull/load model offline trước go-live (`ollama pull` trên máy có internet, export volume hoặc copy `~/.ollama/models`).
+- Mở firewall **chỉ nội bộ** cho port 11434 nếu LLM tách host; không expose public.
+- Giám sát: `/status` hiển thị model loaded, `generation_backend`, latency P95 (log metric đơn giản).
+- Backup: thêm `ollama_data` vào runbook storage (cùng `docs/STORAGE_BACKUP_RESTORE_RUNBOOK.md`).
+
+#### Phạm Vi Kỹ Thuật
+
+**Backend (mục tiêu 2–4)**
+- `LocalLLMService` (Ollama HTTP client): health, chat completion, timeout, structured errors.
+- Settings mới trong `config.py` (mirror pattern `embedding_backend`).
+- `RagGenerativeService` hoặc mở rộng `RagAnswerService`: nhánh `ollama` + fallback extractive.
+- `RagContextBuilder`: format top-k chunk (index, chunk_id, title, số VB, quote snippet) cho prompt tiếng Việt.
+- `CitationValidator`: mọi `[n]` / chunk_id trong answer phải map citation đã retrieve; quote overlap tối thiểu.
+- Schema response mở rộng: `generation_mode: extractive | generative`, `model_name?`, `latency_ms?`, giữ nguyên `citations[]`.
+
+**Prompt MVP (mục tiêu 1 — ghi `DOMAIN_MODULE_DECISION.md`):**
+- System: trả lời tiếng Việt, chỉ dựa context, không bịa, trích `[1]..[n]` mapping chunk index.
+- User: câu hỏi + block context numbered.
+- Post-process: parse citation markers → build `citations[]` giống schema hiện tại.
+
+**Docker Compose (mục tiêu 3)**
+- Service `ollama` (`ollama/ollama` image), profile `llm`, volume `ollama_data`, healthcheck `GET /api/tags`.
+- `api` depends_on `ollama` **chỉ khi** profile active (compose `depends_on` + condition service_started).
+- Override GPU file tách riêng; cập nhật `docs/COMPOSE_RESOURCE_UPLOAD_RUNBOOK.md`.
+
+**Frontend (mục tiêu 5)**
+- Dashboard RAG panel: badge **Extractive** / **Generative (local)**; hiển thị khi fallback (`fallback_reason`, `generation_mode`).
+- Loading state timeout-aware (disable nút Hỏi, message “Đang tổng hợp câu trả lời…”).
+- `/status`: card LLM (model, backend, reachable).
+
+**Ops (mục tiêu 6–7)**
+- `OpsService._get_llm_status()` tương tự embedding.
+- Runbook `docs/RAG_LLM_RUNBOOK.md`: pull model, profile dev/prod, troubleshoot OOM, fallback.
+
+Không làm trong phase này:
+- Cloud LLM / OpenAI API.
+- Fine-tune, RAG agent multi-step, tool calling.
+- Streaming SSE (có thể stretch sau MVP nếu UX cần).
+- Thay embedding model, re-index Qdrant, đổi chunking.
+- LLM trong worker OCR pipeline.
+- vLLM production path (chỉ ghi chú future).
+
+#### Tiêu Chí Hoàn Thành Phase
+
+- Quyết định generation + prompt + validation ghi trong `docs/DOMAIN_MODULE_DECISION.md`.
+- `RAG_GENERATION_BACKEND=extractive` (default): hành vi **identical** Phase 12 — regression `smoke_rag_answer` pass không cần Ollama.
+- `RAG_GENERATION_BACKEND=ollama` + profile `llm`: smoke generative trả lời tổng hợp tiếng Việt, ≥1 citation hợp lệ, `generation_mode=generative`.
+- Ollama down / timeout: API trả extractive + `fallback_reason=llm_unavailable` (hoặc tương đương), không 500.
+- Admin `/status` hiển thị trạng thái LLM.
+- Runbook dev + deploy production (RAM/GPU sizing) trong repo.
+- Frontend build pass; regression Phase 16 smokes pass.
+
+#### Kiểm Tra Bắt Buộc (Mục Tiêu 8)
+
+```bash
+# Không LLM (default CI/dev)
+docker compose exec -T api python -m app.scripts.smoke_rag_answer
+docker compose exec -T api python -m app.scripts.smoke_relation_suggestions
+
+# Có LLM (profile llm, sau khi pull model)
+docker compose --profile llm exec -T api python -m app.scripts.smoke_rag_generative
+
+WEB_MEMORY_LIMIT=4g docker compose run --rm --no-deps -e NODE_OPTIONS=--max-old-space-size=3072 web npm run build
+git diff --check
+```
+
+#### Mục Tiêu Gợi Ý Cho `TASK_NEXT.md`
+
+1. **Thiết kế generative RAG** — prompt, citation validation, env contract (`solution-architect`, `semantic-search-rag`) → `DOMAIN_MODULE_DECISION.md`.
+2. **`LocalLLMService` + settings** — Ollama client, health (`backend-fastapi`).
+3. **Docker Compose profile `llm`** — service ollama, volume, resource limits, GPU override optional (`solution-architect`).
+4. **`RagAnswerService` generative + fallback** — context builder, validator (`semantic-search-rag`).
+5. **API schema + ops LLM status** — mở rộng response `/search/answer`, `/ops/system-status`.
+6. **Frontend dashboard** — generation mode badge, fallback UX, loading (`frontend-nuxt`).
+7. **Runbook** — `RAG_LLM_RUNBOOK.md`, cập nhật `COMPOSE_RESOURCE_UPLOAD_RUNBOOK.md`, `.env.example`.
+8. **Smoke `smoke_rag_generative` + regression + đóng phase** (`project-git-manager`).
+
+---
 
 ## Ghi Chú Lập Kế Hoạch
 
-- `TASK_NEXT.md` chỉ chứa checklist phase đang làm; khi bắt đầu Phase 16, thay nội dung file bằng checklist mục tiêu Phase 16 ở trên.
+- `TASK_NEXT.md` chỉ chứa checklist phase đang làm; khi bắt đầu Phase 17, thay nội dung file bằng checklist 8 mục tiêu Phase 17 ở trên.
 - Con trỏ thực thi: `TASK_NEXT.md` → `PROJECT_STATUS.md` → commit sau mỗi mục tiêu (skill `project-git-manager`).
 - Ưu tiên MVP và maintainability; mỗi module nghiệp vụ mới phải có quyết định scope trong `docs/DOMAIN_MODULE_DECISION.md`.
 - Mỗi mục tiêu phase khi hoàn thành phải auto commit theo quy tắc trong `TASK_NEXT.md`.

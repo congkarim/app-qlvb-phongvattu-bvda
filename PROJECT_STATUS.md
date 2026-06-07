@@ -6,16 +6,16 @@ Cập nhật lần cuối: 2026-06-07
 
 **Phase 0–16 đã hoàn thành.** Phase 16 đóng ngày 2026-06-07.
 
-**Phase 17 chưa mở** (dự kiến RAG local LLM — xem `ROADMAP.md`).
+**Phase 17 đang làm** (bắt đầu 2026-06-07): RAG generative local-only qua Ollama — checklist trong `TASK_NEXT.md`.
 
-Hệ thống chạy on-prem bằng Docker Compose (`api`, `worker`, `web`, `postgres`, `redis`, `qdrant`). Workflow web end-to-end: upload → OCR/extract → searchable → semantic search → RAG Q&A → review chunk → audit. Module nghiệp vụ MVP: hợp đồng (`/contracts`), công văn (`/dispatches`), quyết định/thông báo (`/decisions`), mua sắm (`/procurements`) — liên kết hai chiều với document detail; dashboard lọc search/RAG theo metadata hợp đồng, công văn, quyết định và mua sắm. RAG citation và search result deep-link tới `#chunk-{id}` trên document detail. Onboarding metadata module: gợi ý sau OCR, banner document detail, filter list thiếu metadata module. Liên kết chéo document: card **Văn bản liên quan** trên document detail, filter/badge trên list documents. Gợi ý liên kết document: subsection **Gợi ý liên kết** trên document detail (rule-based, user xác nhận trước khi tạo relation).
+Hệ thống chạy on-prem bằng Docker Compose (`api`, `worker`, `web`, `postgres`, `redis`, `qdrant`). Workflow web end-to-end: upload → OCR/extract → searchable → semantic search → RAG Q&A (extractive) → review chunk → audit. Module nghiệp vụ MVP: hợp đồng, công văn, quyết định, mua sắm — liên kết document detail; gợi ý liên kết document rule-based (Phase 16).
 
-Con trỏ tiếp theo: Phase 17 chưa lập checklist — chờ cập nhật `TASK_NEXT.md` khi mở phase.
+Con trỏ tiếp theo: Phase 17 / Mục tiêu 1 — thiết kế generative RAG, prompt và env contract (`TASK_NEXT.md`).
 
 ## Giới Hạn Còn Lại
 
 Giới hạn còn lại (đồng bộ `ROADMAP.md`):
-- Chưa có LLM/generator nội bộ nâng cao; RAG hiện extractive từ chunk truy xuất → Phase 17 (chưa mở).
+- RAG generative local LLM (Ollama) đang triển khai Phase 17 — hiện extractive-only trên production path.
 - Inventory/tồn kho, workflow phê duyệt nhiều bước, line items procurement: ngoài scope MVP hiện tại.
 
 ## Đã Xây Dựng
