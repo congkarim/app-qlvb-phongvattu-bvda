@@ -1,4 +1,4 @@
-import type { RelationType } from '~/types/document-relation'
+import type { ConfidenceTier, RelationType } from '~/types/document-relation'
 
 export const RELATION_TYPE_OPTIONS: Array<{ label: string; value: RelationType }> = [
   { label: 'Tham chiếu / căn cứ', value: 'references' },
@@ -39,4 +39,14 @@ export function formatRelatedDocumentLabel(
   const number = document.document_number?.trim()
   if (number) return `${number} · ${document.title}`
   return `${document.document_type} · ${document.title}`
+}
+
+export function formatConfidenceTierLabel(tier: ConfidenceTier): string {
+  return tier === 'high' ? 'Độ tin cậy cao' : 'Cần xem lại'
+}
+
+export function relationSuggestionCardClass(tier: ConfidenceTier): string {
+  return tier === 'high'
+    ? 'border-sky-300 bg-sky-50'
+    : 'border-amber-300 bg-amber-50'
 }

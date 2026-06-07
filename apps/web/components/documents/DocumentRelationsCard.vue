@@ -1,12 +1,14 @@
 <script setup lang="ts">
-import type { DocumentRelationsResponse, RelationType } from '~/types/document-relation'
+import type { DocumentRelationsResponse, RelationSuggestion, RelationType } from '~/types/document-relation'
 import { formatDateTime } from '~/utils/format'
 import {
   RELATION_TYPE_OPTIONS,
   documentRelationLink,
+  formatConfidenceTierLabel,
   formatIncomingRelationType,
   formatOutgoingRelationType,
-  formatRelatedDocumentLabel
+  formatRelatedDocumentLabel,
+  relationSuggestionCardClass
 } from '~/utils/documentRelations'
 
 const props = defineProps<{
@@ -23,6 +25,8 @@ const props = defineProps<{
     document_type: string
   }>
   targetSearchLoading?: boolean
+  relationSuggestions?: RelationSuggestion[]
+  relationSuggestionsLoading?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -104,6 +108,44 @@ watch(
     <template #content>
       <Message v-if="error" severity="error">{{ error }}</Message>
       <p v-if="loading" class="text-sm text-slate-600">Đang tải liên kết văn bản...</p>
+
+      <section
+        v-if="relationSuggestionsLoading || (relationSuggestions && relationSuggestions.length)"
+        class="mb-4 space-y-2"
+      >
+        <h3 class="text-sm font-semibold text-slate-800">Gợi ý liên kết</h3>
+        <p v-if="relationSuggestionsLoading" class="text-sm text-slate-600">Đang tải gợi ý liên kết...</p>
+        <div v-else class="space-y-2">
+          <article
+            v-for="(item, index) in relationSuggestions"
+            :key="`${item.target_document_id}-${item.relation_type}-${index}`"
+            class="rounded border p-3 text-sm"
+            :class="relationSuggestionCardClass(item.confidence_tier)"
+          >
+            <div class="flex flex-wrap items-center gap-2">
+              <Tag :value="formatOutgoingRelationType(item.relation_type)" severity="info" />
+              <Tag
+                v-if="item.confidence_tier === 'review'"
+                :value="formatConfidenceTierLabel(item.confidence_tier)"
+                severity="warn"
+              />
+            </div>
+            <NuxtLink
+              :to="documentRelationLink(item.target_document_preview.id)"
+              class="mt-2 block font-medium text-sky-700 hover:underline"
+            >
+              {{ formatRelatedDocumentLabel(item.target_document_preview) }}
+            </NuxtLink>
+            <p class="mt-2 break-words text-slate-700">
+              <span class="font-medium text-slate-800">Trích đoạn:</span>
+              {{ item.source_chunk_quote }}
+            </p>
+            <p class="mt-1 text-xs text-slate-500">
+              Tham chiếu: {{ item.matched_reference }}
+            </p>
+          </article>
+        </div>
+      </section>
 
       <form
         v-if="showAddForm"

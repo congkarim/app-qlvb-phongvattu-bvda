@@ -44,3 +44,23 @@ export interface DocumentRelationDeleteResponse {
   notes?: string | null
   created_at: string
 }
+
+export type ConfidenceTier = 'high' | 'review'
+
+export interface RelationSuggestion {
+  target_document_id: string
+  relation_type: RelationType
+  confidence: number
+  confidence_tier: ConfidenceTier
+  matched_reference: string
+  source_chunk_id: string
+  source_chunk_quote: string
+  target_document_preview: RelatedDocumentSummary
+  reasons: string[]
+}
+
+export interface RelationSuggestionsResponse {
+  document_id: string
+  suggestions: RelationSuggestion[]
+  candidate_count: number
+}

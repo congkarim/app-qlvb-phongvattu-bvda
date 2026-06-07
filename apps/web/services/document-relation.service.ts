@@ -1,7 +1,8 @@
 import type {
   DocumentRelationCreateInput,
   DocumentRelationDeleteResponse,
-  DocumentRelationsResponse
+  DocumentRelationsResponse,
+  RelationSuggestionsResponse
 } from '~/types/document-relation'
 import { useApiClient } from './api'
 
@@ -11,6 +12,9 @@ export function createDocumentRelationService() {
   return {
     list(documentId: string) {
       return api<DocumentRelationsResponse>(`/documents/${documentId}/relations`)
+    },
+    getRelationSuggestions(documentId: string) {
+      return api<RelationSuggestionsResponse>(`/documents/${documentId}/relation-suggestions`)
     },
     create(documentId: string, input: DocumentRelationCreateInput) {
       return api<DocumentRelationsResponse['outgoing'][number]>(`/documents/${documentId}/relations`, {

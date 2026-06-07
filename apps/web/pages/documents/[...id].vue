@@ -82,6 +82,12 @@ const {
   deleteRelation,
   clearRelations
 } = useDocumentRelations()
+const {
+  suggestions: relationSuggestions,
+  loading: relationSuggestionsLoading,
+  fetchRelationSuggestions,
+  clearRelationSuggestions
+} = useDocumentRelationSuggestions()
 let pollTimer: ReturnType<typeof setInterval> | undefined
 const applyingBusinessType = ref(false)
 const reprocessReason = ref('')
@@ -337,6 +343,14 @@ async function refreshDocumentRelations() {
     return
   }
   await fetchRelations(documentId.value)
+}
+
+async function refreshRelationSuggestions() {
+  if (!document.value || document.value.status !== 'searchable') {
+    clearRelationSuggestions()
+    return
+  }
+  await fetchRelationSuggestions(documentId.value)
 }
 
 async function submitCreateDocumentRelation(payload: {
@@ -626,7 +640,11 @@ onMounted(async () => {
   ])
   syncMetadataForm()
   markDetailRefreshed()
-  await Promise.all([refreshOnboardingSuggestions(), refreshDocumentRelations()])
+  await Promise.all([
+    refreshOnboardingSuggestions(),
+    refreshDocumentRelations(),
+    refreshRelationSuggestions()
+  ])
   if (shouldPoll.value) startPolling()
   await focusChunkFromHash()
 })
@@ -641,7 +659,11 @@ watch(documentId, async (value) => {
   ])
   syncMetadataForm()
   markDetailRefreshed()
-  await Promise.all([refreshOnboardingSuggestions(), refreshDocumentRelations()])
+  await Promise.all([
+    refreshOnboardingSuggestions(),
+    refreshDocumentRelations(),
+    refreshRelationSuggestions()
+  ])
   if (shouldPoll.value) startPolling()
   else stopPolling()
   await focusChunkFromHash()
@@ -652,10 +674,11 @@ watch(
   async (status, previousStatus) => {
     if (status === previousStatus) return
     if (status === 'searchable') {
-      await refreshOnboardingSuggestions()
+      await Promise.all([refreshOnboardingSuggestions(), refreshRelationSuggestions()])
       return
     }
     clearOnboardingSuggestions()
+    clearRelationSuggestions()
   }
 )
 
@@ -708,6 +731,8 @@ onBeforeUnmount(() => {
         :error="relationsError"
         :target-search-results="targetSearchResults"
         :target-search-loading="targetSearchLoading"
+        :relation-suggestions="relationSuggestions"
+        :relation-suggestions-loading="relationSuggestionsLoading"
         @create="submitCreateDocumentRelation"
         @delete="submitDeleteDocumentRelation"
         @search-targets="submitSearchRelationTargets"
