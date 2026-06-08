@@ -22,6 +22,10 @@ class ProcurementRecord(UUIDTimestampMixin, Base):
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     document: Mapped["Document"] = relationship(back_populates="procurement_record")
+    line_items: Mapped[list["ProcurementLineItem"]] = relationship(
+        back_populates="procurement",
+        order_by="ProcurementLineItem.line_number",
+    )
 
     __table_args__ = (
         Index(

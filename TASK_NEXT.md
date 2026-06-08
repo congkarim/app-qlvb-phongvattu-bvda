@@ -25,7 +25,7 @@ Phase trước: Phase 17 hoàn thành ngày 2026-06-07.
 
 Phase hiện tại: **Phase 18 — Dòng hàng mua sắm và danh mục vật tư MVP**.
 
-Mục tiêu tiếp theo: **Mục tiêu 2** — migration, model và repository line items.
+Mục tiêu tiếp theo: **Mục tiêu 3** — service, API line items, audit và smoke backend cơ bản.
 
 Regression nhanh trước khi bắt đầu (baseline Phase 17):
 
@@ -63,7 +63,7 @@ Kiểm tra: `git diff --check`.
 
 ### Mục tiêu 2 — Migration, model và repository line items
 
-Trạng thái: **chưa làm** (mục tiêu tiếp theo).
+Trạng thái: **hoàn thành** (2026-06-08).
 
 Skills: `database-designer`, `backend-fastapi`.
 
@@ -87,7 +87,7 @@ git diff --check
 
 ### Mục tiêu 3 — Service, API line items, audit và smoke backend cơ bản
 
-Trạng thái: **chưa làm**.
+Trạng thái: **chưa làm** (mục tiêu tiếp theo).
 
 Skills: `backend-fastapi`.
 

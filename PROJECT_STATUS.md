@@ -4,15 +4,15 @@ Cập nhật lần cuối: 2026-06-08
 
 ## Giai Đoạn Hiện Tại
 
-**Phase 0–17 đã hoàn thành.** **Phase 18 đang thực hiện** — mục tiêu 1 hoàn thành 2026-06-08.
+**Phase 0–17 đã hoàn thành.** **Phase 18 đang thực hiện** — mục tiêu 1–2 hoàn thành 2026-06-08.
 
 **Phase 17 đã hoàn thành** (2026-06-07): RAG generative local-only qua Ollama — `LocalLLMService`, profile Compose `llm`, fallback extractive, ops LLM status, dashboard badge, runbook `docs/RAG_LLM_RUNBOOK.md`, smoke `smoke_rag_generative`.
 
 Hệ thống chạy on-prem bằng Docker Compose (`api`, `worker`, `web`, `postgres`, `redis`, `qdrant`; `ollama` optional profile `llm`). Workflow web end-to-end: upload → OCR/extract → searchable → semantic search → RAG Q&A (extractive hoặc generative local) → review chunk → audit. Module nghiệp vụ MVP: hợp đồng, công văn, quyết định, mua sắm — liên kết document detail; gợi ý liên kết document rule-based (Phase 16).
 
-**Phase 18 đang thực hiện** (2026-06-08): dòng hàng mua sắm (`procurement_line_items`) + danh mục vật tư (`materials_catalog`); mục tiêu 1 — thiết kế scope trong `docs/DOMAIN_MODULE_DECISION.md` § Procurement Line Items — **hoàn thành**.
+**Phase 18 đang thực hiện** (2026-06-08): mục tiêu 1–2 hoàn thành — thiết kế + migration/model/repository `procurement_line_items`.
 
-Con trỏ thực thi: `TASK_NEXT.md` mục tiêu 2 → migration + model + repository line items.
+Con trỏ thực thi: `TASK_NEXT.md` mục tiêu 3 → service + API line items + smoke backend.
 
 ## Giới Hạn Còn Lại
 
@@ -2950,6 +2950,20 @@ Kiểm tra baseline Phase 17 (trước khi bắt đầu):
 - `smoke_rag_answer`: timeout (~28s) trên stack hiện tại — không chặn mục tiêu thiết kế docs; ghi nhận cho regression mục tiêu 8.
 - `git diff --check`: pass.
 
+### Mục tiêu 2 — Migration, model, repository (2026-06-08)
+
+- Migration `0017_procurement_line_items`: bảng `procurement_line_items` (FK `procurement_id`, `line_number`, `item_name`, `item_code`, `unit`, `quantity`, `unit_price`, `amount`, `notes`, audit fields).
+- Model `ProcurementLineItem`; quan hệ `ProcurementRecord.line_items`.
+- `ProcurementLineItemRepository`: list/create/update/soft delete theo `procurement_id`; `get_max_line_number`, `sum_amount_by_procurement_id`.
+- Index: `(procurement_id, line_number)` unique active; `(procurement_id, deleted_at)`; `(item_name, deleted_at)`; `(item_code, deleted_at)`.
+- `catalog_item_id` deferred tới mục tiêu 4 (khi có `materials_catalog`).
+
+Kiểm tra:
+
+- `docker compose exec -T api alembic upgrade head`: pass.
+- `py_compile` model + repository (trong container api): pass.
+- `git diff --check`: pass.
+
 ### Lý do ưu tiên Phase 18
 
 - Phòng vật tư cần tra cứu hồ sơ mua sắm theo **mặt hàng** (tên, mã, số lượng, đơn giá) — metadata cấp hồ sơ Phase 13 chưa đủ.
@@ -2969,7 +2983,7 @@ Kiểm tra baseline Phase 17 (trước khi bắt đầu):
 
 ### Mục tiêu thực thi
 
-Checklist 8 mục tiêu trong `TASK_NEXT.md`. Mục tiêu 1 ✅; tiếp theo mục tiêu 2 (migration + model + repository line items).
+Checklist 8 mục tiêu trong `TASK_NEXT.md`. Mục tiêu 1–2 ✅; tiếp theo mục tiêu 3 (service + API + smoke).
 
 ### Phase 19+ (dự kiến, chưa lập chi tiết)
 

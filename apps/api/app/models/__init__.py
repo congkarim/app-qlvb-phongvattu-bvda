@@ -4,6 +4,7 @@ from app.models.contract import ContractRecord
 from app.models.decision import DecisionRecord
 from app.models.dispatch import DispatchRecord
 from app.models.procurement import ProcurementRecord
+from app.models.procurement_line_item import ProcurementLineItem
 from app.models.department import Department
 from app.models.document import Document, DocumentChunk, DocumentFile, DocumentPage, OCRJob
 from app.models.document_relation import DocumentRelation
@@ -16,6 +17,7 @@ __all__ = [
     "DecisionRecord",
     "DispatchRecord",
     "ProcurementRecord",
+    "ProcurementLineItem",
     "Department",
     "Document",
     "DocumentChunk",
