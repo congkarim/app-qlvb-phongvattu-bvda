@@ -50,6 +50,8 @@ def list_procurements(
     ),
     requested_date_from: date | None = Query(default=None),
     requested_date_to: date | None = Query(default=None),
+    item_name: str | None = Query(default=None, max_length=512),
+    item_code: str | None = Query(default=None, max_length=64),
     sort_by: str = Query(
         default="created_at",
         pattern="^(created_at|updated_at|reference_number|procurement_kind|requesting_unit|status|requested_date|estimated_value)$",
@@ -69,6 +71,8 @@ def list_procurements(
             status=status_filter,
             requested_date_from=requested_date_from,
             requested_date_to=requested_date_to,
+            item_name=item_name,
+            item_code=item_code,
             sort_by=sort_by,
             sort_dir=sort_dir,
         )

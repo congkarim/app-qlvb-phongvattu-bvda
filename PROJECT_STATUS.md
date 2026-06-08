@@ -4,15 +4,15 @@ Cập nhật lần cuối: 2026-06-08
 
 ## Giai Đoạn Hiện Tại
 
-**Phase 0–17 đã hoàn thành.** **Phase 18 đang thực hiện** — mục tiêu 1–5 hoàn thành 2026-06-08.
+**Phase 0–17 đã hoàn thành.** **Phase 18 đang thực hiện** — mục tiêu 1–7 hoàn thành 2026-06-08 (mục tiêu 6 bỏ qua).
 
 **Phase 17 đã hoàn thành** (2026-06-07): RAG generative local-only qua Ollama — `LocalLLMService`, profile Compose `llm`, fallback extractive, ops LLM status, dashboard badge, runbook `docs/RAG_LLM_RUNBOOK.md`, smoke `smoke_rag_generative`.
 
 Hệ thống chạy on-prem bằng Docker Compose (`api`, `worker`, `web`, `postgres`, `redis`, `qdrant`; `ollama` optional profile `llm`). Workflow web end-to-end: upload → OCR/extract → searchable → semantic search → RAG Q&A (extractive hoặc generative local) → review chunk → audit. Module nghiệp vụ MVP: hợp đồng, công văn, quyết định, mua sắm — liên kết document detail; gợi ý liên kết document rule-based (Phase 16).
 
-**Phase 18 đang thực hiện** (2026-06-08): mục tiêu 1–5 hoàn thành — line items + materials catalog API + frontend UI.
+**Phase 18 đang thực hiện** (2026-06-08): mục tiêu 1–7 hoàn thành — line items + catalog + frontend + filter search theo mặt hàng.
 
-Con trỏ thực thi: `TASK_NEXT.md` mục tiêu 6 (tùy chọn OCR) hoặc mục tiêu 7 (filter search theo mặt hàng).
+Con trỏ thực thi: `TASK_NEXT.md` mục tiêu 8 — regression và đóng phase.
 
 ## Giới Hạn Còn Lại
 
@@ -2933,7 +2933,7 @@ Kết quả: extractive + relation smokes pass; 7 unit tests pass; generative sm
 
 ## Phase 18 — Dòng Hàng Mua Sắm Và Danh Mục Vật Tư MVP
 
-Trạng thái: **đang thực hiện** — mục tiêu 1–5 hoàn thành (2026-06-08).
+Trạng thái: **đang thực hiện** — mục tiêu 1–7 hoàn thành (2026-06-08); mục tiêu 6 bỏ qua.
 
 ### Mục tiêu 1 — Thiết kế scope (2026-06-08)
 
@@ -3009,6 +3009,26 @@ Kiểm tra:
 - `WEB_MEMORY_LIMIT=4g docker compose run --rm --no-deps -e NODE_OPTIONS=--max-old-space-size=3072 web npm run build`: pass.
 - `git diff --check`: pass.
 
+### Mục tiêu 6 — Gợi ý OCR (bỏ qua, 2026-06-08)
+
+- Không triển khai trong Phase 18 MVP: heuristic bảng vật tư từ OCR chưa đủ tin cậy; ghi nhận cho Phase 19+ nếu cần.
+
+### Mục tiêu 7 — Filter list/search theo mặt hàng (2026-06-08)
+
+**Triển khai**
+
+- `ProcurementRepository`: filter `item_name` / `item_code` qua `EXISTS` join `procurement_line_items` active; mở rộng `list_document_ids_by_metadata`.
+- API `GET /procurements`: query `item_name`, `item_code`.
+- `SearchService`: tham số `procurement_item_name`, `procurement_item_code` pre-resolve `document_id`; router search/RAG truyền tham số.
+- Frontend: filter trên `procurements.vue` và dashboard procurement filters.
+- Smoke: `smoke_procurement_line_items` (list filter), `smoke_search_module_filters` (semantic search item filter).
+
+Kiểm tra:
+
+- `docker compose exec -T api python -m app.scripts.smoke_procurement_line_items`: pass.
+- `docker compose exec -T api python -m app.scripts.smoke_search_module_filters`: pass.
+- `git diff --check`: pass.
+
 ### Lý do ưu tiên Phase 18
 
 - Phòng vật tư cần tra cứu hồ sơ mua sắm theo **mặt hàng** (tên, mã, số lượng, đơn giá) — metadata cấp hồ sơ Phase 13 chưa đủ.
@@ -3028,7 +3048,7 @@ Kiểm tra:
 
 ### Mục tiêu thực thi
 
-Checklist 8 mục tiêu trong `TASK_NEXT.md`. Mục tiêu 1–5 ✅; tiếp theo mục tiêu 6 (tùy chọn) hoặc mục tiêu 7.
+Checklist 8 mục tiêu trong `TASK_NEXT.md`. Mục tiêu 1–5, 7 ✅; mục tiêu 6 bỏ qua; tiếp theo mục tiêu 8 (regression, đóng phase).
 
 ### Phase 19+ (dự kiến, chưa lập chi tiết)
 

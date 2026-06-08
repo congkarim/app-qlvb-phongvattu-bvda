@@ -207,6 +207,34 @@ def run_smoke(*, api_base: str, keep_data: bool) -> dict[str, Any]:
         )
         _assert(listed_after_update["lines_total_amount"] == "1640000.00", "Total after update mismatch")
 
+        filtered_by_name = _request_json(
+            "GET",
+            f"{api_base}/procurements?item_name=Giay",
+            token=user_token,
+        )
+        _assert(filtered_by_name["total"] >= 1, "Procurement list item_name filter returned no rows")
+        _assert(
+            any(item["id"] == created_procurement_id for item in filtered_by_name["items"]),
+            "Procurement list item_name filter missing smoke procurement",
+        )
+
+        filtered_by_code = _request_json(
+            "GET",
+            f"{api_base}/procurements?item_code=VT-002",
+            token=user_token,
+        )
+        _assert(
+            any(item["id"] == created_procurement_id for item in filtered_by_code.get("items", [])),
+            "Procurement list item_code filter missing smoke procurement",
+        )
+
+        filtered_empty = _request_json(
+            "GET",
+            f"{api_base}/procurements?item_name=VT-NONEXISTENT-ITEM",
+            token=user_token,
+        )
+        _assert(filtered_empty["total"] == 0, "Procurement list item_name filter should return empty for miss")
+
         _expect_http_status(
             "DELETE",
             f"{api_base}/procurement-line-items/{line2['id']}",

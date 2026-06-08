@@ -40,6 +40,8 @@ export interface ProcurementListFilters {
   reference_number?: string
   requesting_unit?: string
   status?: ProcurementStatus | ''
+  item_name?: string
+  item_code?: string
   requested_date_from?: string
   requested_date_to?: string
   sort_by?:

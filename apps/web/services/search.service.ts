@@ -54,7 +54,9 @@ function normalizeSearchPayload(
     'effective_from',
     'effective_to',
     'reference_number',
-    'requesting_unit'
+    'requesting_unit',
+    'procurement_item_name',
+    'procurement_item_code'
   ] as const) {
     const value = filters[key]?.trim()
     if (value) payload[key] = value

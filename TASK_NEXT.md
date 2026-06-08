@@ -25,7 +25,7 @@ Phase trước: Phase 17 hoàn thành ngày 2026-06-07.
 
 Phase hiện tại: **Phase 18 — Dòng hàng mua sắm và danh mục vật tư MVP**.
 
-Mục tiêu tiếp theo: **Mục tiêu 6** (tùy chọn) — gợi ý dòng hàng từ OCR rule-based; hoặc **Mục tiêu 7** nếu bỏ qua mục tiêu 6.
+Mục tiêu tiếp theo: **Mục tiêu 8** — regression và hoàn tất phase.
 
 Regression nhanh trước khi bắt đầu (baseline Phase 17):
 
@@ -39,7 +39,7 @@ docker compose exec -T api python -m app.scripts.smoke_health_checks
 
 ## Phase 18 — Dòng Hàng Mua Sắm Và Danh Mục Vật Tư MVP
 
-Trạng thái phase: **đang làm** (mục tiêu 1–5 hoàn thành 2026-06-08).
+Trạng thái phase: **đang làm** (mục tiêu 1–7 hoàn thành 2026-06-08; mục tiêu 6 bỏ qua).
 
 Phạm vi: mở rộng `procurement_records` với bảng `procurement_line_items` và `materials_catalog` (autocomplete); filter search/list theo mặt hàng; **không** tồn kho, **không** workflow phê duyệt nhiều bước. Chi tiết: `ROADMAP.md` § Phase 18.
 
@@ -160,7 +160,7 @@ git diff --check
 
 ### Mục tiêu 6 — (Tùy chọn) Gợi ý dòng hàng từ OCR rule-based
 
-Trạng thái: **chưa làm** (mục tiêu tiếp theo nếu làm).
+Trạng thái: **bỏ qua** (2026-06-08) — heuristic chưa đủ tin cậy cho MVP; có thể mở lại Phase 19+.
 
 Skills: `ocr-pipeline`, `vn-admin-doc-ocr-classifier`, `backend-fastapi`.
 
@@ -178,7 +178,7 @@ Kiểm tra: smoke mở rộng hoặc unit test parser; regression `check_documen
 
 ### Mục tiêu 7 — Filter list/search theo mặt hàng
 
-Trạng thái: **chưa làm**.
+Trạng thái: **hoàn thành** (2026-06-08).
 
 Skills: `semantic-search-rag`, `backend-fastapi`, `frontend-nuxt`.
 
@@ -203,7 +203,7 @@ git diff --check
 
 ### Mục tiêu 8 — Regression, hoàn tất phase
 
-Trạng thái: **chưa làm**.
+Trạng thái: **chưa làm** (mục tiêu tiếp theo).
 
 Skills: `project-git-manager`.
 

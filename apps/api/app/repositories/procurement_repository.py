@@ -1,10 +1,11 @@
 from datetime import date, datetime, timezone
 
-from sqlalchemy import asc, desc, func, or_, select
+from sqlalchemy import asc, desc, exists, func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.models.document import Document
 from app.models.procurement import ProcurementRecord
+from app.models.procurement_line_item import ProcurementLineItem
 
 
 class ProcurementRepository:
@@ -38,6 +39,8 @@ class ProcurementRepository:
         reference_number: str | None = None,
         requesting_unit: str | None = None,
         status: str | None = None,
+        item_name: str | None = None,
+        item_code: str | None = None,
     ) -> list[str]:
         stmt = (
             select(ProcurementRecord.document_id)
@@ -51,6 +54,8 @@ class ProcurementRepository:
                 status=status,
                 requested_date_from=None,
                 requested_date_to=None,
+                item_name=item_name,
+                item_code=item_code,
             ))
         )
         return list(self.db.scalars(stmt))
@@ -80,6 +85,8 @@ class ProcurementRepository:
         status: str | None = None,
         requested_date_from: date | None = None,
         requested_date_to: date | None = None,
+        item_name: str | None = None,
+        item_code: str | None = None,
         sort_by: str = "created_at",
         sort_dir: str = "desc",
     ) -> list[ProcurementRecord]:
@@ -95,6 +102,8 @@ class ProcurementRepository:
                 status=status,
                 requested_date_from=requested_date_from,
                 requested_date_to=requested_date_to,
+                item_name=item_name,
+                item_code=item_code,
             ))
             .options(selectinload(ProcurementRecord.document))
         )
@@ -125,6 +134,8 @@ class ProcurementRepository:
         status: str | None = None,
         requested_date_from: date | None = None,
         requested_date_to: date | None = None,
+        item_name: str | None = None,
+        item_code: str | None = None,
     ) -> int:
         stmt = (
             select(func.count(ProcurementRecord.id))
@@ -138,6 +149,8 @@ class ProcurementRepository:
                 status=status,
                 requested_date_from=requested_date_from,
                 requested_date_to=requested_date_to,
+                item_name=item_name,
+                item_code=item_code,
             ))
         )
         return int(self.db.scalar(stmt) or 0)
@@ -172,6 +185,8 @@ class ProcurementRepository:
         status: str | None,
         requested_date_from: date | None,
         requested_date_to: date | None,
+        item_name: str | None,
+        item_code: str | None,
     ):
         conditions = [ProcurementRecord.deleted_at.is_(None), Document.deleted_at.is_(None)]
         if query:
@@ -199,4 +214,25 @@ class ProcurementRepository:
             conditions.append(ProcurementRecord.requested_date >= requested_date_from)
         if requested_date_to:
             conditions.append(ProcurementRecord.requested_date <= requested_date_to)
+        line_item_condition = self._line_item_exists_condition(item_name=item_name, item_code=item_code)
+        if line_item_condition is not None:
+            conditions.append(line_item_condition)
         return conditions
+
+    def _line_item_exists_condition(
+        self,
+        *,
+        item_name: str | None,
+        item_code: str | None,
+    ):
+        if not item_name and not item_code:
+            return None
+        line_conditions = [
+            ProcurementLineItem.procurement_id == ProcurementRecord.id,
+            ProcurementLineItem.deleted_at.is_(None),
+        ]
+        if item_name:
+            line_conditions.append(ProcurementLineItem.item_name.ilike(f"%{item_name}%"))
+        if item_code:
+            line_conditions.append(ProcurementLineItem.item_code.ilike(f"%{item_code}%"))
+        return exists(select(ProcurementLineItem.id).where(*line_conditions))

@@ -38,6 +38,8 @@ class SemanticSearchRequest(BaseModel):
     procurement_status: ProcurementStatus | None = None
     reference_number: str | None = Field(default=None, max_length=128)
     requesting_unit: str | None = Field(default=None, max_length=255)
+    procurement_item_name: str | None = Field(default=None, max_length=512)
+    procurement_item_code: str | None = Field(default=None, max_length=64)
 
 
 class SemanticSearchResult(BaseModel):

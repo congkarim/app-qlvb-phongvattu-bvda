@@ -17,6 +17,7 @@ from app.models.contract import ContractRecord
 from app.models.decision import DecisionRecord
 from app.models.dispatch import DispatchRecord
 from app.models.procurement import ProcurementRecord
+from app.models.procurement_line_item import ProcurementLineItem
 from app.models.document import Document, DocumentChunk, DocumentFile, DocumentPage
 from app.repositories.contract_repository import ContractRepository
 from app.repositories.decision_repository import DecisionRepository
@@ -178,6 +179,39 @@ def run_smoke(*, api_base: str, keep_data: bool) -> dict[str, Any]:
         _assert(
             not empty_procurement_search.get("results"),
             "Procurement kind acceptance should return empty for plan smoke record",
+        )
+
+        item_name_filter = f"Giay A4 filter smoke {seed['item_suffix']}"
+        procurement_item_search = _request_json(
+            "POST",
+            f"{api_base}/search/semantic",
+            token=admin_token,
+            payload={
+                "query": seed["procurement_query"],
+                "limit": 5,
+                "procurement_item_name": item_name_filter,
+            },
+        )
+        procurement_item_results = procurement_item_search.get("results", [])
+        _assert(procurement_item_results, "Procurement item_name filter returned no results")
+        _assert(
+            all(result.get("document_id") == seed["procurement_document_id"] for result in procurement_item_results),
+            "Procurement item_name filter returned chunks from other documents",
+        )
+
+        empty_item_search = _request_json(
+            "POST",
+            f"{api_base}/search/semantic",
+            token=admin_token,
+            payload={
+                "query": seed["procurement_query"],
+                "limit": 5,
+                "procurement_item_name": "VT-NONEXISTENT-ITEM",
+            },
+        )
+        _assert(
+            not empty_item_search.get("results"),
+            "Procurement item_name nonexistent should return empty",
         )
 
         rag_answer = _request_json(
@@ -386,6 +420,19 @@ def _seed_smoke_data(*, db, qdrant: QdrantService) -> dict[str, str]:
         status="approved",
         currency="VND",
     )
+    item_name = f"Giay A4 filter smoke {suffix}"
+    db.add(
+        ProcurementLineItem(
+            procurement_id=procurement.id,
+            line_number=1,
+            item_name=item_name,
+            item_code=f"VT-FILTER-{suffix}",
+            unit="Ram",
+            quantity=10,
+            unit_price=85000,
+            amount=850000,
+        )
+    )
     db.commit()
     db.refresh(dispatch_chunk)
     db.refresh(decision_chunk)
@@ -420,6 +467,7 @@ def _seed_smoke_data(*, db, qdrant: QdrantService) -> dict[str, str]:
         "procurement_query": procurement_query,
         "supplier_name": supplier_name,
         "reference_number": reference_number,
+        "item_suffix": suffix,
     }
 
 
@@ -492,6 +540,11 @@ def _cleanup_created_data(*, db, qdrant: QdrantService, document_id: str) -> Non
         record.deleted_at = deleted_at
         db.add(record)
     for record in db.scalars(select(ProcurementRecord).where(ProcurementRecord.document_id == document_id)):
+        for line_item in db.scalars(
+            select(ProcurementLineItem).where(ProcurementLineItem.procurement_id == record.id)
+        ):
+            line_item.deleted_at = deleted_at
+            db.add(line_item)
         record.deleted_at = deleted_at
         db.add(record)
     document = db.get(Document, document_id)

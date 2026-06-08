@@ -46,6 +46,8 @@ class SearchService:
         procurement_status: str | None = None,
         reference_number: str | None = None,
         requesting_unit: str | None = None,
+        procurement_item_name: str | None = None,
+        procurement_item_code: str | None = None,
     ) -> list[dict]:
         module_document_ids = self._resolve_module_document_ids(
             contract_number=contract_number,
@@ -63,6 +65,8 @@ class SearchService:
             procurement_status=procurement_status,
             reference_number=reference_number,
             requesting_unit=requesting_unit,
+            procurement_item_name=procurement_item_name,
+            procurement_item_code=procurement_item_code,
         )
         if module_document_ids is not None and not module_document_ids:
             return []
@@ -234,6 +238,8 @@ class SearchService:
         procurement_status: str | None,
         reference_number: str | None,
         requesting_unit: str | None,
+        procurement_item_name: str | None,
+        procurement_item_code: str | None,
     ) -> set[str] | None:
         active_sets: list[set[str]] = []
         for resolved in (
@@ -261,6 +267,8 @@ class SearchService:
                 procurement_status=procurement_status,
                 reference_number=reference_number,
                 requesting_unit=requesting_unit,
+                procurement_item_name=procurement_item_name,
+                procurement_item_code=procurement_item_code,
             ),
         ):
             if resolved is None:
@@ -344,16 +352,27 @@ class SearchService:
         procurement_status: str | None,
         reference_number: str | None,
         requesting_unit: str | None,
+        procurement_item_name: str | None = None,
+        procurement_item_code: str | None = None,
     ) -> set[str] | None:
         if self.db is None:
             return None
-        if not any([procurement_kind, procurement_status, reference_number, requesting_unit]):
+        if not any([
+            procurement_kind,
+            procurement_status,
+            reference_number,
+            requesting_unit,
+            procurement_item_name,
+            procurement_item_code,
+        ]):
             return None
         document_ids = ProcurementRepository(self.db).list_document_ids_by_metadata(
             procurement_kind=procurement_kind,
             reference_number=reference_number,
             requesting_unit=requesting_unit,
             status=procurement_status,
+            item_name=procurement_item_name,
+            item_code=procurement_item_code,
         )
         return set(document_ids)
 

@@ -44,11 +44,15 @@ class ProcurementService:
         status: str | None,
         requested_date_from,
         requested_date_to,
+        item_name: str | None,
+        item_code: str | None,
         sort_by: str,
         sort_dir: str,
     ) -> tuple[list[dict[str, Any]], int]:
         procurement_kind = self._validate_procurement_kind(procurement_kind, allow_none=True)
         status = self._validate_status(status, allow_none=True)
+        normalized_item_name = self._normalize_text(item_name)
+        normalized_item_code = self._normalize_text(item_code)
         items = self.procurements.list_procurements(
             limit=limit,
             offset=offset,
@@ -60,6 +64,8 @@ class ProcurementService:
             status=status,
             requested_date_from=requested_date_from,
             requested_date_to=requested_date_to,
+            item_name=normalized_item_name,
+            item_code=normalized_item_code,
             sort_by=sort_by,
             sort_dir=sort_dir,
         )
@@ -72,6 +78,8 @@ class ProcurementService:
             status=status,
             requested_date_from=requested_date_from,
             requested_date_to=requested_date_to,
+            item_name=normalized_item_name,
+            item_code=normalized_item_code,
         )
         return [self._read(record) for record in items], total
 

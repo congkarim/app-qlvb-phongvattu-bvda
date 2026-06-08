@@ -56,6 +56,8 @@ class SearchBackend(Protocol):
         procurement_status: str | None = None,
         reference_number: str | None = None,
         requesting_unit: str | None = None,
+        procurement_item_name: str | None = None,
+        procurement_item_code: str | None = None,
     ) -> list[dict]:
         ...
 
@@ -122,6 +124,8 @@ class RagAnswerService:
         procurement_status: str | None = None,
         reference_number: str | None = None,
         requesting_unit: str | None = None,
+        procurement_item_name: str | None = None,
+        procurement_item_code: str | None = None,
     ) -> dict:
         results = self.search.semantic_search(
             query=query,
@@ -148,6 +152,8 @@ class RagAnswerService:
             procurement_status=procurement_status,
             reference_number=reference_number,
             requesting_unit=requesting_unit,
+            procurement_item_name=procurement_item_name,
+            procurement_item_code=procurement_item_code,
         )
         evidence = [
             result

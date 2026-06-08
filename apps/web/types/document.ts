@@ -279,6 +279,8 @@ export interface SemanticSearchFilters {
   procurement_status?: ProcurementStatus | ''
   reference_number?: string
   requesting_unit?: string
+  procurement_item_name?: string
+  procurement_item_code?: string
 }
 
 export interface RagCitation {

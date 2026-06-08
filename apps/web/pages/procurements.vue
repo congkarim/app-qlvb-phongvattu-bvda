@@ -26,7 +26,7 @@ const {
 } = useProcurements()
 
 const filters = reactive<
-  Required<Pick<ProcurementListFilters, 'q' | 'procurement_kind' | 'requesting_unit' | 'status' | 'sort_by' | 'sort_dir'>> & {
+  Required<Pick<ProcurementListFilters, 'q' | 'procurement_kind' | 'requesting_unit' | 'status' | 'sort_by' | 'sort_dir' | 'item_name' | 'item_code'>> & {
     document_id: string
   }
 >({
@@ -36,7 +36,9 @@ const filters = reactive<
   status: '',
   sort_by: 'created_at',
   sort_dir: 'desc',
-  document_id: ''
+  document_id: '',
+  item_name: '',
+  item_code: ''
 })
 
 const form = reactive<ProcurementInput>({
@@ -102,6 +104,8 @@ function currentFilters(): ProcurementListFilters {
     sort_by: filters.sort_by,
     sort_dir: filters.sort_dir,
     document_id: filters.document_id || undefined,
+    item_name: filters.item_name || undefined,
+    item_code: filters.item_code || undefined,
     limit: procurementsLimit.value,
     offset: procurementsOffset.value
   }
@@ -120,6 +124,8 @@ function resetFilters() {
   filters.sort_by = 'created_at'
   filters.sort_dir = 'desc'
   filters.document_id = ''
+  filters.item_name = ''
+  filters.item_code = ''
   void loadProcurements(true)
 }
 
@@ -280,6 +286,16 @@ onMounted(async () => {
           <InputText
             v-model="filters.requesting_unit"
             placeholder="Đơn vị đề xuất"
+            @keyup.enter="loadProcurements(true)"
+          />
+          <InputText
+            v-model="filters.item_name"
+            placeholder="Tên vật tư"
+            @keyup.enter="loadProcurements(true)"
+          />
+          <InputText
+            v-model="filters.item_code"
+            placeholder="Mã vật tư"
             @keyup.enter="loadProcurements(true)"
           />
           <select v-model="filters.status" class="rounded border border-slate-300 px-3 py-2 text-sm">

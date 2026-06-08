@@ -38,6 +38,8 @@ def semantic_search(payload: SemanticSearchRequest, db: Session = Depends(get_db
         procurement_status=payload.procurement_status,
         reference_number=payload.reference_number,
         requesting_unit=payload.requesting_unit,
+        procurement_item_name=payload.procurement_item_name,
+        procurement_item_code=payload.procurement_item_code,
     )
     return SemanticSearchResponse(query=payload.query, results=results)
 
@@ -71,5 +73,7 @@ def rag_answer(payload: RagAnswerRequest, db: Session = Depends(get_db)) -> RagA
         procurement_status=payload.procurement_status,
         reference_number=payload.reference_number,
         requesting_unit=payload.requesting_unit,
+        procurement_item_name=payload.procurement_item_name,
+        procurement_item_code=payload.procurement_item_code,
     )
     return RagAnswerResponse(**answer)

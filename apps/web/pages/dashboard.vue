@@ -63,7 +63,9 @@ const filters = reactive<SemanticSearchFilters>({
   procurement_kind: '',
   procurement_status: '',
   reference_number: '',
-  requesting_unit: ''
+  requesting_unit: '',
+  procurement_item_name: '',
+  procurement_item_code: ''
 })
 
 const reviewQueueFilters = reactive<ReviewQueueFilters>({
@@ -274,6 +276,8 @@ function resetFilters() {
   filters.procurement_status = ''
   filters.reference_number = ''
   filters.requesting_unit = ''
+  filters.procurement_item_name = ''
+  filters.procurement_item_code = ''
 }
 
 function formatContractStatus(value?: string | null) {
@@ -413,6 +417,8 @@ function applyRouteSearchPresets() {
   }
   if (routeQueryValue('reference_number')) filters.reference_number = routeQueryValue('reference_number')
   if (routeQueryValue('requesting_unit')) filters.requesting_unit = routeQueryValue('requesting_unit')
+  if (routeQueryValue('procurement_item_name')) filters.procurement_item_name = routeQueryValue('procurement_item_name')
+  if (routeQueryValue('procurement_item_code')) filters.procurement_item_code = routeQueryValue('procurement_item_code')
 
   return routeQueryValue('q')
 }
@@ -654,6 +660,8 @@ onMounted(async () => {
               </select>
               <InputText v-model="filters.reference_number" placeholder="Số tham chiếu MS" />
               <InputText v-model="filters.requesting_unit" placeholder="Đơn vị đề xuất" />
+              <InputText v-model="filters.procurement_item_name" placeholder="Tên vật tư" />
+              <InputText v-model="filters.procurement_item_code" placeholder="Mã vật tư" />
             </template>
           </div>
           <div class="flex flex-wrap gap-2">
