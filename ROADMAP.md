@@ -13,7 +13,7 @@ Cập nhật lần cuối: 2026-06-07
 
 ## Trạng Thái Hiện Tại
 
-**Lộ trình Phase 0–17 đã hoàn thành.** Hệ thống có thể chạy on-prem bằng Docker Compose với các service `api`, `worker`, `web`, `postgres`, `redis`, `qdrant` (và `ollama` optional profile `llm`).
+**Lộ trình Phase 0–17 đã hoàn thành.** Phase 18 đã lập kế hoạch (chưa bắt đầu code). Hệ thống có thể chạy on-prem bằng Docker Compose với các service `api`, `worker`, `web`, `postgres`, `redis`, `qdrant` (và `ollama` optional profile `llm`).
 
 **Phase 13 đã hoàn thành** (2026-06-07): module đề xuất/kế hoạch mua sắm vật tư MVP.
 
@@ -24,6 +24,8 @@ Cập nhật lần cuối: 2026-06-07
 **Phase 16 đã hoàn thành** (2026-06-07): gợi ý liên kết document rule-based từ OCR/chunk — `DocumentRelationSuggestionService`, API `relation-suggestions`, subsection **Gợi ý liên kết** trên document detail, apply/dismiss UX, smoke `smoke_relation_suggestions`.
 
 **Phase 17 đã hoàn thành** (2026-06-07): RAG generative Ollama on-prem — `LocalLLMService`, profile Compose `llm`, fallback extractive, ops/dashboard UX, runbook `docs/RAG_LLM_RUNBOOK.md`, smoke `smoke_rag_generative`.
+
+**Phase 18 đã lập kế hoạch** (2026-06-07): dòng hàng mua sắm (`procurement_line_items`) + danh mục vật tư (`materials_catalog`) — chưa bắt đầu code; checklist `TASK_NEXT.md`.
 
 Đã hoàn thành:
 - Auth local, seed admin, cookie token frontend và RBAC nhẹ cho admin/user.
@@ -50,9 +52,12 @@ Cập nhật lần cuối: 2026-06-07
 - Gợi ý liên kết document rule-based: `DocumentRelationSuggestionService`, API `GET /documents/{id}/relation-suggestions`, subsection **Gợi ý liên kết** trên document detail (apply/dismiss), smoke `smoke_relation_suggestions`.
 - RAG generative local LLM (Ollama): `LocalLLMService`, profile Compose `llm`, `RagContextBuilder`/`CitationValidator`, fallback extractive, ops LLM status, dashboard badge generative/extractive, runbook `docs/RAG_LLM_RUNBOOK.md`, smoke `smoke_rag_generative`.
 
-Giới hạn còn lại (đã gán / ngoài scope):
-- Inventory/tồn kho, workflow phê duyệt nhiều bước, line items procurement → **ngoài scope** MVP hiện tại.
-- HA Ollama / scale horizontal LLM → **Phase 18+** (chưa lập kế hoạch).
+Giới hạn còn lại (đã gán / ngoài scope Phase 18):
+- Inventory/tồn kho, phiếu xuất/nhập, tồn tối thiểu → **Phase 19+** (chưa lập kế hoạch).
+- Workflow phê duyệt nhiều bước, SLA, assignee → **Phase 19+**.
+- HA Ollama / scale horizontal LLM / tách LLM host production → **Phase 19+** (ops, không chặn Phase 18).
+
+**Phase 18 đã lập kế hoạch** (2026-06-07): dòng hàng mua sắm (`procurement_line_items`) + danh mục vật tư nhẹ (`materials_catalog`) — xem checklist `TASK_NEXT.md`.
 
 ## Lộ Trình Ưu Tiên
 
@@ -841,9 +846,137 @@ git diff --check
 
 ---
 
+### Phase 18 - Dòng Hàng Mua Sắm Và Danh Mục Vật Tư MVP
+
+Trạng thái: **đã lập kế hoạch** — chưa bắt đầu (2026-06-07).
+
+Mục tiêu: mở rộng module procurement (Phase 13) với **dòng hàng vật tư** gắn từng `procurement_record` và **danh mục vật tư nhẹ** để autocomplete — phục vụ tra cứu đề xuất/kế hoạch/nghiệm thu theo mặt hàng mà **không** mở tồn kho, phiếu xuất/nhập hay workflow phê duyệt nhiều bước.
+
+Phụ thuộc: Phase 13 (`procurement_records`, `/procurements`, search filter procurement); Phase 14 (onboarding gợi ý procurement); audit/RBAC pattern module hiện có.
+
+Bối cảnh hiện tại:
+- `procurement_records` chỉ có metadata cấp hồ sơ (`reference_number`, `estimated_value`, `requesting_unit`, …) — không có bảng con cho từng mặt hàng.
+- Phase 13 ghi rõ **không** line items trong MVP; benchmark fixture `procurement_plan` và OCR chunk thường chứa bảng vật tư (tên, đơn vị, số lượng, đơn giá) nhưng chưa được cấu trúc hóa.
+- Phòng vật tư cần tra cứu "hồ sơ nào có mặt hàng X" và tổng giá trị theo dòng — chưa cần quản lý tồn thực tế.
+
+#### Quyết Định Kiến Trúc (Chốt Ở Mục Tiêu 1)
+
+| Hạng mục | Quyết định MVP | Lý do |
+|----------|----------------|-------|
+| Bảng dòng hàng | `procurement_line_items` — FK `procurement_id`, soft delete | Tách khỏi document core; 1 procurement có N dòng |
+| Danh mục vật tư | `materials_catalog` — read/write admin, autocomplete user | Tránh nhập trùng tên đơn vị; **không** có `stock_quantity` |
+| Liên kết document | Giữ qua `procurement_records.document_id` | Không copy OCR text sang bảng line item |
+| Pre-fill OCR | Rule-based tùy chọn (mục tiêu 6) — parse bảng từ chunk | Không LLM; user xác nhận trước khi lưu |
+| Search | Filter procurement theo `item_name` / `item_code` (pre-resolve `procurement_id`) | Mirror pattern filter module Phase 11; không đổi Qdrant payload |
+| Tồn kho | **Không** | Phase 19+ nếu có nhu cầu thật |
+
+Luồng nghiệp vụ đề xuất:
+
+```text
+document searchable + procurement_record
+  -> user thêm/sửa/xóa line items (form hoặc import gợi ý OCR)
+  -> tổng amount dòng (optional) đối chiếu estimated_value (cảnh báo UI, không rule engine)
+  -> list/filter procurement theo mặt hàng
+  -> search/RAG vẫn qua document/chunk core (filter procurement_id qua metadata module)
+```
+
+#### Phạm Vi Kỹ Thuật
+
+**Thiết kế (`docs/DOMAIN_MODULE_DECISION.md` — mục tiêu 1)**
+
+- Bảng `procurement_line_items`:
+  - `procurement_id` (FK, required), `line_number` (int, thứ tự hiển thị).
+  - `item_name` (required), `item_code` (optional), `unit` (optional, ví dụ cái/bộ/kg).
+  - `quantity` (`Numeric`, default 1), `unit_price` (optional), `amount` (optional — tính `quantity * unit_price` server-side nếu thiếu).
+  - `notes` (optional); UUID PK; `created_at`, `updated_at`, `deleted_at`.
+  - Index: `(procurement_id, line_number)`, `(item_name)` trigram hoặc `ILIKE` tùy pattern repo hiện có.
+- Bảng `materials_catalog` (admin catalog nhẹ):
+  - `code`, `name`, `default_unit`, `category` (optional), `is_active`; audit fields + soft delete.
+  - Partial unique active trên `code` hoặc `name` — chốt ở mục tiêu 1.
+- API contract nested + flat:
+  - `GET/POST /api/v1/procurements/{procurement_id}/line-items`
+  - `PATCH/DELETE /api/v1/procurement-line-items/{line_item_id}`
+  - `GET/POST/PATCH/DELETE /api/v1/materials-catalog` (admin CRUD; user read list active cho autocomplete).
+- Audit: `procurement_line_item.created|updated|deleted`, `materials_catalog.*`.
+- Quyền: mirror procurement — user CRUD line item trên procurement mình có quyền; admin soft delete catalog.
+
+**Backend (mục tiêu 2–4)**
+
+- Migration Alembic (ví dụ `0017_procurement_line_items`, `0018_materials_catalog` hoặc gộp một file nếu nhỏ).
+- `ProcurementLineItemRepository`, `ProcurementLineItemService`, mở rộng `ProcurementService` (validate procurement tồn tại trước khi thêm dòng).
+- `MaterialsCatalogRepository`, `MaterialsCatalogService`, router admin.
+- Mở rộng `ProcurementRepository.list_procurements()` / `list_document_ids_by_metadata()`: filter `item_name`, `item_code` (join line items active).
+- Mở rộng `SearchService` + schema search/RAG: tham số `procurement_item_name`, `procurement_item_code` — pre-resolve `document_id` qua procurement + line items (intersection với filter procurement hiện có).
+- Smoke `python -m app.scripts.smoke_procurement_line_items`.
+
+**Frontend (mục tiêu 5)**
+
+- Types `procurement-line-item.ts`, `materials-catalog.ts`; service + composable (`useProcurementLineItems`, `useMaterialsCatalog`).
+- Trang/modal chi tiết procurement: DataTable dòng hàng — thêm/sửa/xóa inline hoặc dialog; hiển thị **Tổng cộng** (`sum amount`).
+- Autocomplete `item_name` / `unit` từ catalog active (PrimeVue AutoComplete).
+- Trang admin `/materials-catalog` hoặc subsection trong `/status`/admin nav — list CRUD catalog (admin only).
+- Cảnh báo nhẹ khi `sum(amount)` lệch `estimated_value` > ngưỡng (ví dụ 1%) — Message warn, không chặn lưu.
+
+**Pre-fill rule-based từ OCR (mục tiêu 6 — có kiểm soát)**
+
+- `ProcurementLineItemSuggestionService`: đọc chunk document (ưu tiên `section_role=appendix` hoặc chunk có `is_table`/pattern bảng).
+- Heuristic: dòng có ≥3 cột số (STT, tên, SL, ĐVT, đơn giá, thành tiền) — mirror pattern table trong chunk metadata nếu có.
+- API read-only: `GET /api/v1/procurements/{procurement_id}/line-item-suggestions` — trả danh sách gợi ý; **không** auto-insert.
+- UI: nút **Gợi ý từ OCR** trên form line items → preview → user chọn áp dụng từng dòng hoặc tất cả.
+
+**Kiểm tra (mục tiêu 7–8)**
+
+- Smoke line items: tạo procurement → POST 2–3 dòng → PATCH → DELETE → filter list theo `item_name`.
+- Smoke search filter: seed procurement + line item → semantic search với `procurement_item_name` → assert `document_id` đúng.
+- Regression: `smoke_procurement_api`, `smoke_search_module_filters`, `smoke_module_onboarding`, `smoke_rag_answer`, `smoke_relation_suggestions`.
+- Frontend build pass.
+
+Không làm trong phase này:
+
+- Không `stock_quantity`, phiếu xuất/nhập, tồn tối thiểu, kho vật lý.
+- Không workflow trình ký/ phê duyệt nhiều bước, assignee, SLA.
+- Không LLM trích xuất bảng; không đổi chunking/Qdrant payload hay re-index hàng loạt.
+- Không module nghiệp vụ mới ngoài mở rộng procurement + catalog.
+- Không HA Ollama / streaming RAG.
+
+Tiêu chí hoàn thành:
+
+- Quyết định scope ghi trong `docs/DOMAIN_MODULE_DECISION.md` (mục Phase 18).
+- User thêm/sửa/xóa ≥3 dòng hàng trên một procurement từ UI trong ≤5 thao tác.
+- Admin quản lý catalog vật tư; autocomplete hoạt động khi thêm dòng.
+- Filter list procurement và dashboard search theo `item_name` hoạt động với ≥1 fixture smoke.
+- (Tùy chọn đạt mục tiêu 6) Gợi ý OCR trả ≥1 dòng hợp lệ trên fixture bảng vật tư; user xác nhận trước khi lưu.
+- Smoke line items + regression pass trên Docker Compose.
+
+Mục tiêu gợi ý cho `TASK_NEXT.md`:
+
+1. Thiết kế `procurement_line_items` + `materials_catalog` trong `DOMAIN_MODULE_DECISION.md` (`solution-architect`, `database-designer`).
+2. Migration + model + repository line items.
+3. Service + API line items + audit + smoke backend cơ bản.
+4. Materials catalog — migration, API admin, seed mẫu.
+5. Frontend line items UI + tổng cộng + autocomplete catalog (`frontend-nuxt`).
+6. (Tùy chọn) `ProcurementLineItemSuggestionService` + API/UI gợi ý OCR (`ocr-pipeline`, `vn-admin-doc-ocr-classifier`).
+7. Search/list filter theo mặt hàng + smoke search (`semantic-search-rag`).
+8. Regression, frontend build, đóng phase (`project-git-manager`).
+
+---
+
+### Phase 19+ (Dự Kiến, Chưa Lập Chi Tiết)
+
+Hướng ưu tiên sau Phase 18 (chưa chốt thứ tự):
+
+| Hướng | Giá trị | Ghi chú |
+|-------|---------|---------|
+| Inventory/tồn kho MVP | Cao cho phòng vật tư | Cần nhu cầu nghiệp vụ rõ; phụ thuộc line items Phase 18 |
+| Workflow phê duyệt nhiều bước | Trung bình | Rule engine tối thiểu; tránh over-engineering |
+| LLM production ops | Trung bình | Tách `OLLAMA_BASE_URL` host riêng, backup model, giám sát latency |
+| HA / scale Ollama | Thấp cho MVP on-prem nhỏ | Chỉ khi quy mô user tăng |
+
+---
+
 ## Ghi Chú Lập Kế Hoạch
 
-- `TASK_NEXT.md` chỉ chứa checklist phase đang làm; khi bắt đầu Phase 17, thay nội dung file bằng checklist 8 mục tiêu Phase 17 ở trên.
+- `TASK_NEXT.md` chỉ chứa checklist phase đang làm; Phase 18 đã mở — thực thi theo 8 mục tiêu ở trên.
 - Con trỏ thực thi: `TASK_NEXT.md` → `PROJECT_STATUS.md` → commit sau mỗi mục tiêu (skill `project-git-manager`).
-- Ưu tiên MVP và maintainability; mỗi module nghiệp vụ mới phải có quyết định scope trong `docs/DOMAIN_MODULE_DECISION.md`.
+- Ưu tiên MVP và maintainability; mỗi mở rộng module phải có quyết định scope trong `docs/DOMAIN_MODULE_DECISION.md`.
 - Mỗi mục tiêu phase khi hoàn thành phải auto commit theo quy tắc trong `TASK_NEXT.md`.

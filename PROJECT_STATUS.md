@@ -10,13 +10,17 @@ Cập nhật lần cuối: 2026-06-07
 
 Hệ thống chạy on-prem bằng Docker Compose (`api`, `worker`, `web`, `postgres`, `redis`, `qdrant`; `ollama` optional profile `llm`). Workflow web end-to-end: upload → OCR/extract → searchable → semantic search → RAG Q&A (extractive hoặc generative local) → review chunk → audit. Module nghiệp vụ MVP: hợp đồng, công văn, quyết định, mua sắm — liên kết document detail; gợi ý liên kết document rule-based (Phase 16).
 
-Con trỏ tiếp theo: Phase 18 chưa lập checklist — xem `ROADMAP.md` và `TASK_NEXT.md`.
+**Phase 18 đã lập kế hoạch** (2026-06-07): dòng hàng mua sắm (`procurement_line_items`) + danh mục vật tư nhẹ (`materials_catalog`); filter tra cứu theo mặt hàng — chưa bắt đầu code.
+
+Con trỏ thực thi: `TASK_NEXT.md` mục tiêu 1 → thiết kế trong `docs/DOMAIN_MODULE_DECISION.md`.
 
 ## Giới Hạn Còn Lại
 
 Giới hạn còn lại (đồng bộ `ROADMAP.md`):
-- Inventory/tồn kho, workflow phê duyệt nhiều bước, line items procurement: ngoài scope MVP hiện tại.
-- HA Ollama / scale horizontal LLM: Phase 18+ nếu cần (chưa lập kế hoạch).
+- Inventory/tồn kho, phiếu xuất/nhập, tồn tối thiểu: Phase 19+ (chưa lập kế hoạch).
+- Workflow phê duyệt nhiều bước, SLA, assignee: Phase 19+.
+- HA Ollama / scale horizontal LLM / tách LLM host production: Phase 19+ (ops).
+- Line items procurement: **đang mở trong Phase 18** — không kèm tồn kho hay workflow phê duyệt.
 
 ## Đã Xây Dựng
 
@@ -2768,7 +2772,7 @@ Kết quả: tất cả smoke API pass; web client + SSR compile pass; `git diff
 
 ## Phase 17 — RAG Generative Local LLM (Ollama On-Prem)
 
-Trạng thái: đang làm (bắt đầu 2026-06-07).
+Trạng thái: **hoàn thành** (2026-06-07).
 
 ### Mục tiêu 1 — Thiết kế generative RAG, prompt và env contract (2026-06-07)
 
@@ -2926,3 +2930,34 @@ Kết quả: extractive + relation smokes pass; 7 unit tests pass; generative sm
 **Đóng phase**
 
 - Phase 17 hoàn thành; `ROADMAP.md`, `docs/DOMAIN_MODULE_DECISION.md`, `TASK_NEXT.md` cập nhật placeholder Phase 18.
+
+## Phase 18 — Dòng Hàng Mua Sắm Và Danh Mục Vật Tư MVP
+
+Trạng thái: **đã lập kế hoạch** — chưa bắt đầu (2026-06-07).
+
+### Lý do ưu tiên Phase 18
+
+- Phòng vật tư cần tra cứu hồ sơ mua sắm theo **mặt hàng** (tên, mã, số lượng, đơn giá) — metadata cấp hồ sơ Phase 13 chưa đủ.
+- OCR/chunk thường chứa bảng vật tư nhưng chưa cấu trúc hóa; line items là bước bridge trước inventory (Phase 19+).
+- Giữ MVP: không tồn kho, không workflow phê duyệt nhiều bước, không LLM mới.
+
+### Phạm vi đã chốt (tóm tắt — chi tiết `ROADMAP.md`)
+
+| Hạng mục | Quyết định |
+|----------|------------|
+| Bảng dòng hàng | `procurement_line_items` — FK `procurement_id`, soft delete |
+| Danh mục vật tư | `materials_catalog` — autocomplete; admin CRUD |
+| API | Nested line items + flat PATCH/DELETE; catalog admin |
+| Search/list | Filter `procurement_item_name`, `procurement_item_code` |
+| Pre-fill OCR | Rule-based tùy chọn (mục tiêu 6 TASK_NEXT) — user xác nhận |
+| Không làm | Stock, phiếu xuất/nhập, approval workflow, re-index Qdrant |
+
+### Mục tiêu thực thi
+
+Checklist 8 mục tiêu trong `TASK_NEXT.md` (thiết kế → migration → API → catalog → frontend → gợi ý OCR tùy chọn → search filter → regression).
+
+### Phase 19+ (dự kiến, chưa lập chi tiết)
+
+- Inventory/tồn kho MVP (phụ thuộc line items).
+- Workflow phê duyệt nhiều bước tối thiểu.
+- LLM production ops / HA Ollama.
