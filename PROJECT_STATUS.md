@@ -1,18 +1,18 @@
 # Trạng Thái Dự Án
 
-Cập nhật lần cuối: 2026-06-07
+Cập nhật lần cuối: 2026-06-08
 
 ## Giai Đoạn Hiện Tại
 
-**Phase 0–17 đã hoàn thành.** Phase 17 đóng ngày 2026-06-07.
+**Phase 0–17 đã hoàn thành.** **Phase 18 đang thực hiện** — mục tiêu 1 hoàn thành 2026-06-08.
 
 **Phase 17 đã hoàn thành** (2026-06-07): RAG generative local-only qua Ollama — `LocalLLMService`, profile Compose `llm`, fallback extractive, ops LLM status, dashboard badge, runbook `docs/RAG_LLM_RUNBOOK.md`, smoke `smoke_rag_generative`.
 
 Hệ thống chạy on-prem bằng Docker Compose (`api`, `worker`, `web`, `postgres`, `redis`, `qdrant`; `ollama` optional profile `llm`). Workflow web end-to-end: upload → OCR/extract → searchable → semantic search → RAG Q&A (extractive hoặc generative local) → review chunk → audit. Module nghiệp vụ MVP: hợp đồng, công văn, quyết định, mua sắm — liên kết document detail; gợi ý liên kết document rule-based (Phase 16).
 
-**Phase 18 đã lập kế hoạch** (2026-06-07): dòng hàng mua sắm (`procurement_line_items`) + danh mục vật tư nhẹ (`materials_catalog`); filter tra cứu theo mặt hàng — chưa bắt đầu code.
+**Phase 18 đang thực hiện** (2026-06-08): dòng hàng mua sắm (`procurement_line_items`) + danh mục vật tư (`materials_catalog`); mục tiêu 1 — thiết kế scope trong `docs/DOMAIN_MODULE_DECISION.md` § Procurement Line Items — **hoàn thành**.
 
-Con trỏ thực thi: `TASK_NEXT.md` mục tiêu 1 → thiết kế trong `docs/DOMAIN_MODULE_DECISION.md`.
+Con trỏ thực thi: `TASK_NEXT.md` mục tiêu 2 → migration + model + repository line items.
 
 ## Giới Hạn Còn Lại
 
@@ -2933,7 +2933,22 @@ Kết quả: extractive + relation smokes pass; 7 unit tests pass; generative sm
 
 ## Phase 18 — Dòng Hàng Mua Sắm Và Danh Mục Vật Tư MVP
 
-Trạng thái: **đã lập kế hoạch** — chưa bắt đầu (2026-06-07).
+Trạng thái: **đang thực hiện** — mục tiêu 1 hoàn thành (2026-06-08).
+
+### Mục tiêu 1 — Thiết kế scope (2026-06-08)
+
+- Thêm mục **Procurement Line Items (Phase 18)** trong `docs/DOMAIN_MODULE_DECISION.md`: schema `procurement_line_items` + `materials_catalog`, API contract, quyền/audit, filter search, ranh giới không làm.
+- Chốt unique catalog: `lower(trim(code))` khi code non-empty; `lower(trim(name))` trên bản ghi active.
+- Chốt `amount`: server tính `round(quantity * unit_price, 2)` khi đủ cả hai; cho phép `amount` explicit khi không có `unit_price`.
+- Chốt search: `procurement_item_name` / `procurement_item_code` pre-resolve `document_id` (pattern Phase 11); không đổi Qdrant/chunk core.
+- Phụ thuộc Phase 13 ghi rõ; không sửa `documents` / `document_chunks`.
+
+Kiểm tra baseline Phase 17 (trước khi bắt đầu):
+
+- `smoke_procurement_api`: pass.
+- `smoke_health_checks`: pass.
+- `smoke_rag_answer`: timeout (~28s) trên stack hiện tại — không chặn mục tiêu thiết kế docs; ghi nhận cho regression mục tiêu 8.
+- `git diff --check`: pass.
 
 ### Lý do ưu tiên Phase 18
 
@@ -2954,7 +2969,7 @@ Trạng thái: **đã lập kế hoạch** — chưa bắt đầu (2026-06-07).
 
 ### Mục tiêu thực thi
 
-Checklist 8 mục tiêu trong `TASK_NEXT.md` (thiết kế → migration → API → catalog → frontend → gợi ý OCR tùy chọn → search filter → regression).
+Checklist 8 mục tiêu trong `TASK_NEXT.md`. Mục tiêu 1 ✅; tiếp theo mục tiêu 2 (migration + model + repository line items).
 
 ### Phase 19+ (dự kiến, chưa lập chi tiết)
 

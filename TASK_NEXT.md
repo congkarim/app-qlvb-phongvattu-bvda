@@ -25,7 +25,7 @@ Phase trước: Phase 17 hoàn thành ngày 2026-06-07.
 
 Phase hiện tại: **Phase 18 — Dòng hàng mua sắm và danh mục vật tư MVP**.
 
-Mục tiêu tiếp theo: **Mục tiêu 1** — thiết kế scope trong `docs/DOMAIN_MODULE_DECISION.md`.
+Mục tiêu tiếp theo: **Mục tiêu 2** — migration, model và repository line items.
 
 Regression nhanh trước khi bắt đầu (baseline Phase 17):
 
@@ -39,13 +39,13 @@ docker compose exec -T api python -m app.scripts.smoke_health_checks
 
 ## Phase 18 — Dòng Hàng Mua Sắm Và Danh Mục Vật Tư MVP
 
-Trạng thái phase: **chưa bắt đầu**.
+Trạng thái phase: **đang làm** (mục tiêu 1 hoàn thành 2026-06-08).
 
 Phạm vi: mở rộng `procurement_records` với bảng `procurement_line_items` và `materials_catalog` (autocomplete); filter search/list theo mặt hàng; **không** tồn kho, **không** workflow phê duyệt nhiều bước. Chi tiết: `ROADMAP.md` § Phase 18.
 
 ### Mục tiêu 1 — Thiết kế scope line items và materials catalog
 
-Trạng thái: **chưa làm**.
+Trạng thái: **hoàn thành** (2026-06-08).
 
 Skills: `solution-architect`, `database-designer`.
 
@@ -63,7 +63,7 @@ Kiểm tra: `git diff --check`.
 
 ### Mục tiêu 2 — Migration, model và repository line items
 
-Trạng thái: **chưa làm**.
+Trạng thái: **chưa làm** (mục tiêu tiếp theo).
 
 Skills: `database-designer`, `backend-fastapi`.
 

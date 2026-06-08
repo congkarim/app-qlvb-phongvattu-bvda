@@ -1,6 +1,6 @@
 # Domain Module Decision
 
-Cập nhật lần cuối: 2026-06-07 (Phase 14 mục tiêu 1 — thiết kế module onboarding)
+Cập nhật lần cuối: 2026-06-08 (Phase 18 mục tiêu 1 — thiết kế line items và materials catalog)
 
 ## Module Đầu Tiên
 
@@ -1659,3 +1659,349 @@ Tất cả mục tiêu Phase 17 đã triển khai (2026-06-07):
 - Runbook `docs/RAG_LLM_RUNBOOK.md`; smoke `smoke_rag_generative` (profile `llm`).
 
 Smoke mặc định CI/dev: `smoke_rag_answer` (extractive, không Ollama). Smoke generative: `docs/RAG_LLM_RUNBOOK.md`.
+
+---
+
+## Procurement Line Items (Phase 18)
+
+Trạng thái: thiết kế đã chốt (2026-06-08, mục tiêu 1). Triển khai code từ mục tiêu 2.
+
+### Vấn Đề
+
+Phase 13 (`procurement_records`) chỉ lưu metadata cấp hồ sơ — `reference_number`, `estimated_value`, `requesting_unit`, … — **không** có bảng con cho từng mặt hàng. OCR/chunk thường chứa bảng vật tư (STT, tên, đơn vị, số lượng, đơn giá, thành tiền) nhưng chưa được cấu trúc hóa. Phòng vật tư cần tra cứu "hồ sơ nào có mặt hàng X" và tổng giá trị theo dòng — **chưa** cần quản lý tồn kho thực tế.
+
+### Phụ Thuộc Phase 13 (Không Đổi Document/Chunk Core)
+
+| Thành phần | Quyết định |
+|------------|------------|
+| `procurement_records` | Giữ nguyên schema Phase 13; line items FK `procurement_id` |
+| Liên kết document | Vẫn qua `procurement_records.document_id` — **không** thêm `document_id` trên line item |
+| `documents` / `document_chunks` | **Không** sửa schema, worker OCR, chunking, Qdrant payload |
+| Search/RAG retrieval | Vẫn vector trên chunk; filter mặt hàng **pre-resolve** `document_id` qua PostgreSQL (pattern Phase 11) |
+| Onboarding Phase 14 | Không đổi; gợi ý procurement metadata vẫn ở cấp hồ sơ |
+| RBAC module | Mirror procurement hiện có |
+
+### Quyết Định Kiến Trúc MVP
+
+| Hạng mục | Quyết định | Lý do |
+|----------|------------|-------|
+| Bảng dòng hàng | `procurement_line_items` — FK `procurement_id`, soft delete | 1 procurement có N dòng; tách khỏi document core |
+| Danh mục vật tư | `materials_catalog` — bảng riêng (không dùng `admin_catalog_items`) | Metadata vật tư (`default_unit`, `category`) khác catalog upload |
+| Liên kết catalog | `catalog_item_id` optional FK → `materials_catalog`; snapshot `item_name`/`item_code`/`unit` trên dòng | Autocomplete + lưu giá trị đã nhập khi catalog bị ẩn/xóa mềm |
+| Tồn kho | **Không** `stock_quantity`, phiếu xuất/nhập | Phase 19+ |
+| Workflow phê duyệt | **Không** rule engine, assignee, SLA | User PATCH `status` procurement như Phase 13 |
+| Pre-fill OCR | Tùy chọn mục tiêu 6 — read-only suggestion, user xác nhận | Không auto-insert |
+| Search | `procurement_item_name` / `procurement_item_code` pre-resolve `document_id` | Mirror Phase 11; không re-index Qdrant |
+
+Luồng nghiệp vụ:
+
+```text
+document searchable + procurement_record (Phase 13)
+  -> user thêm/sửa/xóa line items (form UI hoặc áp dụng gợi ý OCR)
+  -> service tính amount từng dòng; UI hiển thị tổng sum(amount)
+  -> cảnh báo nhẹ khi sum(amount) lệch estimated_value (không chặn lưu)
+  -> list/filter procurement theo item_name / item_code
+  -> search/RAG dashboard filter procurement_item_name / procurement_item_code
+```
+
+### Tên Kỹ Thuật
+
+| Thực thể | Giá trị |
+|----------|---------|
+| Bảng dòng hàng | `procurement_line_items` |
+| Model | `ProcurementLineItem` |
+| Bảng catalog | `materials_catalog` |
+| Model catalog | `MaterialsCatalogItem` |
+| Entity audit line item | `procurement_line_item` |
+| Entity audit catalog | `materials_catalog` |
+| API line items nested | `/api/v1/procurements/{procurement_id}/line-items` |
+| API line items flat | `/api/v1/procurement-line-items/{line_item_id}` |
+| API catalog | `/api/v1/materials-catalog` |
+
+### Schema `procurement_line_items`
+
+Migration đề xuất: `0017_procurement_line_items` (mục tiêu 2).
+
+| Cột | Kiểu | Bắt buộc | Mô tả |
+|-----|------|----------|-------|
+| `id` | UUID | ✓ | Primary key |
+| `procurement_id` | UUID FK → `procurement_records.id` | ✓ | Hồ sơ mua sắm cha |
+| `line_number` | `Integer` | ✓ | Thứ tự hiển thị (1-based); unique active theo procurement |
+| `item_name` | `String(512)` | ✓ | Tên vật tư/hàng hóa |
+| `item_code` | `String(64)` | — | Mã vật tư (optional; có thể copy từ catalog) |
+| `unit` | `String(32)` | — | Đơn vị tính (cái, bộ, kg, …) |
+| `quantity` | `Numeric(18, 4)` | ✓ | Mặc định `1`; validate `>= 0` |
+| `unit_price` | `Numeric(18, 2)` | — | Đơn giá; validate `>= 0` nếu có |
+| `amount` | `Numeric(18, 2)` | — | Thành tiền — **tính server-side** (xem mục Amount) |
+| `catalog_item_id` | UUID FK → `materials_catalog.id` | — | Tham chiếu catalog khi chọn autocomplete; `ON DELETE SET NULL` |
+| `notes` | `Text` | — | Ghi chú dòng |
+| `created_at`, `updated_at`, `deleted_at` | timestamptz | ✓ | Audit + soft delete |
+
+**Indexes:**
+
+- `ux_procurement_line_items_procurement_line_active`: unique partial `(procurement_id, line_number)` WHERE `deleted_at IS NULL`.
+- `ix_procurement_line_items_procurement_active`: `(procurement_id, deleted_at)` — list theo hồ sơ.
+- `ix_procurement_line_items_item_name_active`: `(item_name, deleted_at)` — filter `ILIKE` list/search.
+- `ix_procurement_line_items_item_code_active`: `(item_code, deleted_at)` — filter mã vật tư.
+
+**Quan hệ model:**
+
+- `ProcurementRecord.line_items` — `uselist=True`, order_by `line_number`.
+- `ProcurementLineItem.procurement` — back_populates.
+- `ProcurementLineItem.catalog_item` — optional, `uselist=False`.
+
+Không copy OCR text/chunk vào bảng line item. Không denormalize `document_id`.
+
+### Cách Tính `amount` (Server-Side)
+
+Service (`ProcurementLineItemService`) **luôn** chuẩn hóa trước persist và trả response:
+
+| Input | Quy tắc |
+|-------|---------|
+| `quantity` + `unit_price` đều có | `amount = round(quantity * unit_price, 2)` — **server ghi đè** nếu client gửi `amount` khác |
+| Chỉ `unit_price`, thiếu `quantity` | `quantity = 1` rồi tính như trên |
+| Chỉ `quantity`, không `unit_price` | `amount = null` (trừ khi client gửi `amount` explicit — xem dòng dưới) |
+| Client gửi `amount` explicit, không có `unit_price` | Lưu `amount` đã gửi (validate `>= 0`); dùng cho dòng "thành tiền cố định" không tách đơn giá |
+| Không `unit_price`, không `amount` | `amount = null` |
+
+**Response read:** luôn trả `amount` đã persist (sau tính toán). UI tổng cộng: `lines_total_amount = sum(amount)` chỉ cộng dòng có `amount IS NOT NULL`.
+
+**Đối chiếu `estimated_value`:** chỉ cảnh báo UI (Message warn) khi `|lines_total_amount - estimated_value| / estimated_value > 0.01` (1%) và cả hai phía có giá trị — **không** validation API 422, không rule engine.
+
+### Schema `materials_catalog`
+
+Migration đề xuất: `0018_materials_catalog` (mục tiêu 4; có thể gộp `0017` nếu migration nhỏ).
+
+| Cột | Kiểu | Bắt buộc | Mô tả |
+|-----|------|----------|-------|
+| `id` | UUID | ✓ | Primary key |
+| `code` | `String(64)` | — | Mã vật tư chuẩn nội bộ (optional) |
+| `name` | `String(255)` | ✓ | Tên vật tư — dùng autocomplete |
+| `default_unit` | `String(32)` | — | ĐVT mặc định khi chọn catalog |
+| `category` | `String(128)` | — | Nhóm (văn phòng phẩm, IT, …) — optional |
+| `description` | `Text` | — | Mô tả ngắn |
+| `is_active` | `Boolean` | ✓ | Default `true`; false = ẩn khỏi autocomplete user |
+| `created_at`, `updated_at`, `deleted_at` | timestamptz | ✓ | Audit + soft delete |
+
+**Unique constraint (chốt MVP):**
+
+| Index | Phạm vi | Quy tắc |
+|-------|---------|---------|
+| `ux_materials_catalog_code_active` | Partial `deleted_at IS NULL` AND `code IS NOT NULL` AND `trim(code) <> ''` | Unique trên `lower(trim(code))` — mã vật tư không trùng (case-insensitive) |
+| `ux_materials_catalog_name_active` | Partial `deleted_at IS NULL` | Unique trên `lower(trim(name))` — tên không trùng trong catalog active |
+
+- Cho phép nhiều bản ghi **không có** `code` (chỉ unique khi `code` non-empty).
+- Admin tạo trùng tên/code → `409 Conflict`.
+- Soft delete catalog **không** xóa/sửa line item đã lưu: dòng giữ snapshot `item_name`/`item_code`/`unit`; `catalog_item_id` có thể trỏ bản ghi đã `deleted_at IS NOT NULL` (read-only lịch sử) hoặc SET NULL khi hard policy — MVP giữ FK, ẩn khỏi autocomplete (`is_active=false` hoặc soft delete).
+
+**Indexes bổ sung:**
+
+- `ix_materials_catalog_name_active`: `(name, deleted_at)` — autocomplete `ILIKE`.
+- `ix_materials_catalog_is_active`: `(is_active, deleted_at)`.
+
+**Seed dev (mục tiêu 4):** vài mã mẫu trong migration seed hoặc smoke script — ví dụ `VT-001` / `Giấy A4`, `VT-002` / `Mực in HP`, `default_unit` = `Ram` / `Hộp`.
+
+### API Contract — Line Items
+
+Router nested gắn `procurements` router; flat router riêng (đặt **sau** nested routes để tránh nuốt path).
+
+| Method | Path | Mô tả |
+|--------|------|--------|
+| `GET` | `/api/v1/procurements/{procurement_id}/line-items` | List dòng active, sort `line_number ASC` |
+| `POST` | `/api/v1/procurements/{procurement_id}/line-items` | Tạo dòng; auto `line_number` = max+1 nếu client không gửi |
+| `PATCH` | `/api/v1/procurement-line-items/{line_item_id}` | Cập nhật; recalc `amount` |
+| `DELETE` | `/api/v1/procurement-line-items/{line_item_id}` | Soft delete (**admin**) |
+
+**Request body — create (`ProcurementLineItemCreateRequest`):**
+
+```json
+{
+  "line_number": 1,
+  "item_name": "Giấy A4",
+  "item_code": "VT-001",
+  "unit": "Ram",
+  "quantity": "10",
+  "unit_price": "85000.00",
+  "catalog_item_id": "uuid-or-null",
+  "notes": null
+}
+```
+
+**Request body — update (`ProcurementLineItemUpdateRequest`):** mọi field optional; omit = không đổi.
+
+**Response item (`ProcurementLineItemRead`):**
+
+```json
+{
+  "id": "uuid",
+  "procurement_id": "uuid",
+  "line_number": 1,
+  "item_name": "Giấy A4",
+  "item_code": "VT-001",
+  "unit": "Ram",
+  "quantity": "10.0000",
+  "unit_price": "85000.00",
+  "amount": "850000.00",
+  "catalog_item_id": "uuid-or-null",
+  "notes": null,
+  "created_at": "...",
+  "updated_at": "..."
+}
+```
+
+**List response (`ProcurementLineItemListResponse`):**
+
+```json
+{
+  "items": ["...ProcurementLineItemRead..."],
+  "total": 3,
+  "lines_total_amount": "1250000.00"
+}
+```
+
+Không pagination line items MVP (typical ≤50 dòng/hồ sơ). `404` nếu `procurement_id` không tồn tại / đã xóa mềm.
+
+### API Contract — Materials Catalog
+
+| Method | Path | Quyền | Mô tả |
+|--------|------|-------|--------|
+| `GET` | `/api/v1/materials-catalog` | User đăng nhập | List **active** (`deleted_at IS NULL` AND `is_active=true`); query `q`, `limit` (default 20, max 50) — autocomplete |
+| `GET` | `/api/v1/materials-catalog/{catalog_id}` | User | Chi tiết (kể cả inactive — read-only cho admin UI) |
+| `GET` | `/api/v1/materials-catalog/all` | Admin | List đầy đủ + filter `q`, `is_active`, `category`, pagination |
+| `POST` | `/api/v1/materials-catalog` | Admin | Tạo |
+| `PATCH` | `/api/v1/materials-catalog/{catalog_id}` | Admin | Cập nhật |
+| `DELETE` | `/api/v1/materials-catalog/{catalog_id}` | Admin | Soft delete |
+
+Route `/all` đặt trước `/{catalog_id}` trên router. Autocomplete user chỉ trả `id`, `code`, `name`, `default_unit`, `category`.
+
+Lỗi: `404` not found; `409` trùng `code`/`name` active; `403` user gọi mutating admin routes.
+
+### Quyền Và Audit
+
+**Line items** — mirror procurement (Phase 13):
+
+| Hành động | User đăng nhập | Admin |
+|-----------|----------------|-------|
+| List / get theo procurement | Có | Có |
+| Create / update | Có | Có |
+| Soft delete | Không (`403`) | Có |
+
+**Materials catalog:**
+
+| Hành động | User | Admin |
+|-----------|------|-------|
+| List active (autocomplete) / get | Có | Có |
+| CRUD / soft delete / list all | Không (`403`) | Có |
+
+**Audit actions:**
+
+| Action | `entity_type` | Metadata JSON gọn |
+|--------|---------------|-------------------|
+| `procurement_line_item.created` | `procurement_line_item` | `procurement_id`, `line_number`, `item_name` |
+| `procurement_line_item.updated` | `procurement_line_item` | `procurement_id`, changed fields |
+| `procurement_line_item.deleted` | `procurement_line_item` | `procurement_id`, `line_number` |
+| `materials_catalog.created` | `materials_catalog` | `code`, `name` |
+| `materials_catalog.updated` | `materials_catalog` | changed fields |
+| `materials_catalog.deleted` | `materials_catalog` | `code`, `name` |
+
+### Filter List Procurement Theo Mặt Hàng (Mục Tiêu 7)
+
+Mở rộng `GET /api/v1/procurements`:
+
+| Query param | Match logic |
+|-------------|-------------|
+| `item_name` | `EXISTS` join `procurement_line_items` active: `item_name ILIKE %value%` |
+| `item_code` | `EXISTS` join active: `item_code ILIKE %value%` |
+
+Kết hợp với filter Phase 13 (`procurement_kind`, `reference_number`, …) bằng AND.
+
+Repository: `ProcurementRepository.list_procurements` / `count_procurements` / `list_document_ids_by_metadata` nhận thêm `item_name`, `item_code`.
+
+### Filter Search / RAG (Mục Tiêu 7)
+
+Mở rộng `POST /api/v1/search/semantic` và `POST /api/v1/search/answer` — schema `SemanticSearchRequest` / `RagAnswerRequest`:
+
+| Tham số API | Repository param | Match logic |
+|-------------|------------------|-------------|
+| `procurement_item_name` | `item_name` | `procurement_line_items.item_name ILIKE %value%` join `procurement_records` → `document_id` |
+| `procurement_item_code` | `item_code` | `procurement_line_items.item_code ILIKE %value%` |
+
+**Kích hoạt nhóm filter procurement:** `_resolve_procurement_document_ids` active khi có **bất kỳ** tham số: `procurement_kind`, `procurement_status`, `reference_number`, `requesting_unit`, **`procurement_item_name`**, **`procurement_item_code`**.
+
+Implementation (mục tiêu 7):
+
+```text
+ProcurementLineItemRepository.list_document_ids_by_item_metadata(
+  item_name?, item_code?
+) -> list[str] document_id
+
+ProcurementRepository.list_document_ids_by_metadata(..., item_name?, item_code?)
+  -> join hoặc subquery EXISTS line items (chỉ deleted_at IS NULL)
+```
+
+Intersection với contract/dispatch/decision groups giữ nguyên Phase 11. **Không** sửa Qdrant payload, **không** re-index chunk.
+
+Enrich `SemanticSearchResult`: không bắt buộc thêm field line item MVP — optional `matched_item_name` sau nếu cần UX; mục tiêu 7 tối thiểu filter đúng `document_id`.
+
+Dashboard preset từ `/procurements`: thêm query `procurement_item_name`, `procurement_item_code` khi có filter mặt hàng trên UI list.
+
+### Boundary Kỹ Thuật
+
+**Backend:**
+
+```text
+router -> service -> repository
+```
+
+- `ProcurementLineItemService` validate procurement tồn tại (active) trước create.
+- `MaterialsCatalogService` tách riêng; không gom vào `CatalogService` admin upload.
+- Router không chứa business logic tính `amount`.
+
+**Frontend (mục tiêu 5 — tham chiếu):**
+
+```text
+page -> composable -> service -> API
+```
+
+- `useProcurementLineItems`, `useMaterialsCatalog`; types `procurement-line-item.ts`, `materials-catalog.ts`.
+- UI dòng hàng trên trang/modal `/procurements`; admin section `/materials-catalog`.
+- Không gọi API trực tiếp trong component.
+
+### Không Làm Trong Phase 18
+
+- Không `stock_quantity`, phiếu xuất/nhập, tồn tối thiểu, kho vật lý.
+- Không workflow trình ký/phê duyệt nhiều bước, assignee, SLA, comment thread.
+- Không LLM trích xuất bảng (mục tiêu 6 chỉ rule-based heuristic).
+- Không sửa `documents`, `document_chunks`, worker OCR, Qdrant collection / re-index hàng loạt.
+- Không thêm module nghiệp vụ mới ngoài mở rộng procurement + catalog.
+- Không hard delete line item / catalog (soft delete only).
+
+### Gợi Ý OCR (Mục Tiêu 6 — Tùy Chọn, Tham Chiếu)
+
+- `GET /api/v1/procurements/{procurement_id}/line-item-suggestions` — read-only.
+- `ProcurementLineItemSuggestionService`: parse chunk bảng rule-based; **không** auto-insert.
+- Có thể bỏ qua mục tiêu 6 nếu heuristic chưa đủ tin cậy — ghi trong `PROJECT_STATUS.md`.
+
+### Smoke (Mục Tiêu 3+)
+
+`smoke_procurement_line_items.py`:
+
+1. Tạo procurement (reuse fixture Phase 13).
+2. POST ≥2 line items → GET list đúng thứ tự `line_number`.
+3. PATCH quantity/unit_price → assert `amount` recalc.
+4. DELETE (admin) → list còn đúng.
+5. (Mục tiêu 7) Filter list + search với `procurement_item_name`.
+
+Regression: `smoke_procurement_api`, `smoke_search_module_filters` sau mục tiêu 7.
+
+### Hướng Dẫn Cho Mục Tiêu Tiếp Theo
+
+**Mục tiêu 2:** migration `0017_procurement_line_items`, model `ProcurementLineItem`, `ProcurementLineItemRepository`.
+
+**Mục tiêu 3:** `ProcurementLineItemService`, router nested/flat, audit, `smoke_procurement_line_items`.
+
+**Mục tiêu 4:** migration `0018_materials_catalog`, admin CRUD + GET active, seed mẫu.
+
+**Mục tiêu 5:** frontend line items UI + autocomplete + admin catalog page.
+
+**Mục tiêu 6–8:** OCR suggestions (optional), search filter, regression đóng phase.
