@@ -1,6 +1,6 @@
 # Roadmap Phát Triển
 
-Cập nhật lần cuối: 2026-06-07
+Cập nhật lần cuối: 2026-06-08
 
 ## Nguyên Tắc
 
@@ -13,7 +13,7 @@ Cập nhật lần cuối: 2026-06-07
 
 ## Trạng Thái Hiện Tại
 
-**Lộ trình Phase 0–17 đã hoàn thành.** Phase 18 đã lập kế hoạch (chưa bắt đầu code). Hệ thống có thể chạy on-prem bằng Docker Compose với các service `api`, `worker`, `web`, `postgres`, `redis`, `qdrant` (và `ollama` optional profile `llm`).
+**Lộ trình Phase 0–18 đã hoàn thành.** Phase 19+ chưa lập chi tiết. Hệ thống có thể chạy on-prem bằng Docker Compose với các service `api`, `worker`, `web`, `postgres`, `redis`, `qdrant` (và `ollama` optional profile `llm`).
 
 **Phase 13 đã hoàn thành** (2026-06-07): module đề xuất/kế hoạch mua sắm vật tư MVP.
 
@@ -25,7 +25,7 @@ Cập nhật lần cuối: 2026-06-07
 
 **Phase 17 đã hoàn thành** (2026-06-07): RAG generative Ollama on-prem — `LocalLLMService`, profile Compose `llm`, fallback extractive, ops/dashboard UX, runbook `docs/RAG_LLM_RUNBOOK.md`, smoke `smoke_rag_generative`.
 
-**Phase 18 đã lập kế hoạch** (2026-06-07): dòng hàng mua sắm (`procurement_line_items`) + danh mục vật tư (`materials_catalog`) — chưa bắt đầu code; checklist `TASK_NEXT.md`.
+**Phase 18 đã hoàn thành** (2026-06-08): dòng hàng mua sắm (`procurement_line_items`) + danh mục vật tư (`materials_catalog`), UI line items/autocomplete, filter list/search theo mặt hàng; smoke `smoke_procurement_line_items`.
 
 Đã hoàn thành:
 - Auth local, seed admin, cookie token frontend và RBAC nhẹ cho admin/user.
@@ -51,13 +51,14 @@ Cập nhật lần cuối: 2026-06-07
 - Liên kết chéo document: bảng `document_relations`, API relations, card **Văn bản liên quan** trên document detail, filter/badge `has_relations`/`relation_count` trên list, smoke `smoke_document_relations`.
 - Gợi ý liên kết document rule-based: `DocumentRelationSuggestionService`, API `GET /documents/{id}/relation-suggestions`, subsection **Gợi ý liên kết** trên document detail (apply/dismiss), smoke `smoke_relation_suggestions`.
 - RAG generative local LLM (Ollama): `LocalLLMService`, profile Compose `llm`, `RagContextBuilder`/`CitationValidator`, fallback extractive, ops LLM status, dashboard badge generative/extractive, runbook `docs/RAG_LLM_RUNBOOK.md`, smoke `smoke_rag_generative`.
+- Dòng hàng mua sắm + danh mục vật tư: `procurement_line_items`, `materials_catalog`, API nested/flat line items, admin catalog CRUD, frontend panel line items + `/materials-catalog`, filter procurement/search theo `item_name`/`item_code`, smoke `smoke_procurement_line_items`.
 
 Giới hạn còn lại (đã gán / ngoài scope Phase 18):
 - Inventory/tồn kho, phiếu xuất/nhập, tồn tối thiểu → **Phase 19+** (chưa lập kế hoạch).
 - Workflow phê duyệt nhiều bước, SLA, assignee → **Phase 19+**.
-- HA Ollama / scale horizontal LLM / tách LLM host production → **Phase 19+** (ops, không chặn Phase 18).
+- HA Ollama / scale horizontal LLM / tách LLM host production → **Phase 19+** (ops).
 
-**Phase 18 đã lập kế hoạch** (2026-06-07): dòng hàng mua sắm (`procurement_line_items`) + danh mục vật tư nhẹ (`materials_catalog`) — xem checklist `TASK_NEXT.md`.
+**Phase 19+ chưa lập chi tiết** — xem hướng dự kiến cuối `ROADMAP.md` và placeholder `TASK_NEXT.md`.
 
 ## Lộ Trình Ưu Tiên
 
@@ -848,7 +849,7 @@ git diff --check
 
 ### Phase 18 - Dòng Hàng Mua Sắm Và Danh Mục Vật Tư MVP
 
-Trạng thái: **đã lập kế hoạch** — chưa bắt đầu (2026-06-07).
+Trạng thái: **hoàn thành** (2026-06-08).
 
 Mục tiêu: mở rộng module procurement (Phase 13) với **dòng hàng vật tư** gắn từng `procurement_record` và **danh mục vật tư nhẹ** để autocomplete — phục vụ tra cứu đề xuất/kế hoạch/nghiệm thu theo mặt hàng mà **không** mở tồn kho, phiếu xuất/nhập hay workflow phê duyệt nhiều bước.
 
@@ -976,7 +977,7 @@ Hướng ưu tiên sau Phase 18 (chưa chốt thứ tự):
 
 ## Ghi Chú Lập Kế Hoạch
 
-- `TASK_NEXT.md` chỉ chứa checklist phase đang làm; Phase 18 đã mở — thực thi theo 8 mục tiêu ở trên.
+- `TASK_NEXT.md` chỉ chứa checklist phase đang làm; Phase 18 đã hoàn thành — placeholder Phase 19+ trong `TASK_NEXT.md`.
 - Con trỏ thực thi: `TASK_NEXT.md` → `PROJECT_STATUS.md` → commit sau mỗi mục tiêu (skill `project-git-manager`).
 - Ưu tiên MVP và maintainability; mỗi mở rộng module phải có quyết định scope trong `docs/DOMAIN_MODULE_DECISION.md`.
 - Mỗi mục tiêu phase khi hoàn thành phải auto commit theo quy tắc trong `TASK_NEXT.md`.

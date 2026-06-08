@@ -4,15 +4,15 @@ Cập nhật lần cuối: 2026-06-08
 
 ## Giai Đoạn Hiện Tại
 
-**Phase 0–17 đã hoàn thành.** **Phase 18 đang thực hiện** — mục tiêu 1–7 hoàn thành 2026-06-08 (mục tiêu 6 bỏ qua).
+**Phase 0–18 đã hoàn thành.** Phase 19+ chưa lập chi tiết.
 
-**Phase 17 đã hoàn thành** (2026-06-07): RAG generative local-only qua Ollama — `LocalLLMService`, profile Compose `llm`, fallback extractive, ops LLM status, dashboard badge, runbook `docs/RAG_LLM_RUNBOOK.md`, smoke `smoke_rag_generative`.
+**Phase 18 đã hoàn thành** (2026-06-08): dòng hàng mua sắm + danh mục vật tư MVP — `procurement_line_items`, `materials_catalog`, UI line items/autocomplete, filter list/search theo mặt hàng.
 
 Hệ thống chạy on-prem bằng Docker Compose (`api`, `worker`, `web`, `postgres`, `redis`, `qdrant`; `ollama` optional profile `llm`). Workflow web end-to-end: upload → OCR/extract → searchable → semantic search → RAG Q&A (extractive hoặc generative local) → review chunk → audit. Module nghiệp vụ MVP: hợp đồng, công văn, quyết định, mua sắm — liên kết document detail; gợi ý liên kết document rule-based (Phase 16).
 
-**Phase 18 đang thực hiện** (2026-06-08): mục tiêu 1–7 hoàn thành — line items + catalog + frontend + filter search theo mặt hàng.
+**Phase 18 đã hoàn thành** (2026-06-08): line items + catalog + frontend + filter search theo mặt hàng.
 
-Con trỏ thực thi: `TASK_NEXT.md` mục tiêu 8 — regression và đóng phase.
+Con trỏ thực thi: `TASK_NEXT.md` placeholder Phase 19+ (chưa mở).
 
 ## Giới Hạn Còn Lại
 
@@ -20,7 +20,7 @@ Giới hạn còn lại (đồng bộ `ROADMAP.md`):
 - Inventory/tồn kho, phiếu xuất/nhập, tồn tối thiểu: Phase 19+ (chưa lập kế hoạch).
 - Workflow phê duyệt nhiều bước, SLA, assignee: Phase 19+.
 - HA Ollama / scale horizontal LLM / tách LLM host production: Phase 19+ (ops).
-- Line items procurement: **đang mở trong Phase 18** — không kèm tồn kho hay workflow phê duyệt.
+- Line items procurement: **đã hoàn thành Phase 18** — không kèm tồn kho hay workflow phê duyệt.
 
 ## Đã Xây Dựng
 
@@ -2933,7 +2933,7 @@ Kết quả: extractive + relation smokes pass; 7 unit tests pass; generative sm
 
 ## Phase 18 — Dòng Hàng Mua Sắm Và Danh Mục Vật Tư MVP
 
-Trạng thái: **đang thực hiện** — mục tiêu 1–7 hoàn thành (2026-06-08); mục tiêu 6 bỏ qua.
+Trạng thái: **hoàn thành** (2026-06-08).
 
 ### Mục tiêu 1 — Thiết kế scope (2026-06-08)
 
@@ -3048,7 +3048,25 @@ Kiểm tra:
 
 ### Mục tiêu thực thi
 
-Checklist 8 mục tiêu trong `TASK_NEXT.md`. Mục tiêu 1–5, 7 ✅; mục tiêu 6 bỏ qua; tiếp theo mục tiêu 8 (regression, đóng phase).
+Checklist 8 mục tiêu trong `TASK_NEXT.md` (lịch sử phase). Mục tiêu 1–5, 7 ✅; mục tiêu 6 bỏ qua; mục tiêu 8 regression ✅ — **Phase 18 đóng**.
+
+### Mục tiêu 8 — Regression và đóng phase (2026-06-08)
+
+Kiểm tra bắt buộc:
+
+- `smoke_procurement_line_items`: pass.
+- `smoke_procurement_api`: pass.
+- `smoke_search_module_filters`: pass.
+- `smoke_module_onboarding`: pass.
+- `smoke_relation_suggestions`: pass.
+- `smoke_health_checks`: pass.
+- `smoke_rag_answer`: pass (~17s; lần chạy đầu có thể timeout 20s khi stack đang tải — retry pass).
+- `web npm run build`: pass.
+- `git diff --check`: pass.
+
+**Đóng phase**
+
+- Phase 18 hoàn thành; `ROADMAP.md`, `TASK_NEXT.md` placeholder Phase 19+, `PROJECT_STATUS.md` cập nhật.
 
 ### Phase 19+ (dự kiến, chưa lập chi tiết)
 
