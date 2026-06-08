@@ -1,27 +1,12 @@
 <script setup lang="ts">
-const authStore = useAuthStore()
+const route = useRoute()
+const isLoginPage = computed(() => route.path === '/login')
 </script>
 
 <template>
-  <div>
-    <nav class="border-b border-slate-200 bg-white">
-      <div class="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
-        <NuxtLink to="/dashboard" class="text-base font-semibold">Legal Doc AI</NuxtLink>
-        <div class="flex gap-4 text-sm text-slate-700">
-          <NuxtLink to="/dashboard">Dashboard</NuxtLink>
-          <NuxtLink to="/documents">Documents</NuxtLink>
-          <NuxtLink to="/contracts">Contracts</NuxtLink>
-          <NuxtLink to="/dispatches">Công văn</NuxtLink>
-          <NuxtLink to="/decisions">Quyết định</NuxtLink>
-          <NuxtLink to="/procurements">Mua sắm</NuxtLink>
-          <NuxtLink to="/upload">Upload</NuxtLink>
-          <NuxtLink v-if="authStore.isAdmin" to="/materials-catalog">Danh mục VT</NuxtLink>
-          <NuxtLink v-if="authStore.isAdmin" to="/status">Status</NuxtLink>
-          <NuxtLink v-if="authStore.isAdmin" to="/users">Users</NuxtLink>
-        </div>
-      </div>
-    </nav>
-    <main class="mx-auto max-w-6xl px-4 py-6">
+  <div class="min-h-screen bg-slate-50">
+    <AppNavbar v-if="!isLoginPage" />
+    <main :class="isLoginPage ? 'flex min-h-screen items-center justify-center px-4 py-8' : 'mx-auto max-w-6xl px-4 py-6 sm:px-6'">
       <NuxtPage />
     </main>
   </div>

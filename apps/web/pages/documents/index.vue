@@ -43,6 +43,9 @@ const currentStart = computed(() => (documentsTotal.value === 0 ? 0 : documentsO
 const currentEnd = computed(() => Math.min(documentsOffset.value + documents.value.length, documentsTotal.value))
 const canGoPrevious = computed(() => documentsOffset.value > 0)
 const canGoNext = computed(() => documentsOffset.value + documentsLimit.value < documentsTotal.value)
+const paginationSummary = computed(
+  () => `Hiển thị ${currentStart.value}-${currentEnd.value} / ${documentsTotal.value} văn bản`
+)
 
 function currentFilters(): DocumentListFilters {
   return {
@@ -94,100 +97,76 @@ onMounted(async () => {
 </script>
 
 <template>
-  <section class="space-y-5">
-    <div class="flex items-center justify-between">
-      <div>
-        <h1 class="text-2xl font-semibold">Documents</h1>
-        <p class="mt-1 text-sm text-slate-600">Danh sách văn bản đã upload.</p>
-      </div>
-      <div class="flex gap-2">
+  <AppPageContainer>
+    <AppPageHeader title="Documents" description="Danh sách văn bản đã upload.">
+      <template #actions>
         <Button label="Refresh" icon="pi pi-refresh" severity="secondary" :loading="loading" @click="() => loadDocuments()" />
         <NuxtLink to="/upload">
           <Button label="Upload" icon="pi pi-upload" />
         </NuxtLink>
-      </div>
-    </div>
-
-    <Card>
-      <template #content>
-        <div class="grid gap-3 md:grid-cols-9">
-          <InputText
-            v-model="filters.q"
-            class="md:col-span-2"
-            placeholder="Tìm theo tên, số văn bản, đơn vị hoặc filename"
-            @keyup.enter="loadDocuments(true)"
-          />
-          <select v-model="filters.status" class="rounded border border-slate-300 px-3 py-2 text-sm">
-            <option v-for="option in statusOptions" :key="option.value" :value="option.value">
-              {{ option.label }}
-            </option>
-          </select>
-          <select v-model="filters.document_type" class="rounded border border-slate-300 px-3 py-2 text-sm">
-            <option v-for="option in documentTypeFilterOptions" :key="option.value" :value="option.value">
-              {{ option.label }}
-            </option>
-          </select>
-          <select v-model="filters.business_type" class="rounded border border-slate-300 px-3 py-2 text-sm">
-            <option v-for="option in businessTypeFilterOptions" :key="option.value" :value="option.value">
-              {{ option.label }}
-            </option>
-          </select>
-          <select
-            v-model="filters.missing_module_metadata"
-            class="rounded border border-slate-300 px-3 py-2 text-sm"
-          >
-            <option value="">Tất cả module</option>
-            <option value="1">Chưa có metadata module</option>
-          </select>
-          <select
-            v-model="filters.has_relations"
-            class="rounded border border-slate-300 px-3 py-2 text-sm"
-          >
-            <option value="">Tất cả liên kết</option>
-            <option value="1">Có liên kết văn bản</option>
-          </select>
-          <select v-model="filters.sort_by" class="rounded border border-slate-300 px-3 py-2 text-sm">
-            <option v-for="option in sortOptions" :key="option.value" :value="option.value">
-              {{ option.label }}
-            </option>
-          </select>
-          <select v-model="filters.sort_dir" class="rounded border border-slate-300 px-3 py-2 text-sm">
-            <option value="desc">Giảm dần</option>
-            <option value="asc">Tăng dần</option>
-          </select>
-        </div>
-        <div class="mt-3 flex flex-wrap gap-2">
-          <Button label="Lọc" icon="pi pi-filter" :loading="loading" @click="loadDocuments(true)" />
-          <Button label="Xóa lọc" icon="pi pi-times" severity="secondary" :disabled="loading" @click="resetFilters" />
-        </div>
       </template>
-    </Card>
+    </AppPageHeader>
 
-    <Message v-if="error" severity="error">{{ error }}</Message>
-    <div class="flex flex-col gap-3 rounded border border-slate-200 bg-white px-4 py-3 md:flex-row md:items-center md:justify-between">
-      <p class="text-sm text-slate-600">
-        Hiển thị {{ currentStart }}-{{ currentEnd }} / {{ documentsTotal }} văn bản
-      </p>
-      <div class="flex gap-2">
-        <Button
-          label="Trước"
-          icon="pi pi-chevron-left"
-          severity="secondary"
-          size="small"
-          :disabled="loading || !canGoPrevious"
-          @click="goToPreviousPage"
+    <AppCard title="Bộ lọc">
+      <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <InputText
+          v-model="filters.q"
+          class="sm:col-span-2 lg:col-span-2"
+          placeholder="Tìm theo tên, số văn bản, đơn vị hoặc filename"
+          @keyup.enter="loadDocuments(true)"
         />
-        <Button
-          label="Sau"
-          icon="pi pi-chevron-right"
-          icon-pos="right"
-          severity="secondary"
-          size="small"
-          :disabled="loading || !canGoNext"
-          @click="goToNextPage"
-        />
+        <AppSelect v-model="filters.status">
+          <option v-for="option in statusOptions" :key="option.value" :value="option.value">
+            {{ option.label }}
+          </option>
+        </AppSelect>
+        <AppSelect v-model="filters.document_type">
+          <option v-for="option in documentTypeFilterOptions" :key="option.value" :value="option.value">
+            {{ option.label }}
+          </option>
+        </AppSelect>
+        <AppSelect v-model="filters.business_type">
+          <option v-for="option in businessTypeFilterOptions" :key="option.value" :value="option.value">
+            {{ option.label }}
+          </option>
+        </AppSelect>
+        <AppSelect v-model="filters.missing_module_metadata">
+          <option value="">Tất cả module</option>
+          <option value="1">Chưa có metadata module</option>
+        </AppSelect>
+        <AppSelect v-model="filters.has_relations">
+          <option value="">Tất cả liên kết</option>
+          <option value="1">Có liên kết văn bản</option>
+        </AppSelect>
+        <AppSelect v-model="filters.sort_by">
+          <option v-for="option in sortOptions" :key="option.value" :value="option.value">
+            {{ option.label }}
+          </option>
+        </AppSelect>
+        <AppSelect v-model="filters.sort_dir">
+          <option value="desc">Giảm dần</option>
+          <option value="asc">Tăng dần</option>
+        </AppSelect>
       </div>
-    </div>
-    <BaseDataTable :rows="documents" :loading="loading" />
-  </section>
+      <div class="mt-4 flex flex-wrap gap-2">
+        <Button label="Lọc" icon="pi pi-filter" :loading="loading" @click="loadDocuments(true)" />
+        <Button label="Xóa lọc" icon="pi pi-times" severity="secondary" :disabled="loading" @click="resetFilters" />
+      </div>
+    </AppCard>
+
+    <AppErrorState v-if="error" :message="error" />
+
+    <AppToolbar
+      :summary="paginationSummary"
+      :loading="loading"
+      :can-go-previous="canGoPrevious"
+      :can-go-next="canGoNext"
+      @previous="goToPreviousPage"
+      @next="goToNextPage"
+    />
+
+    <AppCard no-padding>
+      <BaseDataTable :rows="documents" :loading="loading" />
+    </AppCard>
+  </AppPageContainer>
 </template>

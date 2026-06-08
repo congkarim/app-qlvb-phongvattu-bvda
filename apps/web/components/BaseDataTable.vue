@@ -9,7 +9,8 @@ defineProps<{
 </script>
 
 <template>
-  <DataTable :value="rows" :loading="loading" data-key="id" table-style="min-width: 72rem">
+  <div class="app-table-wrap">
+  <DataTable :value="rows" :loading="loading" data-key="id" responsive-layout="scroll" table-style="min-width: 64rem">
     <Column field="title" header="Tên văn bản">
       <template #body="{ data }">
         <div>
@@ -62,7 +63,18 @@ defineProps<{
       </template>
     </Column>
     <template #empty>
-      <div class="py-6 text-center text-sm text-slate-600">Chưa có văn bản.</div>
+      <AppEmptyState
+        title="Chưa có văn bản"
+        description="Upload văn bản mới để bắt đầu quản lý và OCR."
+        icon="pi-file"
+      >
+        <template #action>
+          <NuxtLink to="/upload">
+            <Button label="Upload văn bản" icon="pi pi-upload" size="small" />
+          </NuxtLink>
+        </template>
+      </AppEmptyState>
     </template>
   </DataTable>
+  </div>
 </template>
