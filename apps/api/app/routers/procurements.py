@@ -12,6 +12,16 @@ from app.schemas.procurement import (
     ProcurementRead,
     ProcurementUpdateRequest,
 )
+from app.schemas.procurement_line_item import (
+    ProcurementLineItemCreateRequest,
+    ProcurementLineItemListResponse,
+    ProcurementLineItemRead,
+)
+from app.services.procurement_line_item_service import (
+    ProcurementLineItemAlreadyExistsError,
+    ProcurementLineItemOperationError,
+    ProcurementLineItemService,
+)
 from app.services.procurement_service import (
     ProcurementAlreadyExistsError,
     ProcurementNotFoundError,
@@ -76,6 +86,43 @@ def get_procurement_by_document(
         return ProcurementRead(**ProcurementService(db).get_procurement_by_document_id(document_id))
     except ProcurementNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
+
+
+@router.get("/{procurement_id}/line-items", response_model=ProcurementLineItemListResponse)
+def list_procurement_line_items(
+    procurement_id: str,
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(get_current_user),
+) -> ProcurementLineItemListResponse:
+    try:
+        return ProcurementLineItemListResponse(
+            **ProcurementLineItemService(db).list_line_items(procurement_id)
+        )
+    except ProcurementNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+
+
+@router.post("/{procurement_id}/line-items", response_model=ProcurementLineItemRead, status_code=status.HTTP_201_CREATED)
+def create_procurement_line_item(
+    procurement_id: str,
+    payload: ProcurementLineItemCreateRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> ProcurementLineItemRead:
+    try:
+        return ProcurementLineItemRead(
+            **ProcurementLineItemService(db).create_line_item(
+                procurement_id=procurement_id,
+                values=payload.model_dump(),
+                actor=current_user,
+            )
+        )
+    except ProcurementNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except ProcurementLineItemAlreadyExistsError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    except ProcurementLineItemOperationError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
 
 
 @router.get("/{procurement_id}", response_model=ProcurementRead)

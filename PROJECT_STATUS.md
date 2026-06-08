@@ -4,15 +4,15 @@ Cập nhật lần cuối: 2026-06-08
 
 ## Giai Đoạn Hiện Tại
 
-**Phase 0–17 đã hoàn thành.** **Phase 18 đang thực hiện** — mục tiêu 1–2 hoàn thành 2026-06-08.
+**Phase 0–17 đã hoàn thành.** **Phase 18 đang thực hiện** — mục tiêu 1–3 hoàn thành 2026-06-08.
 
 **Phase 17 đã hoàn thành** (2026-06-07): RAG generative local-only qua Ollama — `LocalLLMService`, profile Compose `llm`, fallback extractive, ops LLM status, dashboard badge, runbook `docs/RAG_LLM_RUNBOOK.md`, smoke `smoke_rag_generative`.
 
 Hệ thống chạy on-prem bằng Docker Compose (`api`, `worker`, `web`, `postgres`, `redis`, `qdrant`; `ollama` optional profile `llm`). Workflow web end-to-end: upload → OCR/extract → searchable → semantic search → RAG Q&A (extractive hoặc generative local) → review chunk → audit. Module nghiệp vụ MVP: hợp đồng, công văn, quyết định, mua sắm — liên kết document detail; gợi ý liên kết document rule-based (Phase 16).
 
-**Phase 18 đang thực hiện** (2026-06-08): mục tiêu 1–2 hoàn thành — thiết kế + migration/model/repository `procurement_line_items`.
+**Phase 18 đang thực hiện** (2026-06-08): mục tiêu 1–3 hoàn thành — line items API + smoke backend.
 
-Con trỏ thực thi: `TASK_NEXT.md` mục tiêu 3 → service + API line items + smoke backend.
+Con trỏ thực thi: `TASK_NEXT.md` mục tiêu 4 → materials catalog migration + API admin.
 
 ## Giới Hạn Còn Lại
 
@@ -2962,6 +2962,19 @@ Kiểm tra:
 
 - `docker compose exec -T api alembic upgrade head`: pass.
 - `py_compile` model + repository (trong container api): pass.
+- `git diff --check`: pass.
+
+### Mục tiêu 3 — Service, API line items, audit, smoke (2026-06-08)
+
+- `ProcurementLineItemService`: CRUD, tính `amount` server-side, audit `procurement_line_item.*`.
+- API nested: `GET/POST /procurements/{id}/line-items`; flat: `PATCH/DELETE /procurement-line-items/{id}`.
+- Quyền mirror procurement: user create/update; admin soft delete.
+- Smoke `smoke_procurement_line_items`: tạo ≥2 dòng → sửa quantity/recalc amount → xóa admin → list đúng thứ tự.
+
+Kiểm tra:
+
+- `docker compose exec -T api python -m app.scripts.smoke_procurement_line_items`: pass.
+- `docker compose exec -T api python -m app.scripts.smoke_procurement_api`: pass.
 - `git diff --check`: pass.
 
 ### Lý do ưu tiên Phase 18

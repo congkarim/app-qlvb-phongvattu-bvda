@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import get_settings
 from app.core.logging_config import configure_logging
 from app.db.session import SessionLocal
-from app.routers import auth, catalogs, contracts, decisions, dispatches, document_relations, documents, health, ops, procurements, search, users
+from app.routers import auth, catalogs, contracts, decisions, dispatches, document_relations, documents, health, ops, procurement_line_items, procurements, search, users
 from app.services.auth_service import AuthService
 
 
@@ -49,6 +49,7 @@ app.include_router(contracts.router, prefix=settings.api_prefix)
 app.include_router(dispatches.router, prefix=settings.api_prefix)
 app.include_router(decisions.router, prefix=settings.api_prefix)
 app.include_router(procurements.router, prefix=settings.api_prefix)
+app.include_router(procurement_line_items.router, prefix=settings.api_prefix)
 app.include_router(documents.router, prefix=settings.api_prefix)
 app.include_router(document_relations.router, prefix=settings.api_prefix)
 app.include_router(search.router, prefix=settings.api_prefix)

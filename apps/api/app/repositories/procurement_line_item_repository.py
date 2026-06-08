@@ -76,6 +76,18 @@ class ProcurementLineItemRepository:
         self.db.flush()
         return item
 
+    def get_by_procurement_and_line_number(
+        self,
+        procurement_id: str,
+        line_number: int,
+    ) -> ProcurementLineItem | None:
+        stmt = select(ProcurementLineItem).where(
+            ProcurementLineItem.procurement_id == procurement_id,
+            ProcurementLineItem.line_number == line_number,
+            ProcurementLineItem.deleted_at.is_(None),
+        )
+        return self.db.scalar(stmt)
+
     def soft_delete(self, item: ProcurementLineItem) -> ProcurementLineItem:
         item.deleted_at = datetime.now(timezone.utc)
         self.db.add(item)
