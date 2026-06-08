@@ -53,6 +53,8 @@ const form = reactive<ProcurementInput>({
 })
 
 const editingId = ref('')
+const lineItemsDialogVisible = ref(false)
+const lineItemsTarget = ref<ProcurementItem | null>(null)
 
 const kindOptions: Array<{ label: string; value: ProcurementKind | '' }> = [
   { label: 'Tất cả loại', value: '' },
@@ -198,6 +200,20 @@ function formatKind(kind: string) {
 function formatStatus(status: string) {
   const option = statusOptions.find((item) => item.value === status)
   return option?.label || status
+}
+
+function openLineItems(item: ProcurementItem) {
+  lineItemsTarget.value = item
+  lineItemsDialogVisible.value = true
+}
+
+function closeLineItemsDialog() {
+  lineItemsDialogVisible.value = false
+  lineItemsTarget.value = null
+}
+
+function lineItemsReferenceLabel(item: ProcurementItem) {
+  return item.reference_number || item.title_summary || item.id
 }
 
 function formatCurrency(value?: string | number | null, currency = 'VND') {
@@ -404,6 +420,7 @@ onMounted(async () => {
           <Column header="">
             <template #body="{ data }">
               <div class="flex gap-2">
+                <Button icon="pi pi-list" text rounded aria-label="Dòng hàng" @click="openLineItems(data)" />
                 <Button icon="pi pi-pencil" text rounded aria-label="Sửa" @click="editProcurement(data)" />
                 <Button
                   v-if="authStore.isAdmin"
@@ -424,5 +441,21 @@ onMounted(async () => {
         </DataTable>
       </template>
     </Card>
+
+    <Dialog
+      v-model:visible="lineItemsDialogVisible"
+      modal
+      header="Dòng hàng mua sắm"
+      :style="{ width: 'min(960px, 96vw)' }"
+      @hide="closeLineItemsDialog"
+    >
+      <ProcurementLineItemsPanel
+        v-if="lineItemsTarget"
+        :procurement-id="lineItemsTarget.id"
+        :estimated-value="lineItemsTarget.estimated_value"
+        :currency="lineItemsTarget.currency"
+        :reference-label="lineItemsReferenceLabel(lineItemsTarget)"
+      />
+    </Dialog>
   </section>
 </template>

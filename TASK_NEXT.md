@@ -1,6 +1,6 @@
 # Kế Hoạch Task Tiếp Theo
 
-Cập nhật lần cuối: 2026-06-07
+Cập nhật lần cuối: 2026-06-08
 
 Tài liệu này là **checklist thực thi của phase đang làm**, bám theo `ROADMAP.md`. Khi người dùng nói `thực hiện TASK_NEXT.md`, agent phải bắt đầu từ mục đầu tiên có trạng thái `chưa làm` hoặc `đang làm`.
 
@@ -25,7 +25,7 @@ Phase trước: Phase 17 hoàn thành ngày 2026-06-07.
 
 Phase hiện tại: **Phase 18 — Dòng hàng mua sắm và danh mục vật tư MVP**.
 
-Mục tiêu tiếp theo: **Mục tiêu 5** — frontend line items UI, tổng cộng và autocomplete.
+Mục tiêu tiếp theo: **Mục tiêu 6** (tùy chọn) — gợi ý dòng hàng từ OCR rule-based; hoặc **Mục tiêu 7** nếu bỏ qua mục tiêu 6.
 
 Regression nhanh trước khi bắt đầu (baseline Phase 17):
 
@@ -39,7 +39,7 @@ docker compose exec -T api python -m app.scripts.smoke_health_checks
 
 ## Phase 18 — Dòng Hàng Mua Sắm Và Danh Mục Vật Tư MVP
 
-Trạng thái phase: **đang làm** (mục tiêu 1 hoàn thành 2026-06-08).
+Trạng thái phase: **đang làm** (mục tiêu 1–5 hoàn thành 2026-06-08).
 
 Phạm vi: mở rộng `procurement_records` với bảng `procurement_line_items` và `materials_catalog` (autocomplete); filter search/list theo mặt hàng; **không** tồn kho, **không** workflow phê duyệt nhiều bước. Chi tiết: `ROADMAP.md` § Phase 18.
 
@@ -136,7 +136,7 @@ git diff --check
 
 ### Mục tiêu 5 — Frontend line items UI, tổng cộng và autocomplete
 
-Trạng thái: **chưa làm** (mục tiêu tiếp theo).
+Trạng thái: **hoàn thành** (2026-06-08).
 
 Skills: `frontend-nuxt`.
 
@@ -160,7 +160,7 @@ git diff --check
 
 ### Mục tiêu 6 — (Tùy chọn) Gợi ý dòng hàng từ OCR rule-based
 
-Trạng thái: **chưa làm**.
+Trạng thái: **chưa làm** (mục tiêu tiếp theo nếu làm).
 
 Skills: `ocr-pipeline`, `vn-admin-doc-ocr-classifier`, `backend-fastapi`.
 

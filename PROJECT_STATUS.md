@@ -4,15 +4,15 @@ Cập nhật lần cuối: 2026-06-08
 
 ## Giai Đoạn Hiện Tại
 
-**Phase 0–17 đã hoàn thành.** **Phase 18 đang thực hiện** — mục tiêu 1–4 hoàn thành 2026-06-08.
+**Phase 0–17 đã hoàn thành.** **Phase 18 đang thực hiện** — mục tiêu 1–5 hoàn thành 2026-06-08.
 
 **Phase 17 đã hoàn thành** (2026-06-07): RAG generative local-only qua Ollama — `LocalLLMService`, profile Compose `llm`, fallback extractive, ops LLM status, dashboard badge, runbook `docs/RAG_LLM_RUNBOOK.md`, smoke `smoke_rag_generative`.
 
 Hệ thống chạy on-prem bằng Docker Compose (`api`, `worker`, `web`, `postgres`, `redis`, `qdrant`; `ollama` optional profile `llm`). Workflow web end-to-end: upload → OCR/extract → searchable → semantic search → RAG Q&A (extractive hoặc generative local) → review chunk → audit. Module nghiệp vụ MVP: hợp đồng, công văn, quyết định, mua sắm — liên kết document detail; gợi ý liên kết document rule-based (Phase 16).
 
-**Phase 18 đang thực hiện** (2026-06-08): mục tiêu 1–4 hoàn thành — line items + materials catalog API.
+**Phase 18 đang thực hiện** (2026-06-08): mục tiêu 1–5 hoàn thành — line items + materials catalog API + frontend UI.
 
-Con trỏ thực thi: `TASK_NEXT.md` mục tiêu 5 → frontend line items UI + autocomplete.
+Con trỏ thực thi: `TASK_NEXT.md` mục tiêu 6 (tùy chọn OCR) hoặc mục tiêu 7 (filter search theo mặt hàng).
 
 ## Giới Hạn Còn Lại
 
@@ -2933,7 +2933,7 @@ Kết quả: extractive + relation smokes pass; 7 unit tests pass; generative sm
 
 ## Phase 18 — Dòng Hàng Mua Sắm Và Danh Mục Vật Tư MVP
 
-Trạng thái: **đang thực hiện** — mục tiêu 1 hoàn thành (2026-06-08).
+Trạng thái: **đang thực hiện** — mục tiêu 1–5 hoàn thành (2026-06-08).
 
 ### Mục tiêu 1 — Thiết kế scope (2026-06-08)
 
@@ -2992,6 +2992,23 @@ Kiểm tra:
 - `docker compose exec -T api python -m app.scripts.smoke_procurement_line_items`: pass.
 - `git diff --check`: pass.
 
+### Mục tiêu 5 — Frontend line items UI, tổng cộng, autocomplete (2026-06-08)
+
+**Triển khai**
+
+- Types: `procurement-line-item.ts`, `materials-catalog.ts`.
+- Services: `procurement-line-item.service.ts`, `materials-catalog.service.ts`.
+- Composables: `useProcurementLineItems`, `useMaterialsCatalog`.
+- `ProcurementLineItemsPanel.vue`: bảng dòng hàng, form thêm/sửa, tổng `lines_total_amount`, cảnh báo khi lệch `estimated_value` >1%; AutoComplete catalog (tên → mã, đơn vị, `catalog_item_id`).
+- `procurements.vue`: Dialog **Dòng hàng** mở panel theo từng hồ sơ.
+- `materials-catalog.vue`: trang admin CRUD danh mục vật tư; nav **Danh mục VT** trong `app.vue`.
+- PrimeVue: đăng ký `AutoComplete`, `Dialog`.
+
+Kiểm tra:
+
+- `WEB_MEMORY_LIMIT=4g docker compose run --rm --no-deps -e NODE_OPTIONS=--max-old-space-size=3072 web npm run build`: pass.
+- `git diff --check`: pass.
+
 ### Lý do ưu tiên Phase 18
 
 - Phòng vật tư cần tra cứu hồ sơ mua sắm theo **mặt hàng** (tên, mã, số lượng, đơn giá) — metadata cấp hồ sơ Phase 13 chưa đủ.
@@ -3011,7 +3028,7 @@ Kiểm tra:
 
 ### Mục tiêu thực thi
 
-Checklist 8 mục tiêu trong `TASK_NEXT.md`. Mục tiêu 1–4 ✅; tiếp theo mục tiêu 5 (frontend).
+Checklist 8 mục tiêu trong `TASK_NEXT.md`. Mục tiêu 1–5 ✅; tiếp theo mục tiêu 6 (tùy chọn) hoặc mục tiêu 7.
 
 ### Phase 19+ (dự kiến, chưa lập chi tiết)
 

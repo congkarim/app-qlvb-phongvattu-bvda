@@ -15,6 +15,7 @@ const authStore = useAuthStore()
           <NuxtLink to="/decisions">Quyết định</NuxtLink>
           <NuxtLink to="/procurements">Mua sắm</NuxtLink>
           <NuxtLink to="/upload">Upload</NuxtLink>
+          <NuxtLink v-if="authStore.isAdmin" to="/materials-catalog">Danh mục VT</NuxtLink>
           <NuxtLink v-if="authStore.isAdmin" to="/status">Status</NuxtLink>
           <NuxtLink v-if="authStore.isAdmin" to="/users">Users</NuxtLink>
         </div>

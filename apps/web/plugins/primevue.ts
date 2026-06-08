@@ -1,9 +1,11 @@
 import PrimeVue from 'primevue/config'
 import Aura from '@primevue/themes/aura'
+import AutoComplete from 'primevue/autocomplete'
 import Button from 'primevue/button'
 import Card from 'primevue/card'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
+import Dialog from 'primevue/dialog'
 import FileUpload from 'primevue/fileupload'
 import InputNumber from 'primevue/inputnumber'
 import InputText from 'primevue/inputtext'
@@ -18,10 +20,12 @@ export default defineNuxtPlugin((nuxtApp) => {
       preset: Aura
     }
   })
+  nuxtApp.vueApp.component('AutoComplete', AutoComplete)
   nuxtApp.vueApp.component('Button', Button)
   nuxtApp.vueApp.component('Card', Card)
   nuxtApp.vueApp.component('DataTable', DataTable)
   nuxtApp.vueApp.component('Column', Column)
+  nuxtApp.vueApp.component('Dialog', Dialog)
   nuxtApp.vueApp.component('FileUpload', FileUpload)
   nuxtApp.vueApp.component('InputNumber', InputNumber)
   nuxtApp.vueApp.component('InputText', InputText)
