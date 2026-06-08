@@ -7,6 +7,7 @@ from app.models.procurement_line_item import ProcurementLineItem
 from app.models.user import User
 from app.repositories.audit_log_repository import AuditLogRepository
 from app.repositories.procurement_line_item_repository import ProcurementLineItemRepository
+from app.services.materials_catalog_service import MaterialsCatalogNotFoundError, MaterialsCatalogService
 from app.services.procurement_service import ProcurementNotFoundError
 
 
@@ -27,6 +28,7 @@ class ProcurementLineItemService:
         self.db = db
         self.line_items = ProcurementLineItemRepository(db)
         self.audit_logs = AuditLogRepository(db)
+        self.materials_catalog = MaterialsCatalogService(db)
 
     def list_line_items(self, procurement_id: str) -> dict[str, Any]:
         self._ensure_procurement(procurement_id)
@@ -42,6 +44,8 @@ class ProcurementLineItemService:
     ) -> dict[str, Any]:
         self._ensure_procurement(procurement_id)
         payload = self._clean_create_values(values)
+        catalog_item_id = payload.get("catalog_item_id")
+        self.materials_catalog.ensure_catalog_reference(catalog_item_id)
         line_number = payload.pop("line_number", None)
         if line_number is None:
             line_number = self.line_items.get_max_line_number(procurement_id) + 1
@@ -87,6 +91,9 @@ class ProcurementLineItemService:
         item = self._get_line_item(line_item_id)
         old_values = self._audit_snapshot(item)
         cleaned = self._clean_update_values(values)
+
+        if "catalog_item_id" in values:
+            self.materials_catalog.ensure_catalog_reference(cleaned.get("catalog_item_id"))
 
         if "line_number" in cleaned and cleaned["line_number"] != item.line_number:
             self._ensure_unique_line_number(item.procurement_id, cleaned["line_number"], exclude_id=item.id)
@@ -176,6 +183,7 @@ class ProcurementLineItemService:
             "quantity": quantity,
             "unit_price": unit_price,
             "explicit_amount": explicit_amount,
+            "catalog_item_id": self._normalize_text(values.get("catalog_item_id")),
             "notes": self._normalize_text(values.get("notes")),
         }
 
@@ -198,6 +206,8 @@ class ProcurementLineItemService:
             cleaned["unit_price"] = self._normalize_optional_decimal(values.get("unit_price"), "unit_price")
         if "amount" in values:
             cleaned["explicit_amount"] = self._normalize_optional_decimal(values.get("amount"), "amount")
+        if "catalog_item_id" in values:
+            cleaned["catalog_item_id"] = self._normalize_text(values.get("catalog_item_id"))
         if "notes" in values:
             cleaned["notes"] = self._normalize_text(values.get("notes"))
         return cleaned
@@ -232,6 +242,7 @@ class ProcurementLineItemService:
             "quantity": item.quantity,
             "unit_price": item.unit_price,
             "amount": item.amount,
+            "catalog_item_id": item.catalog_item_id,
             "notes": item.notes,
             "created_at": item.created_at,
             "updated_at": item.updated_at,

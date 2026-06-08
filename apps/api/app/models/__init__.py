@@ -3,6 +3,7 @@ from app.models.catalog import AdminCatalogItem
 from app.models.contract import ContractRecord
 from app.models.decision import DecisionRecord
 from app.models.dispatch import DispatchRecord
+from app.models.materials_catalog import MaterialsCatalogItem
 from app.models.procurement import ProcurementRecord
 from app.models.procurement_line_item import ProcurementLineItem
 from app.models.department import Department
@@ -16,6 +17,7 @@ __all__ = [
     "ContractRecord",
     "DecisionRecord",
     "DispatchRecord",
+    "MaterialsCatalogItem",
     "ProcurementRecord",
     "ProcurementLineItem",
     "Department",

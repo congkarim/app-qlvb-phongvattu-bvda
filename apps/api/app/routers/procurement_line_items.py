@@ -10,6 +10,7 @@ from app.schemas.procurement_line_item import (
     ProcurementLineItemRead,
     ProcurementLineItemUpdateRequest,
 )
+from app.services.materials_catalog_service import MaterialsCatalogNotFoundError
 from app.services.procurement_line_item_service import (
     ProcurementLineItemAlreadyExistsError,
     ProcurementLineItemNotFoundError,
@@ -43,6 +44,8 @@ def update_procurement_line_item(
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
     except ProcurementLineItemOperationError as exc:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+    except MaterialsCatalogNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
 
 
 @router.delete("/{line_item_id}", response_model=ProcurementLineItemRead)

@@ -15,6 +15,7 @@ from app.core.security import hash_password
 from app.db.session import SessionLocal
 from app.models.audit_log import AuditLog
 from app.models.document import Document
+from app.models.materials_catalog import MaterialsCatalogItem
 from app.models.procurement import ProcurementRecord
 from app.models.procurement_line_item import ProcurementLineItem
 from app.models.user import User
@@ -24,6 +25,7 @@ from app.repositories.user_repository import UserRepository
 
 SMOKE_TITLE_PREFIX = "[SMOKE] Procurement Line Items"
 SMOKE_USER_EMAIL_PREFIX = "procurement-line-items-smoke-"
+SMOKE_CATALOG_CODE_PREFIX = "SMOKE_MCAT_"
 SMOKE_PASSWORD = "smoke-password-123"
 
 
@@ -71,6 +73,40 @@ def run_smoke(*, api_base: str, keep_data: bool) -> dict[str, Any]:
         )
         created_procurement_id = procurement["id"]
 
+        catalog_active = _request_json(
+            "GET",
+            f"{api_base}/materials-catalog?q=VT-001",
+            token=user_token,
+        )
+        _assert(
+            any(item.get("code") == "VT-001" for item in catalog_active),
+            "Seed VT-001 missing from active materials catalog",
+        )
+        vt001_id = next(item["id"] for item in catalog_active if item.get("code") == "VT-001")
+
+        _expect_http_status(
+            "POST",
+            f"{api_base}/materials-catalog",
+            token=user_token,
+            payload={"code": "X", "name": "Forbidden"},
+            expected_status=403,
+            label="user materials catalog create permission",
+        )
+
+        smoke_catalog_code = f"{SMOKE_CATALOG_CODE_PREFIX}{uuid4().hex[:8]}"
+        smoke_catalog = _request_json(
+            "POST",
+            f"{api_base}/materials-catalog",
+            token=admin_token,
+            payload={
+                "code": smoke_catalog_code,
+                "name": f"Smoke Vat Tu {smoke_catalog_code}",
+                "default_unit": "Cai",
+                "category": "Smoke",
+            },
+            expected_status=201,
+        )
+
         line1 = _request_json(
             "POST",
             f"{api_base}/procurements/{created_procurement_id}/line-items",
@@ -82,11 +118,13 @@ def run_smoke(*, api_base: str, keep_data: bool) -> dict[str, Any]:
                 "unit": "Ram",
                 "quantity": "10",
                 "unit_price": "85000.00",
+                "catalog_item_id": vt001_id,
             },
             expected_status=201,
         )
         created_line_item_ids.append(line1["id"])
         _assert(line1["amount"] == "850000.00", f"Line 1 amount mismatch: {line1['amount']}")
+        _assert(line1["catalog_item_id"] == vt001_id, "Line 1 catalog_item_id mismatch")
 
         line2 = _request_json(
             "POST",
@@ -105,15 +143,54 @@ def run_smoke(*, api_base: str, keep_data: bool) -> dict[str, Any]:
         _assert(line2["line_number"] == 2, f"Expected auto line_number=2, got {line2['line_number']}")
         _assert(line2["amount"] == "600000.00", f"Line 2 amount mismatch: {line2['amount']}")
 
+        line3 = _request_json(
+            "POST",
+            f"{api_base}/procurements/{created_procurement_id}/line-items",
+            token=user_token,
+            payload={
+                "item_name": smoke_catalog["name"],
+                "item_code": smoke_catalog_code,
+                "unit": "Cai",
+                "quantity": "2",
+                "unit_price": "10000.00",
+                "catalog_item_id": smoke_catalog["id"],
+            },
+            expected_status=201,
+        )
+        created_line_item_ids.append(line3["id"])
+
+        _request_json(
+            "DELETE",
+            f"{api_base}/materials-catalog/{smoke_catalog['id']}",
+            token=admin_token,
+        )
+        catalog_after_delete = _request_json(
+            "GET",
+            f"{api_base}/materials-catalog?q={smoke_catalog_code}",
+            token=user_token,
+        )
+        _assert(
+            not any(item.get("code") == smoke_catalog_code for item in catalog_after_delete),
+            "Soft-deleted catalog item still visible in active list",
+        )
+        line3_detail = _request_json(
+            "PATCH",
+            f"{api_base}/procurement-line-items/{line3['id']}",
+            token=user_token,
+            payload={"notes": "catalog deleted snapshot check"},
+        )
+        _assert(line3_detail["item_name"] == smoke_catalog["name"], "Line item snapshot lost after catalog delete")
+        _assert(line3_detail["item_code"] == smoke_catalog_code, "Line item code snapshot lost after catalog delete")
+
         listed = _request_json(
             "GET",
             f"{api_base}/procurements/{created_procurement_id}/line-items",
             token=user_token,
         )
-        _assert(listed["total"] == 2, f"Expected 2 line items, got {listed['total']}")
-        _assert(listed["lines_total_amount"] == "1450000.00", f"Total amount mismatch: {listed['lines_total_amount']}")
+        _assert(listed["total"] == 3, f"Expected 3 line items, got {listed['total']}")
+        _assert(listed["lines_total_amount"] == "1470000.00", f"Total amount mismatch: {listed['lines_total_amount']}")
         line_numbers = [item["line_number"] for item in listed["items"]]
-        _assert(line_numbers == [1, 2], f"Line items not ordered by line_number: {line_numbers}")
+        _assert(line_numbers == [1, 2, 3], f"Line items not ordered by line_number: {line_numbers}")
 
         updated = _request_json(
             "PATCH",
@@ -128,7 +205,7 @@ def run_smoke(*, api_base: str, keep_data: bool) -> dict[str, Any]:
             f"{api_base}/procurements/{created_procurement_id}/line-items",
             token=user_token,
         )
-        _assert(listed_after_update["lines_total_amount"] == "1620000.00", "Total after update mismatch")
+        _assert(listed_after_update["lines_total_amount"] == "1640000.00", "Total after update mismatch")
 
         _expect_http_status(
             "DELETE",
@@ -150,9 +227,10 @@ def run_smoke(*, api_base: str, keep_data: bool) -> dict[str, Any]:
             f"{api_base}/procurements/{created_procurement_id}/line-items",
             token=user_token,
         )
-        _assert(listed_after_delete["total"] == 1, f"Expected 1 line item after delete, got {listed_after_delete['total']}")
+        _assert(listed_after_delete["total"] == 2, f"Expected 2 line items after delete, got {listed_after_delete['total']}")
         _assert(listed_after_delete["items"][0]["line_number"] == 1, "Remaining line item order mismatch")
-        _assert(listed_after_delete["items"][0]["id"] == line1["id"], "Remaining line item id mismatch")
+        remaining_ids = {item["id"] for item in listed_after_delete["items"]}
+        _assert(line1["id"] in remaining_ids and line3["id"] in remaining_ids, "Unexpected remaining line items")
 
         _assert(
             _audit_count(db, created_line_item_ids[0]) >= 2,
@@ -219,6 +297,12 @@ def _seed_data(db) -> dict[str, str]:
 def _cleanup_existing_smoke_data(db) -> None:
     docs = list(db.scalars(select(Document).where(Document.title.like(f"{SMOKE_TITLE_PREFIX}%"))))
     users = list(db.scalars(select(User).where(User.email.like(f"{SMOKE_USER_EMAIL_PREFIX}%"))))
+    catalogs = list(
+        db.scalars(select(MaterialsCatalogItem).where(MaterialsCatalogItem.code.like(f"{SMOKE_CATALOG_CODE_PREFIX}%")))
+    )
+    for catalog in catalogs:
+        catalog.deleted_at = datetime.now(timezone.utc)
+        db.add(catalog)
     for document in docs:
         _cleanup_created_data(db, document_id=document.id, user_id=None)
     for user in users:

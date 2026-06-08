@@ -25,7 +25,7 @@ Phase trước: Phase 17 hoàn thành ngày 2026-06-07.
 
 Phase hiện tại: **Phase 18 — Dòng hàng mua sắm và danh mục vật tư MVP**.
 
-Mục tiêu tiếp theo: **Mục tiêu 4** — materials catalog (admin) migration, API, seed mẫu.
+Mục tiêu tiếp theo: **Mục tiêu 5** — frontend line items UI, tổng cộng và autocomplete.
 
 Regression nhanh trước khi bắt đầu (baseline Phase 17):
 
@@ -111,7 +111,7 @@ git diff --check
 
 ### Mục tiêu 4 — Materials catalog (admin) — migration, API, seed mẫu
 
-Trạng thái: **chưa làm** (mục tiêu tiếp theo).
+Trạng thái: **hoàn thành** (2026-06-08).
 
 Skills: `database-designer`, `backend-fastapi`.
 
@@ -136,7 +136,7 @@ git diff --check
 
 ### Mục tiêu 5 — Frontend line items UI, tổng cộng và autocomplete
 
-Trạng thái: **chưa làm**.
+Trạng thái: **chưa làm** (mục tiêu tiếp theo).
 
 Skills: `frontend-nuxt`.
 

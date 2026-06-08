@@ -17,9 +17,14 @@ class ProcurementLineItem(UUIDTimestampMixin, Base):
     quantity: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False, default=Decimal("1"))
     unit_price: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)
     amount: Mapped[Decimal | None] = mapped_column(Numeric(18, 2), nullable=True)
+    catalog_item_id: Mapped[str | None] = mapped_column(
+        ForeignKey("materials_catalog.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     procurement: Mapped["ProcurementRecord"] = relationship(back_populates="line_items")
+    catalog_item: Mapped["MaterialsCatalogItem | None"] = relationship()
 
     __table_args__ = (
         Index(
@@ -32,4 +37,5 @@ class ProcurementLineItem(UUIDTimestampMixin, Base):
         Index("ix_procurement_line_items_procurement_active", "procurement_id", "deleted_at"),
         Index("ix_procurement_line_items_item_name_active", "item_name", "deleted_at"),
         Index("ix_procurement_line_items_item_code_active", "item_code", "deleted_at"),
+        Index("ix_procurement_line_items_catalog_item_active", "catalog_item_id", "deleted_at"),
     )
