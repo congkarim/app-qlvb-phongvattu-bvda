@@ -204,121 +204,99 @@ onMounted(async () => {
 </script>
 
 <template>
-  <section class="space-y-5">
-    <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-      <div>
-        <h1 class="text-2xl font-semibold">Contracts</h1>
-        <p class="mt-1 text-sm text-slate-600">Metadata hợp đồng liên kết với văn bản nguồn.</p>
-      </div>
-      <div class="flex gap-2">
+  <AppPageContainer>
+    <AppPageHeader
+      title="Contracts"
+      description="Metadata hợp đồng liên kết với văn bản nguồn."
+    >
+      <template #actions>
         <Button label="Refresh" icon="pi pi-refresh" severity="secondary" :loading="loading" @click="() => loadContracts()" />
         <NuxtLink to="/upload">
           <Button label="Upload" icon="pi pi-upload" />
         </NuxtLink>
+      </template>
+    </AppPageHeader>
+
+    <AppCard title="Bộ lọc">
+      <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <InputText
+          v-model="filters.q"
+          class="md:col-span-2"
+          placeholder="Tìm số hợp đồng, tên, document"
+          @keyup.enter="loadContracts(true)"
+        />
+        <InputText
+          v-model="filters.supplier_name"
+          placeholder="Nhà cung cấp"
+          @keyup.enter="loadContracts(true)"
+        />
+        <AppSelect v-model="filters.status">
+          <option v-for="option in statusOptions" :key="option.value" :value="option.value">
+            {{ option.label }}
+          </option>
+        </AppSelect>
+        <AppSelect v-model="filters.sort_by">
+          <option v-for="option in sortOptions" :key="option.value" :value="option.value">
+            {{ option.label }}
+          </option>
+        </AppSelect>
+        <AppSelect v-model="filters.sort_dir">
+          <option value="desc">Giảm dần</option>
+          <option value="asc">Tăng dần</option>
+        </AppSelect>
       </div>
-    </div>
+      <div class="mt-4 flex flex-wrap gap-2">
+        <Button label="Lọc" icon="pi pi-filter" :loading="loading" @click="loadContracts(true)" />
+        <Button label="Xóa lọc" icon="pi pi-times" severity="secondary" :disabled="loading" @click="resetFilters" />
+      </div>
+    </AppCard>
 
-    <Card>
-      <template #content>
-        <div class="grid gap-3 md:grid-cols-6">
-          <InputText
-            v-model="filters.q"
-            class="md:col-span-2"
-            placeholder="Tìm số hợp đồng, tên, document"
-            @keyup.enter="loadContracts(true)"
-          />
-          <InputText
-            v-model="filters.supplier_name"
-            placeholder="Nhà cung cấp"
-            @keyup.enter="loadContracts(true)"
-          />
-          <select v-model="filters.status" class="rounded border border-slate-300 px-3 py-2 text-sm">
-            <option v-for="option in statusOptions" :key="option.value" :value="option.value">
-              {{ option.label }}
-            </option>
-          </select>
-          <select v-model="filters.sort_by" class="rounded border border-slate-300 px-3 py-2 text-sm">
-            <option v-for="option in sortOptions" :key="option.value" :value="option.value">
-              {{ option.label }}
-            </option>
-          </select>
-          <select v-model="filters.sort_dir" class="rounded border border-slate-300 px-3 py-2 text-sm">
-            <option value="desc">Giảm dần</option>
-            <option value="asc">Tăng dần</option>
-          </select>
+    <AppCard :title="editingId ? 'Sửa metadata hợp đồng' : 'Tạo metadata hợp đồng'">
+      <form class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4" @submit.prevent="submitForm">
+        <InputText
+          v-model="form.document_id"
+          :disabled="Boolean(editingId)"
+          required
+          placeholder="Document ID"
+        />
+        <InputText v-model="form.contract_number" placeholder="Số hợp đồng" />
+        <InputText v-model="form.contract_title" class="md:col-span-2" placeholder="Tên hợp đồng" />
+        <InputText v-model="form.supplier_name" placeholder="Nhà cung cấp" />
+        <InputText v-model="form.sign_date" type="date" />
+        <InputText v-model="form.effective_from" type="date" />
+        <InputText v-model="form.effective_to" type="date" />
+        <InputText v-model="form.contract_value" inputmode="decimal" placeholder="Giá trị" />
+        <InputText v-model="form.currency" maxlength="8" placeholder="Tiền tệ" />
+        <AppSelect v-model="form.status">
+          <option v-for="option in editStatusOptions" :key="option.value" :value="option.value">
+            {{ option.label }}
+          </option>
+        </AppSelect>
+        <InputText v-model="form.notes" class="md:col-span-1" placeholder="Ghi chú" />
+        <div class="flex gap-2 md:col-span-4">
+          <Button type="submit" :label="editingId ? 'Lưu' : 'Tạo'" icon="pi pi-save" :loading="saving" />
+          <Button type="button" label="Hủy" icon="pi pi-times" severity="secondary" :disabled="saving" @click="resetForm" />
         </div>
-        <div class="mt-3 flex flex-wrap gap-2">
-          <Button label="Lọc" icon="pi pi-filter" :loading="loading" @click="loadContracts(true)" />
-          <Button label="Xóa lọc" icon="pi pi-times" severity="secondary" :disabled="loading" @click="resetFilters" />
-        </div>
-      </template>
-    </Card>
+      </form>
+    </AppCard>
 
-    <Card>
-      <template #title>{{ editingId ? 'Sửa metadata hợp đồng' : 'Tạo metadata hợp đồng' }}</template>
-      <template #content>
-        <form class="grid gap-3 md:grid-cols-4" @submit.prevent="submitForm">
-          <InputText
-            v-model="form.document_id"
-            :disabled="Boolean(editingId)"
-            required
-            placeholder="Document ID"
-          />
-          <InputText v-model="form.contract_number" placeholder="Số hợp đồng" />
-          <InputText v-model="form.contract_title" class="md:col-span-2" placeholder="Tên hợp đồng" />
-          <InputText v-model="form.supplier_name" placeholder="Nhà cung cấp" />
-          <InputText v-model="form.sign_date" type="date" />
-          <InputText v-model="form.effective_from" type="date" />
-          <InputText v-model="form.effective_to" type="date" />
-          <InputText v-model="form.contract_value" inputmode="decimal" placeholder="Giá trị" />
-          <InputText v-model="form.currency" maxlength="8" placeholder="Tiền tệ" />
-          <select v-model="form.status" class="rounded border border-slate-300 px-3 py-2 text-sm">
-            <option v-for="option in editStatusOptions" :key="option.value" :value="option.value">
-              {{ option.label }}
-            </option>
-          </select>
-          <InputText v-model="form.notes" class="md:col-span-1" placeholder="Ghi chú" />
-          <div class="flex gap-2 md:col-span-4">
-            <Button type="submit" :label="editingId ? 'Lưu' : 'Tạo'" icon="pi pi-save" :loading="saving" />
-            <Button type="button" label="Hủy" icon="pi pi-times" severity="secondary" :disabled="saving" @click="resetForm" />
-          </div>
-        </form>
-      </template>
-    </Card>
-
-    <Message v-if="error" severity="error">{{ error }}</Message>
+    <AppErrorState v-if="error" :message="error" />
     <Message v-if="filters.document_id" severity="info">
       Đang lọc theo văn bản nguồn: {{ filters.document_id }}
-      <Button class="ml--2" label="Bỏ lọc" text size="small" @click="() => { filters.document_id = ''; void loadContracts(true) }" />
+      <Button class="ml-2" label="Bỏ lọc" text size="small" @click="() => { filters.document_id = ''; void loadContracts(true) }" />
     </Message>
 
-    <div class="flex flex-col gap-3 rounded border border-slate-200 bg-white px-4 py-3 md:flex-row md:items-center md:justify-between">
-      <p class="text-sm text-slate-600">
-        Hiển thị {{ currentStart }}-{{ currentEnd }} / {{ contractsTotal }} hợp đồng
-      </p>
-      <div class="flex gap-2">
-        <Button
-          label="Trước"
-          icon="pi pi-chevron-left"
-          severity="secondary"
-          size="small"
-          :disabled="loading || !canGoPrevious"
-          @click="goToPreviousPage"
-        />
-        <Button
-          label="Sau"
-          icon="pi pi-chevron-right"
-          icon-pos="right"
-          severity="secondary"
-          size="small"
-          :disabled="loading || !canGoNext"
-          @click="goToNextPage"
-        />
-      </div>
-    </div>
+    <AppToolbar
+      :summary="`Hiển thị ${currentStart}-${currentEnd} / ${contractsTotal} hợp đồng`"
+      :loading="loading"
+      :can-go-previous="canGoPrevious"
+      :can-go-next="canGoNext"
+      @previous="goToPreviousPage"
+      @next="goToNextPage"
+    />
 
-    <Card>
-      <template #content>
+    <AppCard no-padding>
+      <div class="app-table-wrap">
         <DataTable :value="contracts" :loading="loading" data-key="id" responsive-layout="scroll" striped-rows>
           <Column field="contract_number" header="Số hợp đồng">
             <template #body="{ data }">
@@ -380,10 +358,10 @@ onMounted(async () => {
             </template>
           </Column>
           <template #empty>
-            <div class="py-6 text-center text-sm text-slate-500">Chưa có metadata hợp đồng.</div>
+            <AppEmptyState title="Chưa có metadata hợp đồng" description="Tạo metadata hợp đồng liên kết với văn bản nguồn." />
           </template>
         </DataTable>
-      </template>
-    </Card>
-  </section>
+      </div>
+    </AppCard>
+  </AppPageContainer>
 </template>

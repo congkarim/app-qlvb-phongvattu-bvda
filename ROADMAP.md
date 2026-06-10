@@ -1,6 +1,6 @@
 # Roadmap Phát Triển
 
-Cập nhật lần cuối: 2026-06-08
+Cập nhật lần cuối: 2026-06-10
 
 ## Nguyên Tắc
 
@@ -13,7 +13,7 @@ Cập nhật lần cuối: 2026-06-08
 
 ## Trạng Thái Hiện Tại
 
-**Lộ trình Phase 0–18 đã hoàn thành.** Phase 19+ chưa lập chi tiết. Hệ thống có thể chạy on-prem bằng Docker Compose với các service `api`, `worker`, `web`, `postgres`, `redis`, `qdrant` (và `ollama` optional profile `llm`).
+**Lộ trình Phase 0–19 đã hoàn thành.** Phase 20+ chưa lập chi tiết. Hệ thống có thể chạy on-prem bằng Docker Compose với các service `api`, `worker`, `web`, `postgres`, `redis`, `qdrant` (và `ollama` optional profile `llm`).
 
 **Phase 13 đã hoàn thành** (2026-06-07): module đề xuất/kế hoạch mua sắm vật tư MVP.
 
@@ -26,6 +26,8 @@ Cập nhật lần cuối: 2026-06-08
 **Phase 17 đã hoàn thành** (2026-06-07): RAG generative Ollama on-prem — `LocalLLMService`, profile Compose `llm`, fallback extractive, ops/dashboard UX, runbook `docs/RAG_LLM_RUNBOOK.md`, smoke `smoke_rag_generative`.
 
 **Phase 18 đã hoàn thành** (2026-06-08): dòng hàng mua sắm (`procurement_line_items`) + danh mục vật tư (`materials_catalog`), UI line items/autocomplete, filter list/search theo mặt hàng; smoke `smoke_procurement_line_items`.
+
+**Phase 19 đã hoàn thành** (2026-06-10): inventory/tồn kho MVP — `stock_balances`, `stock_movements`, `min_stock_level` trên catalog, API phiếu nhập/xuất, UI `/stock-movements`, widget tồn thấp dashboard, nhập kho từ procurement acceptance; UI polish Phases 2–6 (`docs/UI_POLISH_PLAN.md`); smoke `smoke_inventory`.
 
 Đã hoàn thành:
 - Auth local, seed admin, cookie token frontend và RBAC nhẹ cho admin/user.
@@ -52,13 +54,15 @@ Cập nhật lần cuối: 2026-06-08
 - Gợi ý liên kết document rule-based: `DocumentRelationSuggestionService`, API `GET /documents/{id}/relation-suggestions`, subsection **Gợi ý liên kết** trên document detail (apply/dismiss), smoke `smoke_relation_suggestions`.
 - RAG generative local LLM (Ollama): `LocalLLMService`, profile Compose `llm`, `RagContextBuilder`/`CitationValidator`, fallback extractive, ops LLM status, dashboard badge generative/extractive, runbook `docs/RAG_LLM_RUNBOOK.md`, smoke `smoke_rag_generative`.
 - Dòng hàng mua sắm + danh mục vật tư: `procurement_line_items`, `materials_catalog`, API nested/flat line items, admin catalog CRUD, frontend panel line items + `/materials-catalog`, filter procurement/search theo `item_name`/`item_code`, smoke `smoke_procurement_line_items`.
+- Inventory/tồn kho MVP: `stock_balances`, `stock_movements`, `min_stock_level`, API `/stock-movements`, `/stock-balances`, UI `/stock-movements`, catalog tồn thấp, dashboard widget, nhập kho từ procurement; smoke `smoke_inventory`.
+- UI polish Phases 2–6: module list pages, dashboard, upload, admin, inventory components (`AppActionGroup`, `StockLevelBadge`, `MaterialsCatalogAutocomplete`).
 
-Giới hạn còn lại (đã gán / ngoài scope Phase 18):
-- Inventory/tồn kho, phiếu xuất/nhập, tồn tối thiểu → **Phase 19+** (chưa lập kế hoạch).
-- Workflow phê duyệt nhiều bước, SLA, assignee → **Phase 19+**.
-- HA Ollama / scale horizontal LLM / tách LLM host production → **Phase 19+** (ops).
+Giới hạn còn lại:
+- Workflow phê duyệt nhiều bước, SLA, assignee → **Phase 20+**.
+- HA Ollama / scale horizontal LLM / tách LLM host production → **Phase 20+** (ops).
+- Document detail full App* polish → backlog nhẹ.
 
-**Phase 19+ chưa lập chi tiết** — xem hướng dự kiến cuối `ROADMAP.md` và placeholder `TASK_NEXT.md`.
+**Phase 20+ chưa lập chi tiết** — xem hướng dự kiến cuối `ROADMAP.md` và `TASK_NEXT.md`.
 
 ## Lộ Trình Ưu Tiên
 
@@ -962,16 +966,26 @@ Mục tiêu gợi ý cho `TASK_NEXT.md`:
 
 ---
 
-### Phase 19+ (Dự Kiến, Chưa Lập Chi Tiết)
+### Phase 19 - Inventory / Tồn Kho MVP
 
-Hướng ưu tiên sau Phase 18 (chưa chốt thứ tự):
+Trạng thái: **hoàn thành** (2026-06-10).
+
+Mục tiêu: quản lý tồn kho vật tư theo `materials_catalog` — phiếu nhập/xuất, tồn tối thiểu, cảnh báo UI; không multi-warehouse, không workflow phê duyệt.
+
+Tiêu chí hoàn thành: API + UI `/stock-movements`, catalog hiển thị tồn, dashboard widget tồn thấp, nhập kho từ procurement acceptance, smoke `smoke_inventory`, frontend build pass.
+
+---
+
+### Phase 20+ (Dự Kiến, Chưa Lập Chi Tiết)
+
+Hướng ưu tiên sau Phase 19 (chưa chốt thứ tự):
 
 | Hướng | Giá trị | Ghi chú |
 |-------|---------|---------|
-| Inventory/tồn kho MVP | Cao cho phòng vật tư | Cần nhu cầu nghiệp vụ rõ; phụ thuộc line items Phase 18 |
 | Workflow phê duyệt nhiều bước | Trung bình | Rule engine tối thiểu; tránh over-engineering |
 | LLM production ops | Trung bình | Tách `OLLAMA_BASE_URL` host riêng, backup model, giám sát latency |
 | HA / scale Ollama | Thấp cho MVP on-prem nhỏ | Chỉ khi quy mô user tăng |
+| Document detail UI polish | Thấp | AppPageHeader + section cards |
 
 ---
 

@@ -37,6 +37,7 @@ def list_all_materials_catalog(
     q: str | None = Query(default=None, max_length=200),
     is_active: bool | None = Query(default=None),
     category: str | None = Query(default=None, max_length=128),
+    below_min: bool | None = Query(default=None),
     limit: int = Query(default=50, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
@@ -46,6 +47,7 @@ def list_all_materials_catalog(
         query=q,
         is_active=is_active,
         category=category,
+        below_min=below_min,
         limit=limit,
         offset=offset,
     )

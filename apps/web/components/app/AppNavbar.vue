@@ -16,6 +16,7 @@ const navItems: NavItem[] = [
   { label: 'Công văn', to: '/dispatches' },
   { label: 'Quyết định', to: '/decisions' },
   { label: 'Mua sắm', to: '/procurements' },
+  { label: 'Tồn kho', to: '/stock-movements' },
   { label: 'Upload', to: '/upload' },
   { label: 'Danh mục VT', to: '/materials-catalog', adminOnly: true },
   { label: 'Status', to: '/status', adminOnly: true },

@@ -202,92 +202,91 @@ onMounted(loadUsers)
 </script>
 
 <template>
-  <section class="space-y-5">
-    <div class="flex flex-wrap items-center justify-between gap-3">
-      <div>
-        <h1 class="text-2xl font-semibold">Users</h1>
-        <p class="mt-1 text-sm text-slate-600">Quản lý tài khoản local cho hệ thống OCR và semantic search.</p>
-      </div>
-      <Button label="Refresh" icon="pi pi-refresh" severity="secondary" :loading="loading" @click="loadUsers()" />
-    </div>
+  <AppPageContainer>
+    <AppPageHeader
+      title="Users"
+      description="Quản lý tài khoản local cho hệ thống OCR và semantic search."
+    >
+      <template #actions>
+        <Button label="Refresh" icon="pi pi-refresh" severity="secondary" :loading="loading" @click="loadUsers()" />
+      </template>
+    </AppPageHeader>
 
     <Message v-if="!authStore.isAdmin" severity="warn">Chỉ admin được quản lý người dùng.</Message>
-    <Message v-if="error" severity="error">{{ error }}</Message>
-    <Message v-if="auditError" severity="error">{{ auditError }}</Message>
+    <AppErrorState v-if="error" :message="error" />
+    <AppErrorState v-if="auditError" :message="auditError" />
 
-    <Card>
-      <template #title>Tạo người dùng</template>
-      <template #content>
-        <form class="grid gap-3 md:grid-cols-6" @submit.prevent="submitCreate">
-          <InputText v-model="createForm.email" class="md:col-span-2" type="email" required placeholder="Email" />
-          <InputText v-model="createForm.full_name" class="md:col-span-2" required placeholder="Họ tên" />
-          <InputText v-model="createForm.password" type="password" required placeholder="Mật khẩu tối thiểu 8 ký tự" />
-          <select v-model="createForm.role" class="rounded border border-slate-300 px-3 py-2 text-sm">
-            <option value="user">User</option>
-            <option value="admin">Admin</option>
-          </select>
-          <label class="flex items-center gap-2 text-sm text-slate-700">
-            <input v-model="createForm.is_active" type="checkbox" class="h-4 w-4 rounded border-slate-300" />
-            Hoạt động
-          </label>
-          <div class="md:col-span-5">
-            <Button type="submit" label="Tạo user" icon="pi pi-user-plus" :loading="mutationLoading" :disabled="!canSubmitCreate" />
-          </div>
-        </form>
-      </template>
-    </Card>
-
-    <Card>
-      <template #content>
-        <div class="grid gap-3 md:grid-cols-6">
-          <InputText
-            v-model="filters.q"
-            class="md:col-span-2"
-            placeholder="Tìm theo email hoặc họ tên"
-            @keyup.enter="loadUsers(0)"
-          />
-          <select v-model="filters.role" class="rounded border border-slate-300 px-3 py-2 text-sm">
-            <option v-for="option in roleOptions" :key="option.value" :value="option.value">
-              {{ option.label }}
-            </option>
-          </select>
-          <select v-model="filters.is_active" class="rounded border border-slate-300 px-3 py-2 text-sm">
-            <option v-for="option in activeOptions" :key="option.value" :value="option.value">
-              {{ option.label }}
-            </option>
-          </select>
-          <select v-model="filters.sort_by" class="rounded border border-slate-300 px-3 py-2 text-sm">
-            <option v-for="option in sortOptions" :key="option.value" :value="option.value">
-              {{ option.label }}
-            </option>
-          </select>
-          <select v-model="filters.sort_dir" class="rounded border border-slate-300 px-3 py-2 text-sm">
-            <option value="desc">Giảm dần</option>
-            <option value="asc">Tăng dần</option>
-          </select>
-          <select v-model.number="pageSize" class="rounded border border-slate-300 px-3 py-2 text-sm">
-            <option :value="10">10 dòng</option>
-            <option :value="20">20 dòng</option>
-            <option :value="50">50 dòng</option>
-            <option :value="100">100 dòng</option>
-          </select>
+    <AppCard title="Tạo người dùng">
+      <form class="grid gap-3 md:grid-cols-6" @submit.prevent="submitCreate">
+        <InputText v-model="createForm.email" class="md:col-span-2" type="email" required placeholder="Email" />
+        <InputText v-model="createForm.full_name" class="md:col-span-2" required placeholder="Họ tên" />
+        <InputText v-model="createForm.password" type="password" required placeholder="Mật khẩu tối thiểu 8 ký tự" />
+        <AppSelect v-model="createForm.role">
+          <option value="user">User</option>
+          <option value="admin">Admin</option>
+        </AppSelect>
+        <label class="flex items-center gap-2 text-sm text-slate-700">
+          <input v-model="createForm.is_active" type="checkbox" class="h-4 w-4 rounded border-slate-300" />
+          Hoạt động
+        </label>
+        <div class="md:col-span-5">
+          <Button type="submit" label="Tạo user" icon="pi pi-user-plus" :loading="mutationLoading" :disabled="!canSubmitCreate" />
         </div>
-        <div class="mt-3 flex flex-wrap gap-2">
-          <Button label="Lọc" icon="pi pi-filter" :loading="loading" @click="loadUsers(0)" />
-          <Button label="Xóa lọc" icon="pi pi-times" severity="secondary" :disabled="loading" @click="resetFilters" />
-        </div>
-      </template>
-    </Card>
+      </form>
+    </AppCard>
 
-    <div class="flex flex-wrap items-center justify-between gap-3 text-sm text-slate-600">
-      <span>Hiển thị {{ users.length }} / {{ total }} user · Trang {{ currentPage }} / {{ totalPages }}</span>
-      <div class="flex gap-2">
-        <Button label="Trước" size="small" severity="secondary" :disabled="loading || !canGoPrevious" @click="goPreviousPage" />
-        <Button label="Sau" size="small" severity="secondary" :disabled="loading || !canGoNext" @click="goNextPage" />
+    <AppCard title="Bộ lọc">
+      <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <InputText
+          v-model="filters.q"
+          class="md:col-span-2"
+          placeholder="Tìm theo email hoặc họ tên"
+          @keyup.enter="loadUsers(0)"
+        />
+        <AppSelect v-model="filters.role">
+          <option v-for="option in roleOptions" :key="option.value" :value="option.value">
+            {{ option.label }}
+          </option>
+        </AppSelect>
+        <AppSelect v-model="filters.is_active">
+          <option v-for="option in activeOptions" :key="option.value" :value="option.value">
+            {{ option.label }}
+          </option>
+        </AppSelect>
+        <AppSelect v-model="filters.sort_by">
+          <option v-for="option in sortOptions" :key="option.value" :value="option.value">
+            {{ option.label }}
+          </option>
+        </AppSelect>
+        <AppSelect v-model="filters.sort_dir">
+          <option value="desc">Giảm dần</option>
+          <option value="asc">Tăng dần</option>
+        </AppSelect>
+        <AppSelect v-model.number="pageSize">
+          <option :value="10">10 dòng</option>
+          <option :value="20">20 dòng</option>
+          <option :value="50">50 dòng</option>
+          <option :value="100">100 dòng</option>
+        </AppSelect>
       </div>
-    </div>
+      <div class="mt-4 flex flex-wrap gap-2">
+        <Button label="Lọc" icon="pi pi-filter" :loading="loading" @click="loadUsers(0)" />
+        <Button label="Xóa lọc" icon="pi pi-times" severity="secondary" :disabled="loading" @click="resetFilters" />
+      </div>
+    </AppCard>
 
-    <DataTable :value="users" :loading="loading" data-key="id" table-style="min-width: 72rem">
+    <AppToolbar
+      :summary="`Hiển thị ${users.length} / ${total} user · Trang ${currentPage} / ${totalPages}`"
+      :loading="loading"
+      :can-go-previous="canGoPrevious"
+      :can-go-next="canGoNext"
+      @previous="goPreviousPage"
+      @next="goNextPage"
+    />
+
+    <AppCard no-padding>
+      <div class="app-table-wrap">
+        <DataTable :value="users" :loading="loading" data-key="id" table-style="min-width: 72rem">
       <Column field="email" header="Email">
         <template #body="{ data }">
           <div>
@@ -304,15 +303,14 @@ onMounted(loadUsers)
       </Column>
       <Column field="role" header="Role">
         <template #body="{ data }">
-          <select
+          <AppSelect
             v-if="editingUserId === data.id"
             v-model="editForms[data.id].role"
-            class="rounded border border-slate-300 px-3 py-2 text-sm"
             :disabled="data.id === authStore.user?.id"
           >
             <option value="user">User</option>
             <option value="admin">Admin</option>
-          </select>
+          </AppSelect>
           <Tag v-else :value="data.role" :severity="roleSeverity(data.role)" />
         </template>
       </Column>
@@ -386,38 +384,37 @@ onMounted(loadUsers)
         </template>
       </Column>
       <template #empty>
-        <div class="py-6 text-center text-sm text-slate-600">Chưa có người dùng phù hợp.</div>
+        <AppEmptyState title="Chưa có người dùng phù hợp" />
       </template>
     </DataTable>
+      </div>
+    </AppCard>
 
-    <Card v-if="selectedAuditUser">
-      <template #title>Audit log: {{ selectedAuditUser.email }}</template>
-      <template #content>
-        <div v-if="selectedAuditLogs.length" class="space-y-3 text-sm">
-          <article v-for="event in selectedAuditLogs" :key="event.id" class="rounded border border-slate-200 p-3">
-            <div class="flex flex-wrap items-center justify-between gap-2">
-              <div class="flex flex-wrap items-center gap-2">
-                <Tag :value="formatAuditAction(event.action)" severity="info" />
-                <span class="text-slate-700">
-                  {{ event.actor?.full_name || event.actor?.email || 'Không xác định' }}
-                </span>
-              </div>
-              <span class="text-xs text-slate-500">{{ formatDateTime(event.created_at) }}</span>
+    <AppCard v-if="selectedAuditUser" :title="`Audit log: ${selectedAuditUser.email}`">
+      <div v-if="selectedAuditLogs.length" class="space-y-3 text-sm">
+        <article v-for="event in selectedAuditLogs" :key="event.id" class="rounded border border-slate-200 p-3">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div class="flex flex-wrap items-center gap-2">
+              <Tag :value="formatAuditAction(event.action)" severity="info" />
+              <span class="text-slate-700">
+                {{ event.actor?.full_name || event.actor?.email || 'Không xác định' }}
+              </span>
             </div>
-            <dl class="mt-3 grid gap-2 sm:grid-cols-2">
-              <div>
-                <dt class="text-slate-500">Event ID</dt>
-                <dd class="break-all font-medium">{{ event.id }}</dd>
-              </div>
-              <div v-for="(value, key) in event.metadata" :key="key">
-                <dt class="text-slate-500">{{ key }}</dt>
-                <dd class="break-words font-medium">{{ formatAuditMetadataValue(value) }}</dd>
-              </div>
-            </dl>
-          </article>
-        </div>
-        <p v-else class="text-sm text-slate-600">Chưa có audit log cho user này.</p>
-      </template>
-    </Card>
-  </section>
+            <span class="text-xs text-slate-500">{{ formatDateTime(event.created_at) }}</span>
+          </div>
+          <dl class="mt-3 grid gap-2 sm:grid-cols-2">
+            <div>
+              <dt class="text-slate-500">Event ID</dt>
+              <dd class="break-all font-medium">{{ event.id }}</dd>
+            </div>
+            <div v-for="(value, key) in event.metadata" :key="key">
+              <dt class="text-slate-500">{{ key }}</dt>
+              <dd class="break-words font-medium">{{ formatAuditMetadataValue(value) }}</dd>
+            </div>
+          </dl>
+        </article>
+      </div>
+      <p v-else class="text-sm text-slate-600">Chưa có audit log cho user này.</p>
+    </AppCard>
+  </AppPageContainer>
 </template>

@@ -59,5 +59,8 @@ function normalizeCatalogInput(input: Partial<MaterialsCatalogInput>) {
   if ('category' in input) payload.category = input.category?.trim() || null
   if ('description' in input) payload.description = input.description?.trim() || null
   if ('is_active' in input && input.is_active !== undefined) payload.is_active = input.is_active
+  if ('min_stock_level' in input) {
+    payload.min_stock_level = input.min_stock_level?.trim() ? input.min_stock_level.trim() : null
+  }
   return payload
 }

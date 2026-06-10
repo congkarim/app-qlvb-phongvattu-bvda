@@ -218,129 +218,107 @@ onMounted(async () => {
 </script>
 
 <template>
-  <section class="space-y-5">
-    <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-      <div>
-        <h1 class="text-2xl font-semibold">Công văn</h1>
-        <p class="mt-1 text-sm text-slate-600">Metadata công văn đến/đi liên kết với văn bản nguồn.</p>
-      </div>
-      <div class="flex gap-2">
+  <AppPageContainer>
+    <AppPageHeader
+      title="Công văn"
+      description="Metadata công văn đến/đi liên kết với văn bản nguồn."
+    >
+      <template #actions>
         <Button label="Refresh" icon="pi pi-refresh" severity="secondary" :loading="loading" @click="() => loadDispatches()" />
         <NuxtLink to="/upload">
           <Button label="Upload" icon="pi pi-upload" />
         </NuxtLink>
+      </template>
+    </AppPageHeader>
+
+    <AppCard title="Bộ lọc">
+      <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <InputText
+          v-model="filters.q"
+          class="md:col-span-2"
+          placeholder="Tìm số CV, trích yếu, document"
+          @keyup.enter="loadDispatches(true)"
+        />
+        <AppSelect v-model="filters.dispatch_type">
+          <option v-for="option in typeOptions" :key="option.value" :value="option.value">
+            {{ option.label }}
+          </option>
+        </AppSelect>
+        <InputText
+          v-model="filters.issuing_agency"
+          placeholder="Đơn vị ban hành"
+          @keyup.enter="loadDispatches(true)"
+        />
+        <AppSelect v-model="filters.status">
+          <option v-for="option in statusOptions" :key="option.value" :value="option.value">
+            {{ option.label }}
+          </option>
+        </AppSelect>
+        <AppSelect v-model="filters.sort_by">
+          <option v-for="option in sortOptions" :key="option.value" :value="option.value">
+            {{ option.label }}
+          </option>
+        </AppSelect>
+        <AppSelect v-model="filters.sort_dir">
+          <option value="desc">Giảm dần</option>
+          <option value="asc">Tăng dần</option>
+        </AppSelect>
       </div>
-    </div>
+      <div class="mt-4 flex flex-wrap gap-2">
+        <Button label="Lọc" icon="pi pi-filter" :loading="loading" @click="loadDispatches(true)" />
+        <Button label="Xóa lọc" icon="pi pi-times" severity="secondary" :disabled="loading" @click="resetFilters" />
+      </div>
+    </AppCard>
 
-    <Card>
-      <template #content>
-        <div class="grid gap-3 md:grid-cols-6">
-          <InputText
-            v-model="filters.q"
-            class="md:col-span-2"
-            placeholder="Tìm số CV, trích yếu, document"
-            @keyup.enter="loadDispatches(true)"
-          />
-          <select v-model="filters.dispatch_type" class="rounded border border-slate-300 px-3 py-2 text-sm">
-            <option v-for="option in typeOptions" :key="option.value" :value="option.value">
-              {{ option.label }}
-            </option>
-          </select>
-          <InputText
-            v-model="filters.issuing_agency"
-            placeholder="Đơn vị ban hành"
-            @keyup.enter="loadDispatches(true)"
-          />
-          <select v-model="filters.status" class="rounded border border-slate-300 px-3 py-2 text-sm">
-            <option v-for="option in statusOptions" :key="option.value" :value="option.value">
-              {{ option.label }}
-            </option>
-          </select>
-          <select v-model="filters.sort_by" class="rounded border border-slate-300 px-3 py-2 text-sm">
-            <option v-for="option in sortOptions" :key="option.value" :value="option.value">
-              {{ option.label }}
-            </option>
-          </select>
+    <AppCard :title="editingId ? 'Sửa metadata công văn' : 'Tạo metadata công văn'">
+      <form class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4" @submit.prevent="submitForm">
+        <InputText
+          v-model="form.document_id"
+          :disabled="Boolean(editingId)"
+          required
+          placeholder="Document ID"
+        />
+        <AppSelect v-model="form.dispatch_type">
+          <option v-for="option in editTypeOptions" :key="option.value" :value="option.value">
+            {{ option.label }}
+          </option>
+        </AppSelect>
+        <InputText v-model="form.document_number" placeholder="Số công văn" />
+        <InputText v-model="form.document_symbol" placeholder="Ký hiệu" />
+        <InputText v-model="form.issued_date" type="date" />
+        <InputText v-model="form.issuing_agency" placeholder="Đơn vị ban hành" />
+        <InputText v-model="form.recipient" placeholder="Nơi nhận" />
+        <AppSelect v-model="form.status">
+          <option v-for="option in editStatusOptions" :key="option.value" :value="option.value">
+            {{ option.label }}
+          </option>
+        </AppSelect>
+        <InputText v-model="form.excerpt" class="md:col-span-2" placeholder="Trích yếu" />
+        <InputText v-model="form.notes" class="md:col-span-2" placeholder="Ghi chú" />
+        <div class="flex gap-2 md:col-span-4">
+          <Button type="submit" :label="editingId ? 'Lưu' : 'Tạo'" icon="pi pi-save" :loading="saving" />
+          <Button type="button" label="Hủy" icon="pi pi-times" severity="secondary" :disabled="saving" @click="resetForm" />
         </div>
-        <div class="mt-3 flex flex-wrap gap-2">
-          <select v-model="filters.sort_dir" class="rounded border border-slate-300 px-3 py-2 text-sm">
-            <option value="desc">Giảm dần</option>
-            <option value="asc">Tăng dần</option>
-          </select>
-          <Button label="Lọc" icon="pi pi-filter" :loading="loading" @click="loadDispatches(true)" />
-          <Button label="Xóa lọc" icon="pi pi-times" severity="secondary" :disabled="loading" @click="resetFilters" />
-        </div>
-      </template>
-    </Card>
+      </form>
+    </AppCard>
 
-    <Card>
-      <template #title>{{ editingId ? 'Sửa metadata công văn' : 'Tạo metadata công văn' }}</template>
-      <template #content>
-        <form class="grid gap-3 md:grid-cols-4" @submit.prevent="submitForm">
-          <InputText
-            v-model="form.document_id"
-            :disabled="Boolean(editingId)"
-            required
-            placeholder="Document ID"
-          />
-          <select v-model="form.dispatch_type" class="rounded border border-slate-300 px-3 py-2 text-sm">
-            <option v-for="option in editTypeOptions" :key="option.value" :value="option.value">
-              {{ option.label }}
-            </option>
-          </select>
-          <InputText v-model="form.document_number" placeholder="Số công văn" />
-          <InputText v-model="form.document_symbol" placeholder="Ký hiệu" />
-          <InputText v-model="form.issued_date" type="date" />
-          <InputText v-model="form.issuing_agency" placeholder="Đơn vị ban hành" />
-          <InputText v-model="form.recipient" placeholder="Nơi nhận" />
-          <select v-model="form.status" class="rounded border border-slate-300 px-3 py-2 text-sm">
-            <option v-for="option in editStatusOptions" :key="option.value" :value="option.value">
-              {{ option.label }}
-            </option>
-          </select>
-          <InputText v-model="form.excerpt" class="md:col-span-2" placeholder="Trích yếu" />
-          <InputText v-model="form.notes" class="md:col-span-2" placeholder="Ghi chú" />
-          <div class="flex gap-2 md:col-span-4">
-            <Button type="submit" :label="editingId ? 'Lưu' : 'Tạo'" icon="pi pi-save" :loading="saving" />
-            <Button type="button" label="Hủy" icon="pi pi-times" severity="secondary" :disabled="saving" @click="resetForm" />
-          </div>
-        </form>
-      </template>
-    </Card>
-
-    <Message v-if="error" severity="error">{{ error }}</Message>
+    <AppErrorState v-if="error" :message="error" />
     <Message v-if="filters.document_id" severity="info">
       Đang lọc theo văn bản nguồn: {{ filters.document_id }}
       <Button class="ml-2" label="Bỏ lọc" text size="small" @click="() => { filters.document_id = ''; void loadDispatches(true) }" />
     </Message>
 
-    <div class="flex flex-col gap-3 rounded border border-slate-200 bg-white px-4 py-3 md:flex-row md:items-center md:justify-between">
-      <p class="text-sm text-slate-600">
-        Hiển thị {{ currentStart }}-{{ currentEnd }} / {{ dispatchesTotal }} công văn
-      </p>
-      <div class="flex gap-2">
-        <Button
-          label="Trước"
-          icon="pi pi-chevron-left"
-          severity="secondary"
-          size="small"
-          :disabled="loading || !canGoPrevious"
-          @click="goToPreviousPage"
-        />
-        <Button
-          label="Sau"
-          icon="pi pi-chevron-right"
-          icon-pos="right"
-          severity="secondary"
-          size="small"
-          :disabled="loading || !canGoNext"
-          @click="goToNextPage"
-        />
-      </div>
-    </div>
+    <AppToolbar
+      :summary="`Hiển thị ${currentStart}-${currentEnd} / ${dispatchesTotal} công văn`"
+      :loading="loading"
+      :can-go-previous="canGoPrevious"
+      :can-go-next="canGoNext"
+      @previous="goToPreviousPage"
+      @next="goToNextPage"
+    />
 
-    <Card>
-      <template #content>
+    <AppCard no-padding>
+      <div class="app-table-wrap">
         <DataTable :value="dispatches" :loading="loading" data-key="id" responsive-layout="scroll" striped-rows>
           <Column field="document_number" header="Số CV">
             <template #body="{ data }">
@@ -404,10 +382,10 @@ onMounted(async () => {
             </template>
           </Column>
           <template #empty>
-            <div class="py-6 text-center text-sm text-slate-500">Chưa có metadata công văn.</div>
+            <AppEmptyState title="Chưa có metadata công văn" description="Tạo metadata công văn liên kết với văn bản nguồn." />
           </template>
         </DataTable>
-      </template>
-    </Card>
-  </section>
+      </div>
+    </AppCard>
+  </AppPageContainer>
 </template>

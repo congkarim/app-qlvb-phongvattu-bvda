@@ -26,6 +26,7 @@ class ProcurementRecord(UUIDTimestampMixin, Base):
         back_populates="procurement",
         order_by="ProcurementLineItem.line_number",
     )
+    stock_movements: Mapped[list["StockMovement"]] = relationship(back_populates="procurement")
 
     __table_args__ = (
         Index(

@@ -1,3 +1,4 @@
+from decimal import Decimal
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -36,6 +37,7 @@ class MaterialsCatalogService:
         query: str | None,
         is_active: bool | None,
         category: str | None,
+        below_min: bool | None = None,
         limit: int,
         offset: int,
     ) -> tuple[list[dict[str, Any]], int]:
@@ -45,6 +47,7 @@ class MaterialsCatalogService:
             query=normalized_query,
             is_active=is_active,
             category=normalized_category,
+            below_min=below_min,
             limit=limit,
             offset=offset,
         )
@@ -52,6 +55,7 @@ class MaterialsCatalogService:
             query=normalized_query,
             is_active=is_active,
             category=normalized_category,
+            below_min=below_min,
         )
         return [self._read(item) for item in items], total
 
@@ -147,6 +151,7 @@ class MaterialsCatalogService:
                 "category": self._normalize_text(values.get("category")),
                 "description": self._normalize_text(values.get("description")),
                 "is_active": bool(values.get("is_active", True)),
+                "min_stock_level": self._normalize_decimal(values.get("min_stock_level")),
             }
 
         cleaned: dict[str, Any] = {}
@@ -162,9 +167,12 @@ class MaterialsCatalogService:
             cleaned["description"] = self._normalize_text(values.get("description"))
         if "is_active" in values and values.get("is_active") is not None:
             cleaned["is_active"] = bool(values.get("is_active"))
+        if "min_stock_level" in values:
+            cleaned["min_stock_level"] = self._normalize_decimal(values.get("min_stock_level"))
         return cleaned
 
     def _read(self, item: MaterialsCatalogItem) -> dict[str, Any]:
+        stock_quantity = MaterialsCatalogRepository.stock_quantity_for(item)
         return {
             "id": item.id,
             "code": item.code,
@@ -173,6 +181,9 @@ class MaterialsCatalogService:
             "category": item.category,
             "description": item.description,
             "is_active": item.is_active,
+            "min_stock_level": item.min_stock_level,
+            "stock_quantity": stock_quantity,
+            "is_below_min": MaterialsCatalogRepository.is_below_min(item),
             "created_at": item.created_at,
             "updated_at": item.updated_at,
         }
@@ -184,6 +195,7 @@ class MaterialsCatalogService:
             "name": item.name,
             "default_unit": item.default_unit,
             "category": item.category,
+            "stock_quantity": MaterialsCatalogRepository.stock_quantity_for(item),
         }
 
     def _audit_snapshot(self, item: MaterialsCatalogItem) -> dict[str, Any]:
@@ -206,3 +218,11 @@ class MaterialsCatalogService:
         if normalized is None:
             raise MaterialsCatalogOperationError(f"{field_name} is required")
         return normalized
+
+    def _normalize_decimal(self, value: Any) -> Decimal | None:
+        if value is None or value == "":
+            return None
+        decimal_value = Decimal(str(value))
+        if decimal_value < 0:
+            raise MaterialsCatalogOperationError("min_stock_level must be >= 0")
+        return decimal_value

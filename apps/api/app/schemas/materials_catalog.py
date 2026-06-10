@@ -1,4 +1,5 @@
 from datetime import datetime
+from decimal import Decimal
 
 from pydantic import BaseModel, Field
 
@@ -10,6 +11,7 @@ class MaterialsCatalogCreateRequest(BaseModel):
     category: str | None = Field(default=None, max_length=128)
     description: str | None = None
     is_active: bool = True
+    min_stock_level: Decimal | None = Field(default=None, ge=0)
 
 
 class MaterialsCatalogUpdateRequest(BaseModel):
@@ -19,6 +21,7 @@ class MaterialsCatalogUpdateRequest(BaseModel):
     category: str | None = Field(default=None, max_length=128)
     description: str | None = None
     is_active: bool | None = None
+    min_stock_level: Decimal | None = Field(default=None, ge=0)
 
 
 class MaterialsCatalogAutocompleteRead(BaseModel):
@@ -27,6 +30,7 @@ class MaterialsCatalogAutocompleteRead(BaseModel):
     name: str
     default_unit: str | None = None
     category: str | None = None
+    stock_quantity: Decimal | None = None
 
 
 class MaterialsCatalogRead(BaseModel):
@@ -37,6 +41,9 @@ class MaterialsCatalogRead(BaseModel):
     category: str | None = None
     description: str | None = None
     is_active: bool
+    min_stock_level: Decimal | None = None
+    stock_quantity: Decimal = Decimal("0")
+    is_below_min: bool = False
     created_at: datetime
     updated_at: datetime
 

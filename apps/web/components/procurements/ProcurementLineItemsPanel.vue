@@ -4,6 +4,8 @@ import type { ProcurementLineItemInput } from '~/types/procurement-line-item'
 
 const props = defineProps<{
   procurementId: string
+  procurementKind?: string
+  procurementStatus?: string
   estimatedValue?: string | number | null
   currency?: string
   referenceLabel?: string
@@ -22,8 +24,23 @@ const {
   deleteLineItem
 } = useProcurementLineItems()
 const { autocompleteItems, autocompleteLoading, searchActiveCatalog } = useMaterialsCatalog()
+const { saving: stockSaving, saveMovement } = useStockMovements()
 
 const editingLineId = ref('')
+const stockDialogVisible = ref(false)
+const selectedLineIds = ref<string[]>([])
+const stockInboundError = ref('')
+
+const canStockInbound = computed(
+  () =>
+    props.procurementKind === 'acceptance' &&
+    ['approved', 'completed'].includes(props.procurementStatus || '') &&
+    lineItems.value.length > 0
+)
+
+const inboundCandidates = computed(() =>
+  lineItems.value.filter((item) => item.catalog_item_id || item.item_code)
+)
 
 const lineForm = reactive<ProcurementLineItemInput>({
   line_number: undefined,
@@ -100,6 +117,42 @@ async function removeLineItem(id: string) {
   if (deleted && editingLineId.value === id) resetLineForm()
 }
 
+function openStockInboundDialog() {
+  selectedLineIds.value = inboundCandidates.value.map((item) => item.id)
+  stockInboundError.value = ''
+  stockDialogVisible.value = true
+}
+
+async function submitStockInbound() {
+  stockInboundError.value = ''
+  const today = new Date().toISOString().slice(0, 10)
+  const selected = lineItems.value.filter((item) => selectedLineIds.value.includes(item.id))
+  if (!selected.length) {
+    stockInboundError.value = 'Chọn ít nhất một dòng hàng.'
+    return
+  }
+  for (const line of selected) {
+    if (!line.catalog_item_id) {
+      stockInboundError.value = `Dòng "${line.item_name}" chưa liên kết catalog — chọn từ autocomplete trước khi nhập kho.`
+      return
+    }
+    const result = await saveMovement({
+      catalog_item_id: line.catalog_item_id,
+      movement_type: 'in',
+      quantity: String(line.quantity),
+      movement_date: today,
+      reference_number: props.referenceLabel || undefined,
+      procurement_id: props.procurementId,
+      notes: `Nhập kho từ hồ sơ mua sắm — ${line.item_name}`
+    })
+    if (!result) {
+      stockInboundError.value = 'Không tạo được phiếu nhập kho.'
+      return
+    }
+  }
+  stockDialogVisible.value = false
+}
+
 watch(
   () => props.procurementId,
   (procurementId) => {
@@ -121,6 +174,10 @@ watch(
       Tổng dòng hàng ({{ formatCurrency(linesTotalAmount) }}) lệch hơn 1% so với giá trị dự kiến
       ({{ formatCurrency(estimatedValue) }}).
     </Message>
+
+    <div v-if="canStockInbound" class="flex flex-wrap gap-2">
+      <Button label="Nhập kho từ hồ sơ" icon="pi pi-box" severity="secondary" @click="openStockInboundDialog" />
+    </div>
 
     <DataTable :value="lineItems" :loading="loading" data-key="id" responsive-layout="scroll" striped-rows size="small">
       <Column field="line_number" header="STT" style="width: 4rem" />
@@ -200,5 +257,28 @@ watch(
         />
       </div>
     </form>
+
+    <Dialog v-model:visible="stockDialogVisible" modal header="Nhập kho từ dòng hàng" :style="{ width: 'min(520px, 96vw)' }">
+      <p class="mb-3 text-sm text-slate-600">Chọn dòng hàng để tạo phiếu nhập kho (mỗi dòng một phiếu).</p>
+      <AppErrorState v-if="stockInboundError" :message="stockInboundError" />
+      <div class="space-y-2">
+        <label
+          v-for="line in inboundCandidates"
+          :key="line.id"
+          class="flex items-start gap-2 rounded border border-slate-200 p-2 text-sm"
+        >
+          <input v-model="selectedLineIds" type="checkbox" :value="line.id" class="mt-1 rounded border-slate-300" />
+          <span>
+            <span class="font-medium">{{ line.item_name }}</span>
+            <span class="text-slate-500"> — SL {{ line.quantity }} {{ line.unit || '' }}</span>
+            <span v-if="!line.catalog_item_id" class="block text-xs text-amber-700">Chưa liên kết danh mục vật tư</span>
+          </span>
+        </label>
+      </div>
+      <div class="mt-4 flex justify-end gap-2">
+        <Button label="Hủy" severity="secondary" :disabled="stockSaving" @click="stockDialogVisible = false" />
+        <Button label="Tạo phiếu nhập" icon="pi pi-save" :loading="stockSaving" @click="submitStockInbound" />
+      </div>
+    </Dialog>
   </div>
 </template>

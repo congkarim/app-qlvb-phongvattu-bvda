@@ -255,34 +255,32 @@ onMounted(async () => {
 </script>
 
 <template>
-  <section class="space-y-5">
-    <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-      <div>
-        <h1 class="text-2xl font-semibold">Đề xuất & kế hoạch mua sắm</h1>
-        <p class="mt-1 text-sm text-slate-600">Metadata đề xuất/kế hoạch mua sắm vật tư liên kết với văn bản nguồn.</p>
-      </div>
-      <div class="flex gap-2">
+  <AppPageContainer>
+    <AppPageHeader
+      title="Đề xuất & kế hoạch mua sắm"
+      description="Metadata đề xuất/kế hoạch mua sắm vật tư liên kết với văn bản nguồn."
+    >
+      <template #actions>
         <Button label="Refresh" icon="pi pi-refresh" severity="secondary" :loading="loading" @click="() => loadProcurements()" />
         <NuxtLink to="/upload">
           <Button label="Upload" icon="pi pi-upload" />
         </NuxtLink>
-      </div>
-    </div>
+      </template>
+    </AppPageHeader>
 
-    <Card>
-      <template #content>
-        <div class="grid gap-3 md:grid-cols-6">
+    <AppCard title="Bộ lọc">
+        <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           <InputText
             v-model="filters.q"
             class="md:col-span-2"
             placeholder="Tìm số tham chiếu, trích yếu, document"
             @keyup.enter="loadProcurements(true)"
           />
-          <select v-model="filters.procurement_kind" class="rounded border border-slate-300 px-3 py-2 text-sm">
+          <AppSelect v-model="filters.procurement_kind">
             <option v-for="option in kindOptions" :key="option.value" :value="option.value">
               {{ option.label }}
             </option>
-          </select>
+          </AppSelect>
           <InputText
             v-model="filters.requesting_unit"
             placeholder="Đơn vị đề xuất"
@@ -298,53 +296,50 @@ onMounted(async () => {
             placeholder="Mã vật tư"
             @keyup.enter="loadProcurements(true)"
           />
-          <select v-model="filters.status" class="rounded border border-slate-300 px-3 py-2 text-sm">
+          <AppSelect v-model="filters.status">
             <option v-for="option in statusOptions" :key="option.value" :value="option.value">
               {{ option.label }}
             </option>
-          </select>
-          <select v-model="filters.sort_by" class="rounded border border-slate-300 px-3 py-2 text-sm">
+          </AppSelect>
+          <AppSelect v-model="filters.sort_by">
             <option v-for="option in sortOptions" :key="option.value" :value="option.value">
               {{ option.label }}
             </option>
-          </select>
-        </div>
-        <div class="mt-3 flex flex-wrap gap-2">
-          <select v-model="filters.sort_dir" class="rounded border border-slate-300 px-3 py-2 text-sm">
+          </AppSelect>
+          <AppSelect v-model="filters.sort_dir">
             <option value="desc">Giảm dần</option>
             <option value="asc">Tăng dần</option>
-          </select>
+          </AppSelect>
+        </div>
+        <div class="mt-4 flex flex-wrap gap-2">
           <Button label="Lọc" icon="pi pi-filter" :loading="loading" @click="loadProcurements(true)" />
           <Button label="Xóa lọc" icon="pi pi-times" severity="secondary" :disabled="loading" @click="resetFilters" />
         </div>
-      </template>
-    </Card>
+    </AppCard>
 
-    <Card>
-      <template #title>{{ editingId ? 'Sửa metadata mua sắm' : 'Tạo metadata mua sắm' }}</template>
-      <template #content>
-        <form class="grid gap-3 md:grid-cols-4" @submit.prevent="submitForm">
+    <AppCard :title="editingId ? 'Sửa metadata mua sắm' : 'Tạo metadata mua sắm'">
+        <form class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4" @submit.prevent="submitForm">
           <InputText
             v-model="form.document_id"
             :disabled="Boolean(editingId)"
             required
             placeholder="Document ID"
           />
-          <select v-model="form.procurement_kind" class="rounded border border-slate-300 px-3 py-2 text-sm">
+          <AppSelect v-model="form.procurement_kind">
             <option v-for="option in editKindOptions" :key="option.value" :value="option.value">
               {{ option.label }}
             </option>
-          </select>
+          </AppSelect>
           <InputText v-model="form.reference_number" placeholder="Số tham chiếu (DX/KH/BB)" />
           <InputText v-model="form.requested_date" type="date" />
           <InputText v-model="form.requesting_unit" placeholder="Đơn vị đề xuất" />
           <InputText v-model="form.estimated_value" placeholder="Giá trị dự kiến" />
           <InputText v-model="form.currency" placeholder="Tiền tệ (VND)" />
-          <select v-model="form.status" class="rounded border border-slate-300 px-3 py-2 text-sm">
+          <AppSelect v-model="form.status">
             <option v-for="option in editStatusOptions" :key="option.value" :value="option.value">
               {{ option.label }}
             </option>
-          </select>
+          </AppSelect>
           <InputText v-model="form.title_summary" class="md:col-span-2" placeholder="Trích yếu / tên hồ sơ" />
           <InputText v-model="form.notes" class="md:col-span-2" placeholder="Ghi chú" />
           <div class="flex gap-2 md:col-span-4">
@@ -352,42 +347,25 @@ onMounted(async () => {
             <Button type="button" label="Hủy" icon="pi pi-times" severity="secondary" :disabled="saving" @click="resetForm" />
           </div>
         </form>
-      </template>
-    </Card>
+    </AppCard>
 
-    <Message v-if="error" severity="error">{{ error }}</Message>
+    <AppErrorState v-if="error" :message="error" />
     <Message v-if="filters.document_id" severity="info">
       Đang lọc theo văn bản nguồn: {{ filters.document_id }}
       <Button class="ml-2" label="Bỏ lọc" text size="small" @click="() => { filters.document_id = ''; void loadProcurements(true) }" />
     </Message>
 
-    <div class="flex flex-col gap-3 rounded border border-slate-200 bg-white px-4 py-3 md:flex-row md:items-center md:justify-between">
-      <p class="text-sm text-slate-600">
-        Hiển thị {{ currentStart }}-{{ currentEnd }} / {{ procurementsTotal }} hồ sơ mua sắm
-      </p>
-      <div class="flex gap-2">
-        <Button
-          label="Trước"
-          icon="pi pi-chevron-left"
-          severity="secondary"
-          size="small"
-          :disabled="loading || !canGoPrevious"
-          @click="goToPreviousPage"
-        />
-        <Button
-          label="Sau"
-          icon="pi pi-chevron-right"
-          icon-pos="right"
-          severity="secondary"
-          size="small"
-          :disabled="loading || !canGoNext"
-          @click="goToNextPage"
-        />
-      </div>
-    </div>
+    <AppToolbar
+      :summary="`Hiển thị ${currentStart}-${currentEnd} / ${procurementsTotal} hồ sơ mua sắm`"
+      :loading="loading"
+      :can-go-previous="canGoPrevious"
+      :can-go-next="canGoNext"
+      @previous="goToPreviousPage"
+      @next="goToNextPage"
+    />
 
-    <Card>
-      <template #content>
+    <AppCard no-padding>
+      <div class="app-table-wrap">
         <DataTable :value="procurements" :loading="loading" data-key="id" responsive-layout="scroll" striped-rows>
           <Column field="reference_number" header="Số tham chiếu">
             <template #body="{ data }">
@@ -452,11 +430,11 @@ onMounted(async () => {
             </template>
           </Column>
           <template #empty>
-            <div class="py-6 text-center text-sm text-slate-500">Chưa có metadata mua sắm.</div>
+            <AppEmptyState title="Chưa có metadata mua sắm" description="Tạo hồ sơ mua sắm liên kết với văn bản nguồn." />
           </template>
         </DataTable>
-      </template>
-    </Card>
+      </div>
+    </AppCard>
 
     <Dialog
       v-model:visible="lineItemsDialogVisible"
@@ -468,10 +446,12 @@ onMounted(async () => {
       <ProcurementLineItemsPanel
         v-if="lineItemsTarget"
         :procurement-id="lineItemsTarget.id"
+        :procurement-kind="lineItemsTarget.procurement_kind"
+        :procurement-status="lineItemsTarget.status"
         :estimated-value="lineItemsTarget.estimated_value"
         :currency="lineItemsTarget.currency"
         :reference-label="lineItemsReferenceLabel(lineItemsTarget)"
       />
     </Dialog>
-  </section>
+  </AppPageContainer>
 </template>

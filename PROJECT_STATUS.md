@@ -1,26 +1,24 @@
 # Trạng Thái Dự Án
 
-Cập nhật lần cuối: 2026-06-08
+Cập nhật lần cuối: 2026-06-10
 
 ## Giai Đoạn Hiện Tại
 
-**Phase 0–18 đã hoàn thành.** Phase 19+ chưa lập chi tiết.
+**Phase 0–19 đã hoàn thành.** Phase 20+ chưa lập chi tiết.
 
-**Phase 18 đã hoàn thành** (2026-06-08): dòng hàng mua sắm + danh mục vật tư MVP — `procurement_line_items`, `materials_catalog`, UI line items/autocomplete, filter list/search theo mặt hàng.
+**Phase 19 đã hoàn thành** (2026-06-10): inventory/tồn kho MVP — `stock_balances`, `stock_movements`, `min_stock_level`, API/UI phiếu nhập/xuất, widget tồn thấp dashboard, nhập kho từ procurement acceptance; UI polish Phases 2–6; smoke `smoke_inventory`.
 
-Hệ thống chạy on-prem bằng Docker Compose (`api`, `worker`, `web`, `postgres`, `redis`, `qdrant`; `ollama` optional profile `llm`). Workflow web end-to-end: upload → OCR/extract → searchable → semantic search → RAG Q&A (extractive hoặc generative local) → review chunk → audit. Module nghiệp vụ MVP: hợp đồng, công văn, quyết định, mua sắm — liên kết document detail; gợi ý liên kết document rule-based (Phase 16).
+Hệ thống chạy on-prem bằng Docker Compose (`api`, `worker`, `web`, `postgres`, `redis`, `qdrant`; `ollama` optional profile `llm`). Workflow web end-to-end: upload → OCR/extract → searchable → semantic search → RAG Q&A → review chunk → audit. Module nghiệp vụ: hợp đồng, công văn, quyết định, mua sắm, **tồn kho**.
 
-**Phase 18 đã hoàn thành** (2026-06-08): line items + catalog + frontend + filter search theo mặt hàng.
-
-Con trỏ thực thi: `TASK_NEXT.md` placeholder Phase 19+ (chưa mở).
+Con trỏ thực thi: `TASK_NEXT.md` — regression Phase 19; Phase 20+ chưa mở.
 
 ## Giới Hạn Còn Lại
 
 Giới hạn còn lại (đồng bộ `ROADMAP.md`):
-- Inventory/tồn kho, phiếu xuất/nhập, tồn tối thiểu: Phase 19+ (chưa lập kế hoạch).
-- Workflow phê duyệt nhiều bước, SLA, assignee: Phase 19+.
-- HA Ollama / scale horizontal LLM / tách LLM host production: Phase 19+ (ops).
-- Line items procurement: **đã hoàn thành Phase 18** — không kèm tồn kho hay workflow phê duyệt.
+- Workflow phê duyệt nhiều bước, SLA, assignee: Phase 20+.
+- HA Ollama / scale horizontal LLM / tách LLM host production: Phase 20+ (ops).
+- Multi-warehouse, đối soát tồn nâng cao: ngoài scope Phase 19.
+- Document detail App* polish đầy đủ: backlog nhẹ.
 
 ## Đã Xây Dựng
 

@@ -433,8 +433,11 @@ watch(
   { deep: true }
 )
 
+const { lowStockItems, lowStockTotal, fetchLowStock } = useStockMovements()
+
 onMounted(async () => {
   await fetchCatalogOptions()
+  void fetchLowStock(8)
   const presetQuery = applyRouteSearchPresets()
   if (isAdmin.value) {
     await submitReviewQueue()
@@ -447,17 +450,37 @@ onMounted(async () => {
 </script>
 
 <template>
-  <section class="space-y-6">
-    <div>
-      <h1 class="text-2xl font-semibold">Dashboard</h1>
-      <p class="mt-1 text-sm text-slate-600">Upload, OCR và semantic search skeleton.</p>
-    </div>
+  <AppPageContainer>
+    <AppPageHeader title="Dashboard" description="Semantic search, RAG Q&A và review queue." />
 
-    <Card v-if="isAdmin">
-      <template #title>
+    <AppCard v-if="lowStockTotal > 0">
+      <template #header>
+        <div class="flex items-center justify-between gap-3">
+          <h2 class="text-base font-semibold text-slate-900">Vật tư tồn thấp</h2>
+          <NuxtLink to="/materials-catalog?below_min=1" class="text-sm font-medium text-sky-700 hover:text-sky-800">
+            Xem tất cả ({{ lowStockTotal }})
+          </NuxtLink>
+        </div>
+      </template>
+      <ul class="divide-y divide-slate-100">
+        <li v-for="item in lowStockItems" :key="item.catalog_item_id" class="flex items-center justify-between gap-3 py-2 text-sm">
+          <div>
+            <p class="font-medium text-slate-900">{{ item.catalog_item_name }}</p>
+            <p v-if="item.catalog_item_code" class="text-xs text-slate-500">{{ item.catalog_item_code }}</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-slate-600">{{ item.quantity }} / min {{ item.min_stock_level }}</span>
+            <StockLevelBadge :quantity="item.quantity" :min-stock-level="item.min_stock_level" />
+          </div>
+        </li>
+      </ul>
+    </AppCard>
+
+    <AppCard v-if="isAdmin">
+      <template #header>
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <span>Review queue</span>
+            <span class="text-base font-semibold text-slate-900">Review queue</span>
             <p class="mt-1 text-xs font-normal text-slate-500">
               {{ reviewQueueTotal }} chunks cần review
               <span v-if="reviewQueueTotal"> · {{ reviewQueuePageStart }}-{{ reviewQueuePageEnd }}</span>
@@ -473,7 +496,6 @@ onMounted(async () => {
           />
         </div>
       </template>
-      <template #content>
         <form class="grid gap-3 md:grid-cols-5" @submit.prevent="submitReviewQueue({ resetOffset: true })">
           <select v-model="reviewQueueFilters.section_role" class="rounded border border-slate-300 px-3 py-2 text-sm">
             <option v-for="option in reviewQueueRoleOptions" :key="option.value" :value="option.value">
@@ -579,12 +601,9 @@ onMounted(async () => {
             <p class="mt-1 text-sm text-slate-700">{{ chunk.text }}</p>
           </article>
         </div>
-      </template>
-    </Card>
+    </AppCard>
 
-    <Card>
-      <template #title>Semantic search</template>
-      <template #content>
+    <AppCard title="Semantic search">
         <form class="space-y-3" @submit.prevent="submitSearch">
           <div class="flex gap-3">
             <InputText v-model="query" class="w-full" required placeholder="Tìm điều khoản, trách nhiệm, hợp đồng..." />
@@ -751,12 +770,9 @@ onMounted(async () => {
             </p>
           </article>
         </div>
-      </template>
-    </Card>
+    </AppCard>
 
-    <Card>
-      <template #title>Hỏi đáp (RAG)</template>
-      <template #content>
+    <AppCard title="Hỏi đáp (RAG)">
         <RagAnswerPanel
           v-model:question="ragQuestion"
           :answer="ragAnswer"
@@ -774,7 +790,6 @@ onMounted(async () => {
           @ask="submitRagAnswer"
           @clear="clearRagPanel"
         />
-      </template>
-    </Card>
-  </section>
+    </AppCard>
+  </AppPageContainer>
 </template>
