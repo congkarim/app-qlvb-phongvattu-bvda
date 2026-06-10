@@ -19,7 +19,7 @@ Các service chính có `deploy.resources.limits` đọc từ `.env`:
 | `qdrant` | 1 | 2G | Vector search |
 | `api` | 1 | 2G | FastAPI + upload |
 | `worker` | 2 | 4G | OCR/extract nặng nhất |
-| `web` | 0.5 | 512M | Nuxt frontend |
+| `web` | 0.5 | 1536M | Nuxt frontend (`nuxt dev` cần heap ~1G; build SSR dùng `WEB_MEMORY_LIMIT=4g` one-off) |
 | `ollama` | 2 | 6G | Local LLM (profile `llm`, optional) |
 
 Biến môi trường tương ứng:
@@ -36,7 +36,8 @@ API_MEMORY_LIMIT=2G
 WORKER_CPU_LIMIT=2
 WORKER_MEMORY_LIMIT=4G
 WEB_CPU_LIMIT=0.5
-WEB_MEMORY_LIMIT=512M
+WEB_MEMORY_LIMIT=1536M
+WEB_NODE_OPTIONS=--max-old-space-size=1024
 OLLAMA_CPU_LIMIT=2
 OLLAMA_MEMORY_LIMIT=6G
 ```

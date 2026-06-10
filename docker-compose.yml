@@ -200,6 +200,8 @@ services:
       NUXT_PUBLIC_UPLOAD_MAX_FILE_SIZE_MB: ${NUXT_PUBLIC_UPLOAD_MAX_FILE_SIZE_MB:-50}
       NUXT_PUBLIC_UPLOAD_MAX_FILES: ${NUXT_PUBLIC_UPLOAD_MAX_FILES:-20}
       NUXT_PUBLIC_UPLOAD_MAX_ZIP_SIZE_MB: ${NUXT_PUBLIC_UPLOAD_MAX_ZIP_SIZE_MB:-200}
+      # nuxt dev SSR cần heap lớn hơn mặc định (~256MB); tránh OOM khi codebase tăng.
+      NODE_OPTIONS: ${WEB_NODE_OPTIONS:---max-old-space-size=1024}
     ports:
       - "3000:3000"
     volumes:
@@ -215,7 +217,7 @@ services:
       resources:
         limits:
           cpus: "${WEB_CPU_LIMIT:-0.5}"
-          memory: "${WEB_MEMORY_LIMIT:-512M}"
+          memory: "${WEB_MEMORY_LIMIT:-1536M}"
 
   ollama:
     image: ollama/ollama:latest
